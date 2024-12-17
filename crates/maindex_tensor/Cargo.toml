@@ -16,3 +16,6 @@ maidenx_core = { path = "../maindex_core", version = "0.1.0-dev" }
 maidenx_cpu = { path = "../maindex_cpu", version = "0.1.0-dev" }
 maidenx_cuda = { path = "../maindex_cuda", version = "0.1.0-dev", optional = true }
 maidenx_device = { path = "../maindex_device", version = "0.1.0-dev" }
+
+rand = { version = "0.8.5" }
+rand_distr = { version = "0.4.3" }

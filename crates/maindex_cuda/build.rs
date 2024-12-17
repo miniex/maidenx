@@ -47,7 +47,7 @@ fn main() {
     println!("cargo:rerun-if-changed=cuda/CMakeLists.txt");
 
     let cuda_path = find_cuda_path();
-    let clangd_path = PathBuf::from("cuda/.clangd");
+    // let clangd_path = PathBuf::from("cuda/.clangd");
 
     let dst = cmake::Config::new("cuda")
         .define("CMAKE_BUILD_TYPE", "Release")
@@ -63,6 +63,11 @@ fn main() {
 
     // CUDA modules linking - key changes here
     println!("cargo:rustc-link-arg=-Wl,--whole-archive");
+    #[cfg(feature = "nn")]
+    {
+        println!("cargo:rustc-link-lib=static=nn_linear_layers");
+        println!("cargo:rustc-link-lib=static=nn_non_linear_activations");
+    }
     println!("cargo:rustc-link-lib=static=tensor_basic_ops");
     println!("cargo:rustc-link-lib=static=tensor_scalar_ops");
     println!("cargo:rustc-link-lib=static=tensor_shape_ops");

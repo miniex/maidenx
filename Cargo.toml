@@ -16,7 +16,37 @@ keywords = ["gpu", "maiden"]
 categories = ["science", "development-tools"]
 
 [features]
+default = ["nn"]
 cuda = ["maidenx_internal/cuda"]
+nn = ["maidenx_internal/nn"]
 
 [dependencies]
 maidenx_internal = { path = "crates/maindex_internal", version = "0.1.0-dev" }
+
+[[example]]
+name = "device-cpu"
+path = "examples/device/cpu.rs"
+features = ["nn"]
+
+[[example]]
+name = "device-cuda"
+path = "examples/device/cuda.rs"
+features = ["nn", "cuda"]
+
+[[example]]
+name = "device-guard"
+path = "examples/device/guard.rs"
+
+[[example]]
+name = "nn-bilinear"
+path = "examples/nn/bilinear.rs"
+features = ["nn"]
+
+[[example]]
+name = "nn-linear"
+path = "examples/nn/linear.rs"
+features = ["nn"]
+
+[[example]]
+name = "ops-basic_mat_mul"
+path = "examples/ops/basic_mat_mul.rs"

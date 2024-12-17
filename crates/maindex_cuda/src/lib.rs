@@ -4,7 +4,11 @@
 
 pub mod buffer;
 pub mod error;
-pub mod ops;
+#[cfg(feature = "nn")]
+pub mod nn_activations;
+#[cfg(feature = "nn")]
+pub mod nn_layers;
+pub mod tensor_ops;
 
 use error::{CudaError, CudaResult};
 use std::ffi::c_void;
@@ -57,6 +61,9 @@ pub struct DeviceProperties {
 
 // Stream type with Drop implementation
 pub struct CudaStream(cudaStream_t);
+
+unsafe impl Send for CudaStream {}
+unsafe impl Sync for CudaStream {}
 
 impl CudaStream {
     /// Creates a new CUDA stream

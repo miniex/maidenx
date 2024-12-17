@@ -8,11 +8,11 @@ use crate::{
     tape::TENSOR_TAPE,
     Tensor,
 };
-use maidenx_cpu::ops::tensor_scalar::{
+use maidenx_cpu::tensor_ops::tensor_scalar::{
     cpu_tensor_scalar_add, cpu_tensor_scalar_div, cpu_tensor_scalar_mul, cpu_tensor_scalar_sub,
 };
 #[cfg(feature = "cuda")]
-use maidenx_cuda::ops::tensor_scalar::{
+use maidenx_cuda::tensor_ops::tensor_scalar::{
     cuda_tensor_scalar_add, cuda_tensor_scalar_div, cuda_tensor_scalar_mul, cuda_tensor_scalar_sub,
 };
 use maidenx_device::Device;

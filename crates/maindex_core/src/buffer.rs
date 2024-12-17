@@ -3,13 +3,13 @@ use maidenx_cpu::buffer::CpuBuffer;
 #[cfg(feature = "cuda")]
 use maidenx_cuda::buffer::CudaBuffer;
 use maidenx_device::Device;
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 
 #[derive(Debug, Clone)]
 pub enum Buffer {
-    Cpu(Arc<CpuBuffer>),
+    Cpu(Arc<RwLock<CpuBuffer>>),
     #[cfg(feature = "cuda")]
-    Cuda(Arc<CudaBuffer>),
+    Cuda(Arc<RwLock<CudaBuffer>>),
 }
 
 impl Buffer {
@@ -17,12 +17,12 @@ impl Buffer {
         match device {
             Device::Cpu => {
                 let buffer = CpuBuffer::new(size)?;
-                Ok(Buffer::Cpu(Arc::new(buffer)))
+                Ok(Buffer::Cpu(Arc::new(RwLock::new(buffer))))
             }
             #[cfg(feature = "cuda")]
             Device::Cuda(device_index) => {
                 let buffer = CudaBuffer::new(size, *device_index)?;
-                Ok(Buffer::Cuda(Arc::new(buffer)))
+                Ok(Buffer::Cuda(Arc::new(RwLock::new(buffer))))
             }
         }
     }
@@ -30,52 +30,50 @@ impl Buffer {
     #[inline]
     pub fn size(&self) -> usize {
         match self {
-            Buffer::Cpu(buffer) => buffer.size(),
+            Buffer::Cpu(buffer) => buffer.read().unwrap().size(),
             #[cfg(feature = "cuda")]
-            Buffer::Cuda(buffer) => buffer.size(),
+            Buffer::Cuda(buffer) => buffer.read().unwrap().size(),
         }
     }
 
     #[inline]
     pub fn device_index(&self) -> usize {
         match self {
-            Buffer::Cpu(buffer) => buffer.device_index(),
+            Buffer::Cpu(buffer) => buffer.read().unwrap().device_index(),
             #[cfg(feature = "cuda")]
-            Buffer::Cuda(buffer) => buffer.device_index(),
+            Buffer::Cuda(buffer) => buffer.read().unwrap().device_index(),
         }
     }
 
     #[inline]
     pub fn as_ptr(&self) -> *const f32 {
         match self {
-            Buffer::Cpu(buffer) => buffer.as_ptr(),
+            Buffer::Cpu(buffer) => buffer.read().unwrap().as_ptr(),
             #[cfg(feature = "cuda")]
-            Buffer::Cuda(buffer) => buffer.as_ptr(),
+            Buffer::Cuda(buffer) => buffer.read().unwrap().as_ptr(),
         }
     }
 
     #[inline]
-    pub fn as_mut_ptr(&mut self) -> *mut f32 {
+    pub fn as_mut_ptr(&self) -> *mut f32 {
         match self {
-            Buffer::Cpu(buffer) => Arc::get_mut(buffer)
-                .expect("Failed to get mutable reference to CPU buffer")
-                .as_mut_ptr(),
+            Buffer::Cpu(buffer) => buffer.write().unwrap().as_mut_ptr(),
             #[cfg(feature = "cuda")]
-            Buffer::Cuda(buffer) => Arc::get_mut(buffer)
-                .expect("Failed to get mutable reference to CUDA buffer")
-                .as_mut_ptr(),
+            Buffer::Cuda(buffer) => buffer.write().unwrap().as_mut_ptr(),
         }
     }
 
-    pub fn copy_from_host(&mut self, src: &[f32]) -> CoreResult<()> {
+    pub fn copy_from_host(&self, src: &[f32]) -> CoreResult<()> {
         match self {
-            Buffer::Cpu(buffer) => Arc::get_mut(buffer)
-                .expect("Failed to get mutable reference to CPU buffer")
+            Buffer::Cpu(buffer) => buffer
+                .write()
+                .unwrap()
                 .copy_from_host(src)
                 .map_err(Into::into),
             #[cfg(feature = "cuda")]
-            Buffer::Cuda(buffer) => Arc::get_mut(buffer)
-                .expect("Failed to get mutable reference to CUDA buffer")
+            Buffer::Cuda(buffer) => buffer
+                .write()
+                .unwrap()
                 .copy_from_host(src)
                 .map_err(Into::into),
         }
@@ -83,9 +81,10 @@ impl Buffer {
 
     pub fn copy_to_host(&self, dst: &mut [f32]) -> CoreResult<()> {
         match self {
-            Buffer::Cpu(buffer) => buffer.copy_to_host(dst).map_err(Into::into),
+            Buffer::Cpu(buffer) => buffer.read().unwrap().copy_to_host(dst).map_err(Into::into),
             #[cfg(feature = "cuda")]
-            Buffer::Cuda(buffer) => buffer.copy_to_host(dst).map_err(Into::into),
+            Buffer::Cuda(buffer) => buffer.read().unwrap().copy_to_host(dst).map_err(Into::into),
         }
     }
 }
+

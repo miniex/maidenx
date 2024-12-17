@@ -1,9 +1,9 @@
 mod adapter;
 mod creation;
 pub mod error;
-mod gradient;
+pub mod gradient;
 mod ops;
-mod tape;
+pub mod tape;
 pub mod utils;
 
 use adapter::TensorAdapter;
@@ -41,7 +41,7 @@ impl Tensor {
         let data = data.to_flat_vec();
         let strides = Self::compute_strides(&shape);
 
-        let mut buffer = Buffer::new(data.len(), device)?;
+        let buffer = Buffer::new(data.len(), device)?;
         buffer.copy_from_host(&data)?;
 
         Ok(Self {
@@ -79,7 +79,7 @@ impl Tensor {
             });
         }
 
-        let mut buffer = Buffer::new(data.len(), device)?;
+        let buffer = Buffer::new(data.len(), device)?;
         buffer.copy_from_host(&data)?;
 
         Ok(Self {
@@ -92,6 +92,9 @@ impl Tensor {
         })
     }
 
+    pub fn is_requires_grad(&self) -> bool {
+        self.requires_grad
+    }
     pub fn with_grad(&mut self) {
         self.requires_grad = true;
         self.node = Some(Arc::new(Mutex::new(Node {
@@ -139,6 +142,10 @@ impl Tensor {
     }
     pub fn strides(&self) -> &[usize] {
         &self.strides
+    }
+
+    pub fn device(&self) -> &Device {
+        &self.device
     }
 }
 

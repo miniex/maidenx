@@ -41,6 +41,8 @@ function(add_cuda_module MODULE_PATH)
 endfunction()
 
 # Add CUDA modules
+add_cuda_module(${CMAKE_CURRENT_SOURCE_DIR}/kernels/nn_linear_layers)
+add_cuda_module(${CMAKE_CURRENT_SOURCE_DIR}/kernels/nn_non_linear_activations)
 add_cuda_module(${CMAKE_CURRENT_SOURCE_DIR}/kernels/tensor_basic_ops)
 add_cuda_module(${CMAKE_CURRENT_SOURCE_DIR}/kernels/tensor_scalar_ops)
 add_cuda_module(${CMAKE_CURRENT_SOURCE_DIR}/kernels/tensor_shape_ops)

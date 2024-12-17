@@ -21,7 +21,10 @@ impl Tensor {
             let mut visited = HashSet::new();
             let mut stack = vec![];
 
-            grads.insert(Arc::as_ptr(node), Tensor::ones(&self.shape)?);
+            grads.insert(
+                Arc::as_ptr(node),
+                Tensor::ones_with_device(&self.shape, &self.device)?,
+            );
             stack.push(Arc::clone(node));
 
             while let Some(current) = stack.pop() {
@@ -71,6 +74,7 @@ impl Tensor {
         }
     }
 
+    // get
     pub fn grad(&self) -> TensorResult<Option<Tensor>> {
         if !self.requires_grad {
             return Err(TensorError::GradientError {
@@ -84,5 +88,16 @@ impl Tensor {
         } else {
             Ok(None)
         }
+    }
+    pub fn node(&self) -> Option<Arc<Mutex<Node>>> {
+        self.node.clone()
+    }
+
+    // set
+    pub fn set_requires_grad(&mut self, requires_grad: bool) {
+        self.requires_grad = requires_grad;
+    }
+    pub fn set_node(&mut self, node: Option<Arc<Mutex<Node>>>) {
+        self.node = node;
     }
 }

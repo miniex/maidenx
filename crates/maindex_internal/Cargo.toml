@@ -13,12 +13,15 @@ cuda = [
     "dep:maidenx_cuda",
     "maidenx_core/cuda",
     "maidenx_device/cuda",
+    "maidenx_nn?/cuda",
     "maidenx_tensor/cuda",
 ]
+nn = ["dep:maidenx_nn", "maidenx_cpu/nn", "maidenx_cuda?/nn"]
 
 [dependencies]
 maidenx_core = { path = "../maindex_core", version = "0.1.0-dev" }
 maidenx_cpu = { path = "../maindex_cpu", version = "0.1.0-dev" }
 maidenx_cuda = { path = "../maindex_cuda", version = "0.1.0-dev", optional = true }
 maidenx_device = { path = "../maindex_device", version = "0.1.0-dev" }
+maidenx_nn = { path = "../maindex_nn", version = "0.1.0-dev", optional = true }
 maidenx_tensor = { path = "../maindex_tensor", version = "0.1.0-dev" }

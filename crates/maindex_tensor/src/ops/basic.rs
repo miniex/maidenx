@@ -7,11 +7,11 @@ use crate::{
     utils::validate::{assert_device_match, assert_mat_mul_shape_match, assert_shape_match},
     Tensor,
 };
-use maidenx_cpu::ops::tensor_basic::{
+use maidenx_cpu::tensor_ops::tensor_basic::{
     cpu_tensor_add, cpu_tensor_div, cpu_tensor_mat_mul, cpu_tensor_mul, cpu_tensor_sub,
 };
 #[cfg(feature = "cuda")]
-use maidenx_cuda::ops::tensor_basic::{
+use maidenx_cuda::tensor_ops::tensor_basic::{
     cuda_tensor_add, cuda_tensor_div, cuda_tensor_mat_mul, cuda_tensor_mul, cuda_tensor_sub,
 };
 use maidenx_device::Device;
@@ -782,11 +782,6 @@ mod tests {
         let c_grad = c.grad()?.unwrap().to_vec()?;
         let d_grad = d.grad()?.unwrap().to_vec()?;
 
-        println!("a_grad: {:?}", a_grad);
-        println!("b_grad: {:?}", b_grad);
-        println!("c_grad: {:?}", c_grad);
-        println!("d_grad: {:?}", d_grad);
-
         // result = (((a + b) * c) - d) / 2
         // ∂L/∂a = (1 * c) / 2
         // ∂L/∂b = (1 * c) / 2
@@ -867,6 +862,29 @@ mod tests {
         // [1*5 + 2*7, 1*6 + 2*8] = [19, 22]
         // [3*5 + 4*7, 3*6 + 4*8] = [43, 50]
         assert_eq!(c.to_vec()?, vec![19.0, 22.0, 43.0, 50.0]);
+        Ok(())
+    }
+
+    #[test]
+    #[cfg(feature = "cuda")]
+    fn test_cuda_mat_mul_backward() -> TensorResult<()> {
+        let device = Device::cuda(0);
+
+        let mut a = Tensor::from_device(vec![vec![1.0, 2.0], vec![3.0, 4.0]], &device)?;
+        let mut b = Tensor::from_device(vec![vec![5.0, 6.0], vec![7.0, 8.0]], &device)?;
+
+        a.with_grad();
+        b.with_grad();
+
+        let c = a.mat_mul(&b)?;
+        c.backward()?;
+
+        let a_grad = a.grad()?.unwrap().to_vec()?;
+        let b_grad = b.grad()?.unwrap().to_vec()?;
+
+        assert_eq!(a_grad, vec![11.0, 15.0, 11.0, 15.0]);
+        assert_eq!(b_grad, vec![4.0, 4.0, 6.0, 6.0]);
+
         Ok(())
     }
 }

@@ -6,7 +6,6 @@ use maidenx_device::error::DeviceError;
 
 #[derive(Debug)]
 pub enum TensorError {
-    // Shape related errors
     ShapeMismatch {
         expected: Vec<usize>,
         got: Vec<usize>,
@@ -83,6 +82,8 @@ impl std::fmt::Display for TensorError {
         }
     }
 }
+
+impl std::error::Error for TensorError {}
 
 impl From<CoreError> for TensorError {
     fn from(err: CoreError) -> Self {
