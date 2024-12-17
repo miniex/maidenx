@@ -1,0 +1,17 @@
+[package]
+name = "maidenx_macro_utils"
+version = "0.1.0-dev"
+description = "MaidenX Macro Utils"
+license = "MIT OR Apache-2.0"
+authors = ["Han Damin <miniex@daminstudio.net>"]
+edition = "2021"
+publish = true
+repository = "https://github.com/miniex/maidenx"
+
+[dependencies]
+toml_edit = { version = "0.22.7", default-features = false, features = [
+    "parse",
+] }
+syn = "2.0"
+quote = "1.0"
+proc-macro2 = "1.0"

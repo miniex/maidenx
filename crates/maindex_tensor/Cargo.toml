@@ -1,0 +1,18 @@
+[package]
+name = "maidenx_tensor"
+version = "0.1.0-dev"
+description = "MaidenX Tensor"
+license = "MIT OR Apache-2.0"
+authors = ["Han Damin <miniex@daminstudio.net>"]
+edition = "2021"
+publish = true
+repository = "https://github.com/miniex/maidenx"
+
+[features]
+cuda = ["dep:maidenx_cuda", "maidenx_core/cuda", "maidenx_device/cuda"]
+
+[dependencies]
+maidenx_core = { path = "../maindex_core", version = "0.1.0-dev" }
+maidenx_cpu = { path = "../maindex_cpu", version = "0.1.0-dev" }
+maidenx_cuda = { path = "../maindex_cuda", version = "0.1.0-dev", optional = true }
+maidenx_device = { path = "../maindex_device", version = "0.1.0-dev" }

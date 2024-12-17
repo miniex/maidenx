@@ -1,0 +1,14 @@
+[package]
+name = "maidenx_cpu"
+version = "0.1.0-dev"
+description = "MaidenX CPU Backend"
+license = "MIT OR Apache-2.0"
+authors = ["Han Damin <miniex@daminstudio.net>"]
+edition = "2021"
+publish = true
+repository = "https://github.com/miniex/maidenx"
+
+[features]
+
+[dependencies]
+libc = "0.2"

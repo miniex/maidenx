@@ -1,0 +1,16 @@
+[package]
+name = "maidenx_device"
+version = "0.1.0-dev"
+description = "MaidenX Device"
+license = "MIT OR Apache-2.0"
+authors = ["Han Damin <miniex@daminstudio.net>"]
+edition = "2021"
+publish = true
+repository = "https://github.com/miniex/maidenx"
+
+[features]
+cuda = ["dep:maidenx_cuda"]
+
+[dependencies]
+maidenx_cpu = { path = "../maindex_cpu", version = "0.1.0-dev" }
+maidenx_cuda = { path = "../maindex_cuda", version = "0.1.0-dev", optional = true }

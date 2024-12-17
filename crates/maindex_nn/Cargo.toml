@@ -1,0 +1,17 @@
+[package]
+name = "maidenx_nn"
+version = "0.1.0-dev"
+description = "MaidenX nn"
+license = "MIT OR Apache-2.0"
+authors = ["Han Damin <miniex@daminstudio.net>"]
+edition = "2021"
+publish = true
+repository = "https://github.com/miniex/maidenx"
+
+[features]
+cuda = ["maidenx_tensor/cuda"]
+
+[dependencies]
+maidenx_nn_macros = { path = "macros", version = "0.1.0-dev" }
+
+maidenx_tensor = { path = "../maindex_tensor", version = "0.1.0-dev" }

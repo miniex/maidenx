@@ -1,0 +1,19 @@
+[package]
+name = "maidenx_nn_macros"
+version = "0.1.0-dev"
+description = "MaidenX nn macros"
+license = "MIT OR Apache-2.0"
+authors = ["Han Damin <miniex@daminstudio.net>"]
+edition = "2021"
+publish = true
+repository = "https://github.com/miniex/maidenx"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+maidenx_macro_utils = { path = "../../maindex_macro_utils", version = "0.1.0-dev" }
+
+syn = { version = "2.0", features = ["full"] }
+quote = "1.0"
+proc-macro2 = "1.0"
