@@ -19,17 +19,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 fn train_linear_regression(device: Device) -> Result<(), Box<dyn std::error::Error>> {
     let mut input =
         Tensor::from_vec_with_device(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0], &[2, 3], &device)?;
-    let mut target = Tensor::from_vec_with_device(vec![10.0, 20.0], &[2, 1], &device)?;
+    let target = Tensor::from_vec_with_device(vec![10.0, 20.0], &[2, 1], &device)?;
 
     input.with_grad();
-    target.with_grad();
 
     let linear = Linear::new_with_device(3, 1, None, true, device)?;
 
     let mse_loss = MSELoss::new();
     let mut optimizer = SGD::new(0.01);
 
-    let epochs = 100;
+    let epochs = 25;
     for epoch in 0..epochs {
         let start_time = Instant::now();
 

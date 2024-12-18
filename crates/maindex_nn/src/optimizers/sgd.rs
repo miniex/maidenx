@@ -14,8 +14,7 @@ impl SGD {
     pub fn step(&mut self, parameters: &mut [Tensor]) -> NnResult<()> {
         for param in parameters.iter_mut() {
             if let Some(grad) = param.grad()? {
-                let updated = param.sub(&grad.scalar_mul(self.learning_rate)?)?;
-                *param = updated;
+                param.sub_(&grad.scalar_mul(self.learning_rate)?)?;
             }
         }
         Ok(())

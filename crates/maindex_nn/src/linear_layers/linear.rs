@@ -167,7 +167,17 @@ impl Linear {
                         grads
                     }
                 })),
-                inputs: vec![input.node().map(|n| Arc::downgrade(&n)).unwrap_or_default()],
+                inputs: vec![
+                    input.node().map(|n| Arc::downgrade(&n)).unwrap_or_default(),
+                    self.weight
+                        .node()
+                        .map(|n| Arc::downgrade(&n))
+                        .unwrap_or_default(),
+                    self.bias
+                        .as_ref()
+                        .and_then(|b| b.node().map(|n| Arc::downgrade(&n)))
+                        .unwrap_or_default(),
+                ],
                 grad: None,
             })))
         } else {
