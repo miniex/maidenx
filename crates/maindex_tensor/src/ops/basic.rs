@@ -7,11 +7,11 @@ use crate::{
     utils::validate::{assert_device_match, assert_mat_mul_shape_match, assert_shape_match},
     Tensor,
 };
-use maidenx_cpu::tensor_ops::tensor_basic::{
+use maidenx_cpu::tensor_ops::basic::{
     cpu_tensor_add, cpu_tensor_div, cpu_tensor_mat_mul, cpu_tensor_mul, cpu_tensor_sub,
 };
 #[cfg(feature = "cuda")]
-use maidenx_cuda::tensor_ops::tensor_basic::{
+use maidenx_cuda::tensor_ops::basic::{
     cuda_tensor_add, cuda_tensor_div, cuda_tensor_mat_mul, cuda_tensor_mul, cuda_tensor_sub,
 };
 use maidenx_device::Device;

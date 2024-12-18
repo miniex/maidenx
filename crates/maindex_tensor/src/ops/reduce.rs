@@ -1,7 +1,7 @@
 use crate::{error::TensorResult, gradient::Node, tape::TENSOR_TAPE, Tensor};
-use maidenx_cpu::tensor_ops::tensor_reduce::{cpu_tensor_mean, cpu_tensor_sum};
+use maidenx_cpu::tensor_ops::reduce::{cpu_tensor_mean, cpu_tensor_sum};
 #[cfg(feature = "cuda")]
-use maidenx_cuda::tensor_ops::tensor_reduce::{cuda_tensor_mean, cuda_tensor_sum};
+use maidenx_cuda::tensor_ops::reduce::{cuda_tensor_mean, cuda_tensor_sum};
 use maidenx_device::Device;
 use std::sync::{Arc, Mutex};
 

@@ -8,9 +8,9 @@ use crate::{
     tape::TENSOR_TAPE,
     Tensor,
 };
-use maidenx_cpu::tensor_ops::tensor_shape::{cpu_tensor_transpose_2d, cpu_tensor_transpose_dim};
+use maidenx_cpu::tensor_ops::shape::{cpu_tensor_transpose_2d, cpu_tensor_transpose_dim};
 #[cfg(feature = "cuda")]
-use maidenx_cuda::tensor_ops::tensor_shape::{cuda_tensor_transpose_2d, cuda_tensor_transpose_dim};
+use maidenx_cuda::tensor_ops::shape::{cuda_tensor_transpose_2d, cuda_tensor_transpose_dim};
 use maidenx_device::Device;
 
 impl Tensor {
