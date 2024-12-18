@@ -69,6 +69,7 @@ fn main() {
         println!("cargo:rustc-link-lib=static=nn_non_linear_activations");
     }
     println!("cargo:rustc-link-lib=static=tensor_basic_ops");
+    println!("cargo:rustc-link-lib=static=tensor_reduce_ops");
     println!("cargo:rustc-link-lib=static=tensor_scalar_ops");
     println!("cargo:rustc-link-lib=static=tensor_shape_ops");
     println!("cargo:rustc-link-arg=-Wl,--no-whole-archive");
