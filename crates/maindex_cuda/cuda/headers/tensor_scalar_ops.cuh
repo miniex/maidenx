@@ -15,6 +15,9 @@ void tensor_scalar_mul(float *output, const float *input, float scalar,
 void tensor_scalar_div(float *output, const float *input, float scalar,
                        size_t size, cudaStream_t stream = 0);
 
+void tensor_pow(float *output, const float *input, float exponent, size_t size,
+                cudaStream_t stream = 0);
+
 #ifdef __cplusplus
 }
 #endif

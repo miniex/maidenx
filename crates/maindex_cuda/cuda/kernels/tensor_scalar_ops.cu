@@ -49,6 +49,15 @@ __global__ void tensor_scalar_div_kernel(float *output, const float *input,
   }
 }
 
+// Tensor pow kernel
+__global__ void tensor_pow_kernel(float *output, const float *input,
+                                  float exponent, size_t size) {
+  size_t idx = blockIdx.x * blockDim.x + threadIdx.x;
+  if (idx < size) {
+    output[idx] = powf(input[idx], exponent);
+  }
+}
+
 // Tensor-scalar operations with CUDA streams
 extern "C" {
 void tensor_scalar_add(float *output, const float *input, float scalar,
@@ -81,5 +90,13 @@ void tensor_scalar_div(float *output, const float *input, float scalar,
   int num_blocks = (size + BLOCK_SIZE - 1) / BLOCK_SIZE;
   tensor_scalar_div_kernel<<<num_blocks, BLOCK_SIZE, 0, stream>>>(output, input,
                                                                   scalar, size);
+}
+
+void tensor_pow(float *output, const float *input, float exponent, size_t size,
+                cudaStream_t stream) {
+  constexpr int BLOCK_SIZE = 256;
+  int num_blocks = (size + BLOCK_SIZE - 1) / BLOCK_SIZE;
+  tensor_pow_kernel<<<num_blocks, BLOCK_SIZE, 0, stream>>>(output, input,
+                                                           exponent, size);
 }
 }

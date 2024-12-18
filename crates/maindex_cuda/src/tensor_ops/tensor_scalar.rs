@@ -31,6 +31,13 @@ extern "C" {
         size: usize,
         stream: *mut c_void,
     );
+    fn tensor_pow(
+        output: *mut f32,
+        input: *const f32,
+        exponent: f32,
+        size: usize,
+        stream: *mut c_void,
+    );
 }
 
 /// Adds a scalar to each element of a tensor on the CUDA device.
@@ -103,6 +110,24 @@ pub unsafe fn cuda_tensor_scalar_div(
 ) -> CudaResult<()> {
     let stream_handle = stream.map_or(std::ptr::null_mut(), |s| s.as_raw());
     tensor_scalar_div(output, input, scalar, size, stream_handle);
+    Ok(())
+}
+
+/// Pows each element of a tensor by a exponent on the CUDA device.
+///
+/// # Safety
+///
+/// This function is unsafe because it requires valid CUDA device pointers for `output` and `input`,
+/// properly sized and aligned buffers, and a valid CUDA stream if provided.
+pub unsafe fn cuda_tensor_pow(
+    output: *mut f32,
+    input: *const f32,
+    exponent: f32,
+    size: usize,
+    stream: Option<&CudaStream>,
+) -> CudaResult<()> {
+    let stream_handle = stream.map_or(std::ptr::null_mut(), |s| s.as_raw());
+    tensor_pow(output, input, exponent, size, stream_handle);
     Ok(())
 }
 
@@ -260,6 +285,45 @@ mod tests {
                 "Mismatch at position {}: expected {}, got {}",
                 i,
                 3.0,
+                val
+            );
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_cuda_pow_with_stream() -> CudaResult<()> {
+        let size = 1024;
+        let mut output_buf = CudaBuffer::new(size, 0)?;
+        let mut input_buf = CudaBuffer::new(size, 0)?;
+
+        let input_data: Vec<f32> = vec![3.0; size];
+        let exponent = 2.0;
+
+        input_buf.copy_from_host(&input_data)?;
+
+        let stream = CudaStream::new()?;
+
+        unsafe {
+            cuda_tensor_pow(
+                output_buf.as_mut_ptr(),
+                input_buf.as_ptr(),
+                exponent,
+                size,
+                Some(&stream),
+            )?;
+        }
+
+        let mut output_data = vec![0.0f32; size];
+        output_buf.copy_to_host(&mut output_data)?;
+
+        for (i, &val) in output_data.iter().enumerate() {
+            assert!(
+                (val - 9.0).abs() < 1e-5,
+                "Mismatch at position {}: expected {}, got {}",
+                i,
+                9.0,
                 val
             );
         }

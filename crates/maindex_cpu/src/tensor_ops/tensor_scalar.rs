@@ -81,6 +81,26 @@ pub unsafe fn cpu_tensor_scalar_div(
     Ok(())
 }
 
+/// Performs element-wise pow of a tensor and a scalar on CPU.
+///
+/// # Safety
+///
+/// * `output`, `input` must be valid pointers to CPU memory
+/// * Both buffers must have size >= `size`
+/// * All pointers must be properly aligned for f32
+/// * Memory regions must not overlap
+pub unsafe fn cpu_tensor_pow(
+    output: *mut f32,
+    input: *const f32,
+    exponent: f32,
+    size: usize,
+) -> CpuResult<()> {
+    for i in 0..size {
+        *output.add(i) = (*input.add(i)).powf(exponent);
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -181,6 +201,31 @@ mod tests {
 
         for val in output_data {
             assert!((val - 3.0).abs() < 1e-5);
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_cpu_pow() -> CpuResult<()> {
+        let size = 1024;
+        let mut output_buf = CpuBuffer::new(size)?;
+        let mut input_buf = CpuBuffer::new(size)?;
+
+        let input_data: Vec<f32> = vec![6.0; size];
+        let exponent = 2.0;
+
+        input_buf.copy_from_host(&input_data)?;
+
+        unsafe {
+            cpu_tensor_pow(output_buf.as_mut_ptr(), input_buf.as_ptr(), exponent, size)?;
+        }
+
+        let mut output_data = vec![0.0f32; size];
+        output_buf.copy_to_host(&mut output_data)?;
+
+        for val in output_data {
+            assert!((val - 36.0).abs() < 1e-5);
         }
 
         Ok(())
