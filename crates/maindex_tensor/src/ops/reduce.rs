@@ -7,9 +7,10 @@ use crate::{
     Tensor,
 };
 use maidenx_cpu::tensor_ops::reduce::{cpu_tensor_mean, cpu_tensor_sum, cpu_tensor_sum_with_dim};
-use maidenx_cuda::tensor_ops::reduce::cuda_tensor_sum_with_dim;
 #[cfg(feature = "cuda")]
-use maidenx_cuda::tensor_ops::reduce::{cuda_tensor_mean, cuda_tensor_sum};
+use maidenx_cuda::tensor_ops::reduce::{
+    cuda_tensor_mean, cuda_tensor_sum, cuda_tensor_sum_with_dim,
+};
 use maidenx_device::Device;
 use std::sync::{Arc, Mutex};
 
