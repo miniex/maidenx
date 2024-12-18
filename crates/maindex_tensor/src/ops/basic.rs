@@ -18,6 +18,19 @@ use maidenx_device::Device;
 use std::sync::{Arc, Mutex};
 
 impl Tensor {
+    pub(crate) fn _ops_add(&self, rhs: &Tensor) -> TensorResult<Tensor> {
+        self.add(rhs)
+    }
+    pub(crate) fn _ops_sub(&self, rhs: &Tensor) -> TensorResult<Tensor> {
+        self.sub(rhs)
+    }
+    pub(crate) fn _ops_mul(&self, rhs: &Tensor) -> TensorResult<Tensor> {
+        self.mul(rhs)
+    }
+    pub(crate) fn _ops_div(&self, rhs: &Tensor) -> TensorResult<Tensor> {
+        self.div(rhs)
+    }
+
     pub fn add(&self, rhs: &Tensor) -> TensorResult<Self> {
         // Calculate output shape by comparing dimensions
         let max_rank = self.shape.len().max(rhs.shape.len());
