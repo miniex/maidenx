@@ -74,6 +74,34 @@ impl Tensor {
         }
     }
 
+    pub fn zero_grad(&mut self) -> TensorResult<()> {
+        if let Some(node) = &self.node {
+            let mut visited = HashSet::new();
+            let mut stack = vec![Arc::clone(node)];
+
+            while let Some(current) = stack.pop() {
+                let current_ptr = Arc::as_ptr(&current);
+
+                if visited.contains(&current_ptr) {
+                    continue;
+                }
+
+                visited.insert(current_ptr);
+
+                let mut current_guard = current.lock().unwrap();
+                current_guard.grad = None;
+
+                for input_weak in &current_guard.inputs {
+                    if let Some(input) = input_weak.upgrade() {
+                        stack.push(input);
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
+
     // get
     pub fn grad(&self) -> TensorResult<Option<Tensor>> {
         if !self.requires_grad {
