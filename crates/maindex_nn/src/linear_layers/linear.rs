@@ -36,16 +36,19 @@ impl Linear {
         bias: bool,
         device: Device,
     ) -> NnResult<Self> {
-        let weight = weight.unwrap_or_else(|| {
+        let mut weight = weight.unwrap_or_else(|| {
             let k = 1.0 / (in_features as f32).sqrt();
             Tensor::randn_with_device(&[out_features, in_features], &device)
                 .unwrap()
                 .scalar_mul(k)
                 .unwrap()
         });
+        weight.with_grad();
 
         let bias = if bias {
-            Some(Tensor::zeros_with_device(&[out_features], &device).unwrap())
+            let mut b = Tensor::zeros_with_device(&[out_features], &device).unwrap();
+            b.with_grad();
+            Some(b)
         } else {
             None
         };
@@ -157,7 +160,11 @@ impl Linear {
                             }
                         }
 
-                        vec![d_input]
+                        let mut grads = vec![d_input, d_weights];
+                        if let Some(bias_grad) = d_bias {
+                            grads.push(bias_grad);
+                        }
+                        grads
                     }
                 })),
                 inputs: vec![input.node().map(|n| Arc::downgrade(&n)).unwrap_or_default()],
@@ -176,7 +183,11 @@ impl Linear {
     }
 
     pub fn parameters(&self) -> Vec<Tensor> {
-        vec![self.weight.clone()]
+        let mut params = vec![self.weight.clone()];
+        if let Some(bias) = &self.bias {
+            params.push(bias.clone());
+        }
+        params
     }
 }
 

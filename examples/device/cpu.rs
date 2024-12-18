@@ -6,7 +6,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let input = Tensor::from_vec(vec![1.0, 2.0, 3.0, 4.0], &[2, 2])?;
 
-    let linear = Linear::new(2, 2, None, true)?;
+    let mut linear = Linear::new(2, 2, None, true)?;
     let linear_output = linear.forward(&input)?;
 
     let relu = ReLU::new();

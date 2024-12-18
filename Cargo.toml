@@ -50,3 +50,9 @@ features = ["nn"]
 [[example]]
 name = "ops-basic_mat_mul"
 path = "examples/ops/basic_mat_mul.rs"
+
+
+[[example]]
+name = "optimizer-sgd"
+path = "examples/optimizer/sgd.rs"
+features = ["nn"]

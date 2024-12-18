@@ -1,6 +1,4 @@
-// TRANSPOSE, TRANSPOSE DIM
-
-use std::sync::{Arc, Mutex};
+// TRANSPOSE, TRANSPOSE DIM, RESHAPE
 
 use crate::{
     error::{TensorError, TensorResult},
@@ -12,13 +10,9 @@ use maidenx_cpu::tensor_ops::shape::{cpu_tensor_transpose_2d, cpu_tensor_transpo
 #[cfg(feature = "cuda")]
 use maidenx_cuda::tensor_ops::shape::{cuda_tensor_transpose_2d, cuda_tensor_transpose_dim};
 use maidenx_device::Device;
+use std::sync::{Arc, Mutex};
 
 impl Tensor {
-    /// Transposes a 2D tensor.
-    ///
-    /// # Errors
-    /// Returns an error if:
-    /// - The tensor is not 2D (shape.len() != 2)
     pub fn transpose(&self) -> TensorResult<Self> {
         if self.shape.len() != 2 {
             return Err(TensorError::OperationError {
@@ -88,12 +82,6 @@ impl Tensor {
         Ok(output)
     }
 
-    /// Transposes a tensor along the specified dimensions.
-    ///
-    /// # Errors
-    /// Returns an error if:
-    /// - The dimensions are out of bounds
-    /// - The dimensions are negative
     pub fn transpose_dim(&self, dim0: i32, dim1: i32) -> TensorResult<Self> {
         let num_dims = self.shape.len();
 
@@ -166,6 +154,59 @@ impl Tensor {
 
         output.requires_grad = requires_grad;
         output.node = node;
+
+        if requires_grad {
+            TENSOR_TAPE.with(|tape| tape.borrow_mut().add(output.clone()));
+        }
+
+        Ok(output)
+    }
+
+    pub fn reshape(&self, new_shape: &[usize]) -> TensorResult<Self> {
+        let total_size = self.shape.iter().product::<usize>();
+        let new_total_size = new_shape.iter().product::<usize>();
+
+        if total_size != new_total_size {
+            return Err(TensorError::InvalidShape {
+                reason: format!(
+                    "Cannot reshape tensor with size {} to shape {:?} (size {}).",
+                    total_size, new_shape, new_total_size
+                ),
+            });
+        }
+
+        let new_strides = Self::compute_strides(new_shape);
+
+        let requires_grad = self.requires_grad;
+        let node = if requires_grad {
+            Some(Arc::new(Mutex::new(Node {
+                grad_fn: Some(Box::new({
+                    let old_shape = self.shape.clone();
+                    move |grad_output: &Tensor| -> Vec<Tensor> {
+                        vec![grad_output
+                            .reshape(&old_shape)
+                            .expect("Reshape back to original shape failed")]
+                    }
+                })),
+                inputs: vec![self
+                    .node
+                    .clone()
+                    .map(|n| Arc::downgrade(&n))
+                    .unwrap_or_default()],
+                grad: None,
+            })))
+        } else {
+            None
+        };
+
+        let output = Self {
+            buffer: self.buffer.clone(),
+            shape: new_shape.to_vec(),
+            strides: new_strides,
+            device: self.device,
+            requires_grad,
+            node,
+        };
 
         if requires_grad {
             TENSOR_TAPE.with(|tape| tape.borrow_mut().add(output.clone()));
@@ -336,6 +377,73 @@ mod tests {
     }
 
     #[test]
+    fn test_reshape() -> TensorResult<()> {
+        let device = Device::cpu();
+        let tensor =
+            Tensor::from_vec_with_device(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0], &[2, 3], &device)?;
+
+        // Reshape to 1D
+        let reshaped = tensor.reshape(&[6])?;
+        assert_eq!(reshaped.shape(), &[6]);
+        assert_eq!(reshaped.to_vec()?, vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+
+        // Reshape back to 2D
+        let reshaped_back = reshaped.reshape(&[3, 2])?;
+        assert_eq!(reshaped_back.shape(), &[3, 2]);
+        assert_eq!(reshaped_back.to_vec()?, vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_reshape_invalid() {
+        let device = Device::cpu();
+        let tensor =
+            Tensor::from_vec_with_device(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0], &[2, 3], &device);
+
+        // Invalid reshape
+        assert!(tensor.unwrap().reshape(&[4]).is_err());
+    }
+
+    #[test]
+    fn test_reshape_backward() -> TensorResult<()> {
+        let device = Device::cpu();
+
+        // Create a tensor with gradient tracking
+        let mut tensor = Tensor::from_vec_with_device(vec![1.0, 2.0, 3.0, 4.0], &[2, 2], &device)?;
+        tensor.with_grad();
+
+        // Reshape tensor and compute a gradient
+        let reshaped = tensor.reshape(&[4])?;
+        reshaped.backward()?;
+
+        // Check that the gradient for the original tensor is correct
+        let grad = tensor.grad()?.unwrap().to_vec()?;
+        assert_eq!(grad, vec![1.0, 1.0, 1.0, 1.0]);
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_reshape_chain_backward() -> TensorResult<()> {
+        let device = Device::cpu();
+
+        // Create a tensor with gradient tracking
+        let mut tensor = Tensor::from_vec_with_device(vec![1.0, 2.0, 3.0, 4.0], &[2, 2], &device)?;
+        tensor.with_grad();
+
+        // Reshape tensor twice
+        let reshaped = tensor.reshape(&[4])?.reshape(&[1, 4])?;
+        reshaped.backward()?;
+
+        // Check that the gradient for the original tensor is correct
+        let grad = tensor.grad()?.unwrap().to_vec()?;
+        assert_eq!(grad, vec![1.0, 1.0, 1.0, 1.0]);
+
+        Ok(())
+    }
+
+    #[test]
     #[cfg(feature = "cuda")]
     fn test_transpose_cuda() -> TensorResult<()> {
         let device = Device::cuda(0);
@@ -364,6 +472,46 @@ mod tests {
             result.to_vec()?,
             vec![1.0, 5.0, 3.0, 7.0, 2.0, 6.0, 4.0, 8.0]
         );
+        Ok(())
+    }
+
+    #[test]
+    #[cfg(feature = "cuda")]
+    fn test_reshape_cuda() -> TensorResult<()> {
+        let device = Device::cuda(0);
+        let tensor =
+            Tensor::from_vec_with_device(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0], &[2, 3], &device)?;
+
+        // Reshape to 1D
+        let reshaped = tensor.reshape(&[6])?;
+        assert_eq!(reshaped.shape(), &[6]);
+        assert_eq!(reshaped.to_vec()?, vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+
+        // Reshape back to 2D
+        let reshaped_back = reshaped.reshape(&[3, 2])?;
+        assert_eq!(reshaped_back.shape(), &[3, 2]);
+        assert_eq!(reshaped_back.to_vec()?, vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+
+        Ok(())
+    }
+
+    #[test]
+    #[cfg(feature = "cuda")]
+    fn test_reshape_cuda_backward() -> TensorResult<()> {
+        let device = Device::cuda(0);
+
+        // Create a tensor with gradient tracking
+        let mut tensor = Tensor::from_vec_with_device(vec![1.0, 2.0, 3.0, 4.0], &[2, 2], &device)?;
+        tensor.with_grad();
+
+        // Reshape tensor and compute a gradient
+        let reshaped = tensor.reshape(&[4])?;
+        reshaped.backward()?;
+
+        // Check that the gradient for the original tensor is correct
+        let grad = tensor.grad()?.unwrap().to_vec()?;
+        assert_eq!(grad, vec![1.0, 1.0, 1.0, 1.0]);
+
         Ok(())
     }
 }

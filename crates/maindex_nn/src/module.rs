@@ -1,7 +1,6 @@
+use crate::error::{NnError, NnResult};
 pub use maidenx_nn_macros::Module;
 use maidenx_tensor::Tensor;
-
-use crate::error::{NnError, NnResult};
 
 pub trait Module<I = &'static Tensor> {
     fn forward(&self, input: I) -> NnResult<Tensor>;

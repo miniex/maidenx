@@ -41,7 +41,6 @@ pub fn derive_module(input: TokenStream) -> TokenStream {
         })
         .unwrap_or(1);
 
-    // 입력 타입 결정
     let input_type = if num_inputs == 1 {
         quote!(&#maidenx_tensor_path::Tensor)
     } else {
@@ -64,5 +63,34 @@ pub fn derive_module(input: TokenStream) -> TokenStream {
             }
         }
     };
+    TokenStream::from(expanded)
+}
+
+#[proc_macro_derive(Optimizer)]
+pub fn derive_optimizer(input: TokenStream) -> TokenStream {
+    let ast = parse_macro_input!(input as DeriveInput);
+    let name = &ast.ident;
+    let (impl_generics, ty_generics, where_clause) = ast.generics.split_for_impl();
+
+    let manifest = MaidenXManifest::default();
+    let maidenx_nn_path = manifest.get_path("maidenx_nn");
+    let maidenx_tensor_path = manifest.get_path("maidenx_tensor");
+
+    let expanded = quote! {
+        impl #impl_generics #maidenx_nn_path::optimizer::Optimizer for #name #ty_generics #where_clause {
+            fn step(&mut self, parameters: &mut [#maidenx_tensor_path::Tensor])
+                -> #maidenx_nn_path::error::NnResult<()> {
+                self.step(parameters)
+            }
+            fn zero_grad(&mut self, parameters: &mut [#maidenx_tensor_path::Tensor])
+                -> #maidenx_nn_path::error::NnResult<()> {
+                self.zero_grad(parameters)
+            }
+            fn set_learning_rate(&mut self, learning_rate: f32) {
+                self.set_learning_rate(learning_rate)
+            }
+        }
+    };
+
     TokenStream::from(expanded)
 }

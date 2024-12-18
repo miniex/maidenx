@@ -34,13 +34,14 @@ impl Bilinear {
         weight: Option<Tensor>,
         device: Device,
     ) -> NnResult<Self> {
-        let weight = weight.unwrap_or_else(|| {
+        let mut weight = weight.unwrap_or_else(|| {
             let k = 1.0 / ((dim1 * dim2) as f32).sqrt();
             Tensor::randn_with_device(&[out_features, dim1, dim2], &device)
                 .unwrap()
                 .scalar_mul(k)
                 .unwrap()
         });
+        weight.with_grad();
 
         Ok(Self {
             dim1,
@@ -145,7 +146,7 @@ impl Bilinear {
                             }
                         }
 
-                        vec![d_input1, d_input2]
+                        vec![d_input1, d_input2, d_weights]
                     }
                 })),
                 inputs: vec![

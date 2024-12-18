@@ -39,7 +39,7 @@ fn benchmark_linear_layer(
                 &[batch_size, input_dim],
                 &Device::cpu(),
             )?;
-            let linear = Linear::new(input_dim, output_dim, None, true)?;
+            let mut linear = Linear::new(input_dim, output_dim, None, true)?;
             let output = linear.forward(&input)?;
             let elapsed = start.elapsed();
             cpu_times.push(elapsed);
@@ -73,7 +73,8 @@ fn benchmark_linear_layer(
             &[batch_size, input_dim],
             &Device::cuda(0),
         )?;
-        let linear = Linear::new_with_device(input_dim, output_dim, None, true, Device::cuda(0))?;
+        let mut linear =
+            Linear::new_with_device(input_dim, output_dim, None, true, Device::cuda(0))?;
         let warmup = linear.forward(&input)?;
         println!(
             "CUDA Result (first few elements): {:?}",
@@ -87,7 +88,7 @@ fn benchmark_linear_layer(
                 &[batch_size, input_dim],
                 &Device::cuda(0),
             )?;
-            let linear =
+            let mut linear =
                 Linear::new_with_device(input_dim, output_dim, None, true, Device::cuda(0))?;
             let _output = linear.forward(&input)?;
             gpu_times.push(start.elapsed());
@@ -104,4 +105,3 @@ fn benchmark_linear_layer(
 
     Ok(())
 }
-

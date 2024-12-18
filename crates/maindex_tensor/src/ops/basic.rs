@@ -1,10 +1,10 @@
 // ADD, SUB, MUL, DIV, MAT_MUL
 
 use crate::{
-    error::TensorResult,
+    error::{TensorError, TensorResult},
     gradient::Node,
     tape::TENSOR_TAPE,
-    utils::validate::{assert_device_match, assert_mat_mul_shape_match, assert_shape_match},
+    utils::validate::{assert_device_match, assert_mat_mul_shape_match},
     Tensor,
 };
 use maidenx_cpu::tensor_ops::basic::{
@@ -19,28 +19,75 @@ use std::sync::{Arc, Mutex};
 
 impl Tensor {
     pub fn add(&self, rhs: &Tensor) -> TensorResult<Self> {
-        assert_shape_match(self, rhs)?;
-        assert_device_match(self, rhs)?;
+        // Calculate output shape by comparing dimensions
+        let max_rank = self.shape.len().max(rhs.shape.len());
+        let mut broadcasted_shape = Vec::with_capacity(max_rank);
 
+        // Pad shorter shape with ones on the left
+        let mut padded_lhs = vec![1; max_rank - self.shape.len()];
+        padded_lhs.extend(&self.shape);
+        let mut padded_rhs = vec![1; max_rank - rhs.shape.len()];
+        padded_rhs.extend(&rhs.shape);
+
+        // For each dimension, take the maximum of the two shapes
+        for i in 0..max_rank {
+            let dim1 = padded_lhs[i];
+            let dim2 = padded_rhs[i];
+            if dim1 != 1 && dim2 != 1 && dim1 != dim2 {
+                return Err(TensorError::InvalidShape {
+                    reason: format!(
+                        "Cannot broadcast shapes {:?} and {:?} at dimension {}",
+                        self.shape, rhs.shape, i
+                    ),
+                });
+            }
+            broadcasted_shape.push(dim1.max(dim2));
+        }
+
+        // Broadcast tensors to the calculated shape
+        let broadcasted_lhs = self.broadcast_like(&Tensor {
+            buffer: self.buffer.clone(),
+            shape: broadcasted_shape.clone(),
+            strides: vec![0; broadcasted_shape.len()],
+            device: self.device,
+            requires_grad: false,
+            node: None,
+        })?;
+        let broadcasted_rhs = rhs.broadcast_like(&Tensor {
+            buffer: rhs.buffer.clone(),
+            shape: broadcasted_shape.clone(),
+            strides: vec![0; broadcasted_shape.len()],
+            device: rhs.device,
+            requires_grad: false,
+            node: None,
+        })?;
+
+        assert_device_match(self, rhs)?;
         let device = self.device;
-        let mut output = Self::from_vec_with_device(vec![0.0; self.size()], &self.shape, &device)?;
+
+        // Use the broadcasted_shape for output
+        let mut output = Self::from_vec_with_device(
+            vec![0.0; broadcasted_shape.iter().product()],
+            &broadcasted_shape, // Here we use the calculated broadcasted_shape
+            &device,
+        )?;
 
         match &device {
             Device::Cpu => unsafe {
                 cpu_tensor_add(
                     output.buffer.as_mut_ptr(),
-                    self.buffer.as_ptr(),
-                    rhs.buffer.as_ptr(),
-                    self.size(),
+                    broadcasted_lhs.buffer.as_ptr(),
+                    broadcasted_rhs.buffer.as_ptr(),
+                    output.size(),
                 )?;
             },
             #[cfg(feature = "cuda")]
             Device::Cuda(_) => unsafe {
                 cuda_tensor_add(
                     output.buffer.as_mut_ptr(),
-                    self.buffer.as_ptr(),
-                    rhs.buffer.as_ptr(),
-                    self.size(),
+                    broadcasted_lhs.buffer.as_ptr(),
+                    broadcasted_rhs.buffer.as_ptr(),
+                    output.size(),
                     None,
                 )?;
             },
@@ -50,15 +97,23 @@ impl Tensor {
         let node = if requires_grad {
             Some(Arc::new(Mutex::new(Node {
                 grad_fn: Some(Box::new({
+                    let lhs_shape = self.shape.clone();
+                    let rhs_shape = rhs.shape.clone();
                     let lhs_requires_grad = self.requires_grad;
                     let rhs_requires_grad = rhs.requires_grad;
                     move |grad_output: &Tensor| -> Vec<Tensor> {
                         let mut grad_inputs = Vec::new();
                         if lhs_requires_grad {
-                            grad_inputs.push(grad_output.clone());
+                            let grad = grad_output
+                                .sum_to_shape(&lhs_shape)
+                                .unwrap_or(grad_output.clone());
+                            grad_inputs.push(grad);
                         }
                         if rhs_requires_grad {
-                            grad_inputs.push(grad_output.clone());
+                            let grad = grad_output
+                                .sum_to_shape(&rhs_shape)
+                                .unwrap_or(grad_output.clone());
+                            grad_inputs.push(grad);
                         }
                         grad_inputs
                     }
@@ -90,28 +145,75 @@ impl Tensor {
     }
 
     pub fn sub(&self, rhs: &Tensor) -> TensorResult<Self> {
-        assert_shape_match(self, rhs)?;
-        assert_device_match(self, rhs)?;
+        // Calculate output shape by comparing dimensions
+        let max_rank = self.shape.len().max(rhs.shape.len());
+        let mut broadcasted_shape = Vec::with_capacity(max_rank);
 
+        // Pad shorter shape with ones on the left
+        let mut padded_lhs = vec![1; max_rank - self.shape.len()];
+        padded_lhs.extend(&self.shape);
+        let mut padded_rhs = vec![1; max_rank - rhs.shape.len()];
+        padded_rhs.extend(&rhs.shape);
+
+        // For each dimension, take the maximum of the two shapes
+        for i in 0..max_rank {
+            let dim1 = padded_lhs[i];
+            let dim2 = padded_rhs[i];
+            if dim1 != 1 && dim2 != 1 && dim1 != dim2 {
+                return Err(TensorError::InvalidShape {
+                    reason: format!(
+                        "Cannot broadcast shapes {:?} and {:?} at dimension {}",
+                        self.shape, rhs.shape, i
+                    ),
+                });
+            }
+            broadcasted_shape.push(dim1.max(dim2));
+        }
+
+        // Broadcast tensors to the calculated shape
+        let broadcasted_lhs = self.broadcast_like(&Tensor {
+            buffer: self.buffer.clone(),
+            shape: broadcasted_shape.clone(),
+            strides: vec![0; broadcasted_shape.len()],
+            device: self.device,
+            requires_grad: false,
+            node: None,
+        })?;
+        let broadcasted_rhs = rhs.broadcast_like(&Tensor {
+            buffer: rhs.buffer.clone(),
+            shape: broadcasted_shape.clone(),
+            strides: vec![0; broadcasted_shape.len()],
+            device: rhs.device,
+            requires_grad: false,
+            node: None,
+        })?;
+
+        assert_device_match(self, rhs)?;
         let device = self.device;
-        let mut output = Self::from_vec_with_device(vec![0.0; self.size()], &self.shape, &device)?;
+
+        // Use the broadcasted_shape for output
+        let mut output = Self::from_vec_with_device(
+            vec![0.0; broadcasted_shape.iter().product()],
+            &broadcasted_shape, // Here we use the calculated broadcasted_shape
+            &device,
+        )?;
 
         match &device {
             Device::Cpu => unsafe {
                 cpu_tensor_sub(
                     output.buffer.as_mut_ptr(),
-                    self.buffer.as_ptr(),
-                    rhs.buffer.as_ptr(),
-                    self.size(),
+                    broadcasted_lhs.buffer.as_ptr(),
+                    broadcasted_rhs.buffer.as_ptr(),
+                    output.size(),
                 )?;
             },
             #[cfg(feature = "cuda")]
             Device::Cuda(_) => unsafe {
                 cuda_tensor_sub(
                     output.buffer.as_mut_ptr(),
-                    self.buffer.as_ptr(),
-                    rhs.buffer.as_ptr(),
-                    self.size(),
+                    broadcasted_lhs.buffer.as_ptr(),
+                    broadcasted_rhs.buffer.as_ptr(),
+                    output.size(),
                     None,
                 )?;
             },
@@ -121,15 +223,25 @@ impl Tensor {
         let node = if requires_grad {
             Some(Arc::new(Mutex::new(Node {
                 grad_fn: Some(Box::new({
+                    let lhs_shape = self.shape.clone();
+                    let rhs_shape = rhs.shape.clone();
                     let lhs_requires_grad = self.requires_grad;
                     let rhs_requires_grad = rhs.requires_grad;
                     move |grad_output: &Tensor| -> Vec<Tensor> {
                         let mut grad_inputs = Vec::new();
                         if lhs_requires_grad {
-                            grad_inputs.push(grad_output.clone());
+                            let grad = grad_output
+                                .sum_to_shape(&lhs_shape)
+                                .unwrap_or(grad_output.clone());
+                            grad_inputs.push(grad);
                         }
                         if rhs_requires_grad {
-                            grad_inputs.push(grad_output.neg().unwrap_or(grad_output.clone()));
+                            let grad = grad_output
+                                .neg()
+                                .unwrap_or(grad_output.clone())
+                                .sum_to_shape(&rhs_shape)
+                                .unwrap_or(grad_output.clone());
+                            grad_inputs.push(grad);
                         }
                         grad_inputs
                     }
@@ -161,28 +273,75 @@ impl Tensor {
     }
 
     pub fn mul(&self, rhs: &Tensor) -> TensorResult<Self> {
-        assert_shape_match(self, rhs)?;
-        assert_device_match(self, rhs)?;
+        // Calculate output shape by comparing dimensions
+        let max_rank = self.shape.len().max(rhs.shape.len());
+        let mut broadcasted_shape = Vec::with_capacity(max_rank);
 
+        // Pad shorter shape with ones on the left
+        let mut padded_lhs = vec![1; max_rank - self.shape.len()];
+        padded_lhs.extend(&self.shape);
+        let mut padded_rhs = vec![1; max_rank - rhs.shape.len()];
+        padded_rhs.extend(&rhs.shape);
+
+        // For each dimension, take the maximum of the two shapes
+        for i in 0..max_rank {
+            let dim1 = padded_lhs[i];
+            let dim2 = padded_rhs[i];
+            if dim1 != 1 && dim2 != 1 && dim1 != dim2 {
+                return Err(TensorError::InvalidShape {
+                    reason: format!(
+                        "Cannot broadcast shapes {:?} and {:?} at dimension {}",
+                        self.shape, rhs.shape, i
+                    ),
+                });
+            }
+            broadcasted_shape.push(dim1.max(dim2));
+        }
+
+        // Broadcast tensors to the calculated shape
+        let broadcasted_lhs = self.broadcast_like(&Tensor {
+            buffer: self.buffer.clone(),
+            shape: broadcasted_shape.clone(),
+            strides: vec![0; broadcasted_shape.len()],
+            device: self.device,
+            requires_grad: false,
+            node: None,
+        })?;
+        let broadcasted_rhs = rhs.broadcast_like(&Tensor {
+            buffer: rhs.buffer.clone(),
+            shape: broadcasted_shape.clone(),
+            strides: vec![0; broadcasted_shape.len()],
+            device: rhs.device,
+            requires_grad: false,
+            node: None,
+        })?;
+
+        assert_device_match(self, rhs)?;
         let device = self.device;
-        let mut output = Self::from_vec_with_device(vec![0.0; self.size()], &self.shape, &device)?;
+
+        // Use the broadcasted_shape for output
+        let mut output = Self::from_vec_with_device(
+            vec![0.0; broadcasted_shape.iter().product()],
+            &broadcasted_shape, // Here we use the calculated broadcasted_shape
+            &device,
+        )?;
 
         match &device {
             Device::Cpu => unsafe {
                 cpu_tensor_mul(
                     output.buffer.as_mut_ptr(),
-                    self.buffer.as_ptr(),
-                    rhs.buffer.as_ptr(),
-                    self.size(),
+                    broadcasted_lhs.buffer.as_ptr(),
+                    broadcasted_rhs.buffer.as_ptr(),
+                    output.size(),
                 )?;
             },
             #[cfg(feature = "cuda")]
             Device::Cuda(_) => unsafe {
                 cuda_tensor_mul(
                     output.buffer.as_mut_ptr(),
-                    self.buffer.as_ptr(),
-                    rhs.buffer.as_ptr(),
-                    self.size(),
+                    broadcasted_lhs.buffer.as_ptr(),
+                    broadcasted_rhs.buffer.as_ptr(),
+                    output.size(),
                     None,
                 )?;
             },
@@ -192,17 +351,29 @@ impl Tensor {
         let node = if requires_grad {
             Some(Arc::new(Mutex::new(Node {
                 grad_fn: Some(Box::new({
-                    let lhs = self.clone();
-                    let rhs = rhs.clone();
+                    let lhs = broadcasted_lhs.clone();
+                    let rhs = broadcasted_rhs.clone();
+                    let lhs_shape = self.shape.clone();
+                    let rhs_shape = rhs.shape.clone();
                     let lhs_requires_grad = self.requires_grad;
                     let rhs_requires_grad = rhs.requires_grad;
                     move |grad_output: &Tensor| -> Vec<Tensor> {
                         let mut grad_inputs = Vec::new();
                         if lhs_requires_grad {
-                            grad_inputs.push(grad_output.mul(&rhs).unwrap_or(grad_output.clone()));
+                            let grad = grad_output
+                                .mul(&rhs)
+                                .unwrap_or(grad_output.clone())
+                                .sum_to_shape(&lhs_shape)
+                                .unwrap_or(grad_output.clone());
+                            grad_inputs.push(grad);
                         }
                         if rhs_requires_grad {
-                            grad_inputs.push(grad_output.mul(&lhs).unwrap_or(grad_output.clone()));
+                            let grad = grad_output
+                                .mul(&lhs)
+                                .unwrap_or(grad_output.clone())
+                                .sum_to_shape(&rhs_shape)
+                                .unwrap_or(grad_output.clone());
+                            grad_inputs.push(grad);
                         }
                         grad_inputs
                     }
@@ -234,28 +405,75 @@ impl Tensor {
     }
 
     pub fn div(&self, rhs: &Tensor) -> TensorResult<Self> {
-        assert_shape_match(self, rhs)?;
-        assert_device_match(self, rhs)?;
+        // Calculate output shape by comparing dimensions
+        let max_rank = self.shape.len().max(rhs.shape.len());
+        let mut broadcasted_shape = Vec::with_capacity(max_rank);
 
+        // Pad shorter shape with ones on the left
+        let mut padded_lhs = vec![1; max_rank - self.shape.len()];
+        padded_lhs.extend(&self.shape);
+        let mut padded_rhs = vec![1; max_rank - rhs.shape.len()];
+        padded_rhs.extend(&rhs.shape);
+
+        // For each dimension, take the maximum of the two shapes
+        for i in 0..max_rank {
+            let dim1 = padded_lhs[i];
+            let dim2 = padded_rhs[i];
+            if dim1 != 1 && dim2 != 1 && dim1 != dim2 {
+                return Err(TensorError::InvalidShape {
+                    reason: format!(
+                        "Cannot broadcast shapes {:?} and {:?} at dimension {}",
+                        self.shape, rhs.shape, i
+                    ),
+                });
+            }
+            broadcasted_shape.push(dim1.max(dim2));
+        }
+
+        // Broadcast tensors to the calculated shape
+        let broadcasted_lhs = self.broadcast_like(&Tensor {
+            buffer: self.buffer.clone(),
+            shape: broadcasted_shape.clone(),
+            strides: vec![0; broadcasted_shape.len()],
+            device: self.device,
+            requires_grad: false,
+            node: None,
+        })?;
+        let broadcasted_rhs = rhs.broadcast_like(&Tensor {
+            buffer: rhs.buffer.clone(),
+            shape: broadcasted_shape.clone(),
+            strides: vec![0; broadcasted_shape.len()],
+            device: rhs.device,
+            requires_grad: false,
+            node: None,
+        })?;
+
+        assert_device_match(self, rhs)?;
         let device = self.device;
-        let mut output = Self::from_vec_with_device(vec![0.0; self.size()], &self.shape, &device)?;
+
+        // Use the broadcasted_shape for output
+        let mut output = Self::from_vec_with_device(
+            vec![0.0; broadcasted_shape.iter().product()],
+            &broadcasted_shape, // Here we use the calculated broadcasted_shape
+            &device,
+        )?;
 
         match &device {
             Device::Cpu => unsafe {
                 cpu_tensor_div(
                     output.buffer.as_mut_ptr(),
-                    self.buffer.as_ptr(),
-                    rhs.buffer.as_ptr(),
-                    self.size(),
+                    broadcasted_lhs.buffer.as_ptr(),
+                    broadcasted_rhs.buffer.as_ptr(),
+                    output.size(),
                 )?;
             },
             #[cfg(feature = "cuda")]
             Device::Cuda(_) => unsafe {
                 cuda_tensor_div(
                     output.buffer.as_mut_ptr(),
-                    self.buffer.as_ptr(),
-                    rhs.buffer.as_ptr(),
-                    self.size(),
+                    broadcasted_lhs.buffer.as_ptr(),
+                    broadcasted_rhs.buffer.as_ptr(),
+                    output.size(),
                     None,
                 )?;
             },
@@ -265,14 +483,21 @@ impl Tensor {
         let node = if requires_grad {
             Some(Arc::new(Mutex::new(Node {
                 grad_fn: Some(Box::new({
-                    let lhs = self.clone();
-                    let rhs = rhs.clone();
+                    let lhs = broadcasted_lhs.clone();
+                    let rhs = broadcasted_rhs.clone();
+                    let lhs_shape = self.shape.clone();
+                    let rhs_shape = rhs.shape.clone();
                     let lhs_requires_grad = self.requires_grad;
                     let rhs_requires_grad = rhs.requires_grad;
                     move |grad_output: &Tensor| -> Vec<Tensor> {
                         let mut grad_inputs = Vec::new();
                         if lhs_requires_grad {
-                            grad_inputs.push(grad_output.div(&rhs).unwrap_or(grad_output.clone()));
+                            let grad = grad_output
+                                .div(&rhs)
+                                .unwrap_or(grad_output.clone())
+                                .sum_to_shape(&lhs_shape)
+                                .unwrap_or(grad_output.clone());
+                            grad_inputs.push(grad);
                         }
                         if rhs_requires_grad {
                             let rhs_squared = rhs.mul(&rhs).unwrap_or(rhs.clone());
@@ -282,7 +507,9 @@ impl Tensor {
                                 .mul(&lhs)
                                 .unwrap_or_else(|_| grad_output.clone())
                                 .div(&rhs_squared)
-                                .unwrap_or_else(|_| grad_output.clone());
+                                .unwrap_or_else(|_| grad_output.clone())
+                                .sum_to_shape(&rhs_shape)
+                                .unwrap_or(grad_output.clone());
                             grad_inputs.push(grad);
                         }
                         grad_inputs

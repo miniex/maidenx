@@ -47,3 +47,55 @@ pub fn assert_mat_mul_shape_match(a: &Tensor, b: &Tensor) -> TensorResult<()> {
 
     Ok(())
 }
+
+pub fn assert_broadcast_shapes(input1: &Tensor, input2: &Tensor) -> TensorResult<()> {
+    let broadcast_shape = calculate_broadcast_shape(&input1.shape, &input2.shape)?;
+    if input1.shape != broadcast_shape {
+        return Err(TensorError::InvalidShape {
+            reason: format!(
+                "Tensor1 shape {:?} does not match broadcast shape {:?}",
+                input1.shape, broadcast_shape
+            ),
+        });
+    }
+    if input2.shape != broadcast_shape {
+        return Err(TensorError::InvalidShape {
+            reason: format!(
+                "Tensor2 shape {:?} does not match broadcast shape {:?}",
+                input2.shape, broadcast_shape
+            ),
+        });
+    }
+    Ok(())
+}
+
+pub fn calculate_broadcast_shape(shape1: &[usize], shape2: &[usize]) -> TensorResult<Vec<usize>> {
+    let mut result_shape = Vec::new();
+
+    // Get the maximum rank of the two shapes
+    let max_rank = std::cmp::max(shape1.len(), shape2.len());
+
+    // Reverse iterate through both shapes to align dimensions
+    for i in 0..max_rank {
+        let dim1 = shape1
+            .get(shape1.len().saturating_sub(1).saturating_sub(i))
+            .copied()
+            .unwrap_or(1);
+        let dim2 = shape2
+            .get(shape2.len().saturating_sub(1).saturating_sub(i))
+            .copied()
+            .unwrap_or(1);
+
+        if dim1 == dim2 || dim1 == 1 || dim2 == 1 {
+            result_shape.push(std::cmp::max(dim1, dim2));
+        } else {
+            return Err(TensorError::InvalidShape {
+                reason: format!("Cannot broadcast shapes {:?} and {:?}", shape1, shape2),
+            });
+        }
+    }
+
+    // Since we iterated in reverse order, reverse the result shape
+    result_shape.reverse();
+    Ok(result_shape)
+}

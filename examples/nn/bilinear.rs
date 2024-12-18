@@ -47,7 +47,8 @@ fn benchmark_bilinear_layer(
                 &[batch_size, dim2],
                 &Device::cpu(),
             )?;
-            let bilinear = Bilinear::new_with_device(dim1, dim2, output_dim, None, Device::cpu())?;
+            let mut bilinear =
+                Bilinear::new_with_device(dim1, dim2, output_dim, None, Device::cpu())?;
             let output = bilinear.forward((&input1, &input2))?;
             let elapsed = start.elapsed();
             cpu_times.push(elapsed);
@@ -86,7 +87,8 @@ fn benchmark_bilinear_layer(
             &[batch_size, dim2],
             &Device::cuda(0),
         )?;
-        let bilinear = Bilinear::new_with_device(dim1, dim2, output_dim, None, Device::cuda(0))?;
+        let mut bilinear =
+            Bilinear::new_with_device(dim1, dim2, output_dim, None, Device::cuda(0))?;
         let warmup = bilinear.forward((&input1, &input2))?;
         println!(
             "CUDA Result (first few elements): {:?}",
@@ -105,7 +107,7 @@ fn benchmark_bilinear_layer(
                 &[batch_size, dim2],
                 &Device::cuda(0),
             )?;
-            let bilinear =
+            let mut bilinear =
                 Bilinear::new_with_device(dim1, dim2, output_dim, None, Device::cuda(0))?;
             let _output = bilinear.forward((&input1, &input2))?;
             gpu_times.push(start.elapsed());

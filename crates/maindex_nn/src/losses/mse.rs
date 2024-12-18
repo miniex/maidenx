@@ -14,7 +14,9 @@ impl MSELoss {
     pub fn forward(&self, (pred, target): (&Tensor, &Tensor)) -> NnResult<Tensor> {
         let diff = pred.sub(target)?;
         let squared = diff.pow(2.0)?;
-        let mean = squared.mean()?;
+        let batch_size = pred.shape()[0] as f32;
+
+        let mean = squared.sum()?.scalar_div(batch_size)?;
 
         let requires_grad = pred.is_requires_grad() || target.is_requires_grad();
         let node = if requires_grad {
@@ -30,6 +32,7 @@ impl MSELoss {
                             .unwrap()
                             .scalar_mul(2.0 / batch_size) // (2/N)
                             .unwrap();
+
                         vec![grad_pred]
                     }
                 })),
@@ -52,7 +55,7 @@ impl MSELoss {
 
         TENSOR_TAPE.with(|tape| tape.borrow_mut().add(output.clone()));
 
-        Ok(mean)
+        Ok(output)
     }
 }
 

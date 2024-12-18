@@ -1,11 +1,11 @@
 pub mod error;
 pub mod module;
-
-pub mod losses;
-pub mod optimizers;
+pub mod optimizer;
 
 pub mod linear_layers;
+pub mod losses;
 pub mod non_linear_activations;
+pub mod optimizers;
 
 pub use linear_layers::*;
 pub use losses::*;
