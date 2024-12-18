@@ -3,7 +3,6 @@ use maidenx::prelude::*;
 use std::time::Instant;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // CPU와 CUDA에서의 학습 성능을 비교
     println!("Training on CPU:");
     train_linear_regression(Device::cpu())?;
 
