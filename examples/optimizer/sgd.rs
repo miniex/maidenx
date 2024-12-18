@@ -3,9 +3,11 @@ use maidenx::prelude::*;
 use std::time::Instant;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("Training on CPU:");
-    train_linear_regression(Device::cpu())?;
-
+    #[cfg(not(feature = "cuda"))]
+    {
+        println!("Training on CPU:");
+        train_linear_regression(Device::cpu())?;
+    }
     #[cfg(feature = "cuda")]
     {
         println!("\nTraining on CUDA:");
@@ -16,9 +18,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn train_linear_regression(device: Device) -> Result<(), Box<dyn std::error::Error>> {
-    let mut input =
-        Tensor::from_vec_with_device(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0], &[2, 3], &device)?;
-    let target = Tensor::from_vec_with_device(vec![10.0, 20.0], &[2, 1], &device)?;
+    let input_data: Vec<Vec<f32>> = (0..10000)
+        .map(|i| {
+            vec![
+                (i % 100) as f32 / 100.0,
+                ((i % 100) + 1) as f32 / 100.0,
+                ((i % 100) + 2) as f32 / 100.0,
+            ]
+        })
+        .collect();
+    let target_data: Vec<Vec<f32>> = (0..10000)
+        .map(|i| vec![((i % 100) * 10) as f32 / 1000.0])
+        .collect();
+
+    let mut input = Tensor::from_device(input_data, &device)?;
+    let target = Tensor::from_device(target_data, &device)?;
 
     input.with_grad();
 
@@ -27,7 +41,7 @@ fn train_linear_regression(device: Device) -> Result<(), Box<dyn std::error::Err
     let mse_loss = MSELoss::new();
     let mut optimizer = SGD::new(0.01);
 
-    let epochs = 25;
+    let epochs = 100;
     for epoch in 0..epochs {
         let start_time = Instant::now();
 
