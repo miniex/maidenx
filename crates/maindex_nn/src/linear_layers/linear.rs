@@ -207,7 +207,7 @@ mod tests {
     use maidenx_device::Device;
 
     #[test]
-    fn test_linear_forward_with_bias() -> NnResult<()> {
+    fn cpu_linear_forward_with_bias() -> NnResult<()> {
         let device = Device::cpu();
         let input =
             Tensor::from_vec_with_device(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0], &[2, 3], &device)?;
@@ -220,7 +220,7 @@ mod tests {
     }
 
     #[test]
-    fn test_linear_forward_without_bias() -> NnResult<()> {
+    fn cpu_linear_forward_without_bias() -> NnResult<()> {
         let device = Device::cpu();
         let input =
             Tensor::from_vec_with_device(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0], &[2, 3], &device)?;
@@ -233,7 +233,7 @@ mod tests {
     }
 
     #[test]
-    fn test_linear_backward_with_bias() -> NnResult<()> {
+    fn cpu_linear_backward_with_bias() -> NnResult<()> {
         let device = Device::cpu();
 
         let mut input =
@@ -260,7 +260,7 @@ mod tests {
     }
 
     #[test]
-    fn test_linear_backward_without_bias() -> NnResult<()> {
+    fn cpu_linear_backward_without_bias() -> NnResult<()> {
         let device = Device::cpu();
 
         let mut input =
@@ -287,7 +287,7 @@ mod tests {
     }
 
     #[test]
-    fn test_linear_backward_with_custom_weight() -> NnResult<()> {
+    fn cpu_linear_backward_with_custom_weight() -> NnResult<()> {
         let device = Device::cpu();
 
         let mut input =
@@ -319,7 +319,7 @@ mod tests {
 
     #[test]
     #[cfg(feature = "cuda")]
-    fn test_cuda_linear_forward_with_bias() -> NnResult<()> {
+    fn cuda_linear_forward_with_bias() -> NnResult<()> {
         let device = Device::cuda(0);
         let input =
             Tensor::from_vec_with_device(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0], &[2, 3], &device)?;
@@ -333,7 +333,7 @@ mod tests {
 
     #[test]
     #[cfg(feature = "cuda")]
-    fn test_cuda_linear_forward_without_bias() -> NnResult<()> {
+    fn cuda_linear_forward_without_bias() -> NnResult<()> {
         let device = Device::cuda(0);
         let input =
             Tensor::from_vec_with_device(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0], &[2, 3], &device)?;
@@ -347,7 +347,7 @@ mod tests {
 
     #[test]
     #[cfg(feature = "cuda")]
-    fn test_cuda_linear_backward_with_bias() -> NnResult<()> {
+    fn cuda_linear_backward_with_bias() -> NnResult<()> {
         let device = Device::cuda(0);
 
         let mut input =
@@ -375,7 +375,7 @@ mod tests {
 
     #[test]
     #[cfg(feature = "cuda")]
-    fn test_cuda_linear_backward_without_bias() -> NnResult<()> {
+    fn cuda_linear_backward_without_bias() -> NnResult<()> {
         let device = Device::cuda(0);
 
         let mut input =
@@ -403,7 +403,7 @@ mod tests {
 
     #[test]
     #[cfg(feature = "cuda")]
-    fn test_cuda_linear_backward_with_custom_weight() -> NnResult<()> {
+    fn cuda_linear_backward_with_custom_weight() -> NnResult<()> {
         let device = Device::cuda(0);
 
         let mut input =

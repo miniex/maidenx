@@ -103,7 +103,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_cpu_relu() -> NnResult<()> {
+    fn cpu_relu_forward() -> NnResult<()> {
         let device = Device::cpu();
 
         let input = Tensor::from_device(vec![-1.0, 0.0, 1.0, 2.0], &device)?;
@@ -119,7 +119,7 @@ mod tests {
     }
 
     #[test]
-    fn test_relu_backward() -> NnResult<()> {
+    fn cpu_relu_backward() -> NnResult<()> {
         let device = Device::Cpu;
 
         let mut input = Tensor::from_device(vec![-1.0, 0.0, 1.0, 2.0], &device)?;
@@ -136,7 +136,7 @@ mod tests {
     }
 
     #[test]
-    fn test_relu_chain_backward() -> NnResult<()> {
+    fn cpu_relu_chain_backward() -> NnResult<()> {
         let device = Device::Cpu;
 
         let mut input = Tensor::from_device(vec![-1.0, 0.0, 1.0, 2.0], &device)?;
@@ -158,7 +158,7 @@ mod tests {
 
     #[test]
     #[cfg(feature = "cuda")]
-    fn test_cuda_relu() -> NnResult<()> {
+    fn cuda_relu_forward() -> NnResult<()> {
         let device = Device::cuda(0);
 
         let input = Tensor::from_device(vec![-1.0, 0.0, 1.0, 2.0], &device)?;
@@ -175,7 +175,7 @@ mod tests {
 
     #[test]
     #[cfg(feature = "cuda")]
-    fn test_cuda_relu_backward() -> NnResult<()> {
+    fn cuda_relu_backward() -> NnResult<()> {
         let device = Device::cuda(0);
 
         let mut input = Tensor::from_device(vec![-1.0, 0.0, 1.0, 2.0], &device)?;

@@ -184,7 +184,7 @@ mod tests {
     use maidenx_device::Device;
 
     #[test]
-    fn test_bilinear_forward() -> NnResult<()> {
+    fn cpu_bilinear_forward() -> NnResult<()> {
         let device = Device::cpu();
 
         let input1 = Tensor::from_vec_with_device(vec![1.0, 2.0, 3.0, 4.0], &[2, 2], &device)?;
@@ -201,7 +201,7 @@ mod tests {
     }
 
     #[test]
-    fn test_bilinear_backward() -> NnResult<()> {
+    fn cpu_bilinear_backward() -> NnResult<()> {
         let device = Device::cpu();
 
         let mut input1 = Tensor::from_vec_with_device(vec![1.0, 2.0, 3.0, 4.0], &[2, 2], &device)?;
@@ -236,7 +236,7 @@ mod tests {
     }
 
     #[test]
-    fn test_bilinear_with_custom_weight() -> NnResult<()> {
+    fn cpu_bilinear_with_custom_weight() -> NnResult<()> {
         let device = Device::cpu();
 
         let mut input1 = Tensor::from_vec_with_device(vec![1.0, 2.0, 3.0, 4.0], &[2, 2], &device)?;
@@ -273,7 +273,7 @@ mod tests {
 
     #[test]
     #[cfg(feature = "cuda")]
-    fn test_cuda_bilinear_forward() -> NnResult<()> {
+    fn cuda_bilinear_forward() -> NnResult<()> {
         let device = Device::cuda(0);
 
         let input1 = Tensor::from_vec_with_device(vec![1.0, 2.0, 3.0, 4.0], &[2, 2], &device)?;
@@ -291,7 +291,7 @@ mod tests {
 
     #[test]
     #[cfg(feature = "cuda")]
-    fn test_cuda_bilinear_backward() -> NnResult<()> {
+    fn cuda_bilinear_backward() -> NnResult<()> {
         let device = Device::cuda(0);
 
         let mut input1 = Tensor::from_vec_with_device(vec![1.0, 2.0, 3.0, 4.0], &[2, 2], &device)?;
@@ -327,7 +327,7 @@ mod tests {
 
     #[test]
     #[cfg(feature = "cuda")]
-    fn test_cuda_bilinear_with_custom_weight() -> NnResult<()> {
+    fn cuda_bilinear_with_custom_weight() -> NnResult<()> {
         let device = Device::cuda(0);
 
         let mut input1 = Tensor::from_vec_with_device(vec![1.0, 2.0, 3.0, 4.0], &[2, 2], &device)?;

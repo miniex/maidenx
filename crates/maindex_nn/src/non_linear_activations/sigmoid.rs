@@ -125,7 +125,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_cpu_sigmoid() -> NnResult<()> {
+    fn cpu_sigmoid_forward() -> NnResult<()> {
         let device = Device::cpu();
 
         let input = Tensor::from_device(vec![-1.0, 0.0, 1.0, 2.0], &device)?;
@@ -149,7 +149,7 @@ mod tests {
     }
 
     #[test]
-    fn test_sigmoid_backward() -> NnResult<()> {
+    fn cpu_sigmoid_backward() -> NnResult<()> {
         let device = Device::Cpu;
 
         let mut input = Tensor::from_device(vec![-1.0, 0.0, 1.0, 2.0], &device)?;
@@ -170,7 +170,7 @@ mod tests {
     }
 
     #[test]
-    fn test_sigmoid_chain_backward() -> NnResult<()> {
+    fn cpu_sigmoid_chain_backward() -> NnResult<()> {
         let device = Device::Cpu;
 
         let mut input = Tensor::from_device(vec![-1.0, 0.0, 1.0, 2.0], &device)?;
@@ -193,7 +193,7 @@ mod tests {
 
     #[test]
     #[cfg(feature = "cuda")]
-    fn test_cuda_sigmoid() -> NnResult<()> {
+    fn cuda_sigmoid_forward() -> NnResult<()> {
         let device = Device::cuda(0);
 
         let input = Tensor::from_device(vec![-1.0, 0.0, 1.0, 2.0], &device)?;
@@ -218,7 +218,7 @@ mod tests {
 
     #[test]
     #[cfg(feature = "cuda")]
-    fn test_cuda_sigmoid_backward() -> NnResult<()> {
+    fn cuda_sigmoid_backward() -> NnResult<()> {
         let device = Device::cuda(0);
 
         let mut input = Tensor::from_device(vec![-1.0, 0.0, 1.0, 2.0], &device)?;

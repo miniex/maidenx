@@ -66,7 +66,7 @@ mod tests {
     use maidenx_tensor::Tensor;
 
     #[test]
-    fn test_mse_loss_forward() -> NnResult<()> {
+    fn cpu_mse_loss_forward() -> NnResult<()> {
         let device = Device::cpu();
 
         let pred = Tensor::from_vec_with_device(vec![2.0, 3.0, 4.0], &[3], &device)?;
@@ -82,7 +82,7 @@ mod tests {
     }
 
     #[test]
-    fn test_mse_loss_backward() -> NnResult<()> {
+    fn cpu_mse_loss_backward() -> NnResult<()> {
         let device = Device::cpu();
 
         let mut pred = Tensor::from_vec_with_device(vec![2.0, 3.0, 4.0], &[3], &device)?;
@@ -106,7 +106,7 @@ mod tests {
 
     #[test]
     #[cfg(feature = "cuda")]
-    fn test_mse_loss_forward_cuda() -> NnResult<()> {
+    fn cuda_mse_loss_forward() -> NnResult<()> {
         let device = Device::cuda(0);
 
         let pred = Tensor::from_vec_with_device(vec![2.0, 3.0, 4.0], &[3], &device)?;
@@ -123,7 +123,7 @@ mod tests {
 
     #[test]
     #[cfg(feature = "cuda")]
-    fn test_mse_loss_backward_cuda() -> NnResult<()> {
+    fn cuda_mse_loss_backward() -> NnResult<()> {
         let device = Device::cuda(0);
 
         let mut pred = Tensor::from_vec_with_device(vec![2.0, 3.0, 4.0], &[3], &device)?;
