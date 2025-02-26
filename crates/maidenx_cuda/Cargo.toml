@@ -1,0 +1,20 @@
+[package]
+name = "maidenx_cuda"
+version = "0.1.0"
+description = "maidenx CUDA backend"
+license = "BSD-3-Clause"
+authors = ["Han Damin <miniex@daminstudio.net>"]
+edition = "2021"
+publish = true
+repository = "https://github.com/miniex/maidenx"
+
+[features]
+
+[dependencies]
+half = { workspace = true }
+paste = { workspace = true }
+libc = "0.2"
+
+[build-dependencies]
+cmake = "0.1"
+walkdir = "2.5"

@@ -1,0 +1,19 @@
+[package]
+name = "maidenx_core"
+version = "0.1.0"
+description = "maidenx core"
+license = "BSD-3-Clause"
+authors = ["Han Damin <miniex@daminstudio.net>"]
+edition = "2021"
+publish = true
+repository = "https://github.com/miniex/maidenx"
+
+[features]
+default = []
+cuda = ["dep:maidenx_cuda"]
+
+[dependencies]
+maidenx_cpu = { path = "../maidenx_cpu", version = "0.1.0" }
+maidenx_cuda = { path = "../maidenx_cuda", version = "0.1.0", optional = true }
+half = { workspace = true }
+paste = { workspace = true }

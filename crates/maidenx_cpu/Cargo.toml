@@ -1,0 +1,17 @@
+[package]
+name = "maidenx_cpu"
+version = "0.1.0"
+description = "maidenx CPU backend"
+license = "BSD-3-Clause"
+authors = ["Han Damin <miniex@daminstudio.net>"]
+edition = "2021"
+publish = true
+repository = "https://github.com/miniex/maidenx"
+
+[features]
+
+[dependencies]
+half = { workspace = true }
+paste = { workspace = true }
+rayon = { workspace = true }
+libc = "0.2"

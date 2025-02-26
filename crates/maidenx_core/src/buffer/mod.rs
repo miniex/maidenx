@@ -1,0 +1,352 @@
+pub mod cpu;
+#[cfg(feature = "cuda")]
+pub mod cuda;
+pub mod nn;
+pub mod ops;
+
+use crate::{
+    device::Device,
+    dtype::DType,
+    error::{Error, Result},
+};
+#[cfg(feature = "cuda")]
+use cpu::CpuBuffer;
+use std::ffi::c_void;
+
+pub trait Buffer: Send + Sync {
+    fn as_ptr(&self) -> *const c_void;
+    fn as_mut_ptr(&mut self) -> *mut c_void;
+    fn len(&self) -> usize;
+    fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+    fn dtype(&self) -> DType;
+    fn device(&self) -> Device;
+
+    /// # Safety
+    /// Requires both buffers to have the same size and no memory overlap
+    unsafe fn copy_from(&mut self, other: &dyn Buffer) -> Result<()>;
+
+    /// # Safety
+    /// Requires valid source pointer and matching size_in_bytes with no memory overlap
+    unsafe fn copy_from_host(&mut self, src: *const c_void, size_in_bytes: usize) -> Result<()>;
+
+    /// # Safety
+    /// Requires valid destination pointer and matching size_in_bytes with no memory overlap
+    unsafe fn copy_to_host(&self, dest: *mut c_void, size_in_bytes: usize) -> Result<()>;
+
+    fn copy_from_with_device(&mut self, other: &dyn Buffer) -> Result<()> {
+        if self.len() != other.len() {
+            return Err(Error::InvalidArgument("Buffer sizes must match".into()));
+        }
+
+        match (self.device(), other.device()) {
+            (Device::CPU, Device::CPU) => unsafe { self.copy_from(other) },
+            #[cfg(feature = "cuda")]
+            (Device::CUDA(dst_id), Device::CUDA(src_id)) => {
+                if dst_id == src_id {
+                    unsafe { self.copy_from(other) }
+                } else {
+                    // Try direct copy first, fall back to CPU if needed
+                    match unsafe { self.copy_from(other) } {
+                        Ok(_) => Ok(()),
+                        Err(_) => {
+                            let mut temp = CpuBuffer::new(self.len(), self.dtype())?;
+                            unsafe {
+                                temp.copy_from(other)?;
+                                self.copy_from(&temp)
+                            }
+                        }
+                    }
+                }
+            }
+            #[cfg(feature = "cuda")]
+            (Device::CPU, Device::CUDA(_)) | (Device::CUDA(_), Device::CPU) => unsafe { self.copy_from(other) },
+        }
+    }
+
+    fn copy_from_with_dtype_cast(&mut self, other: &dyn Buffer) -> Result<()> {
+        if self.len() != other.len() {
+            return Err(Error::InvalidArgument("Buffer sizes must match".into()));
+        }
+
+        let from_dtype = other.dtype();
+        let to_dtype = self.dtype();
+
+        if from_dtype == to_dtype {
+            unsafe {
+                return self.copy_from(other);
+            }
+        }
+
+        // Helper macros for type conversion
+        macro_rules! convert_buffer_primitive {
+            ($from_ty:ty => $mid_ty:ty => $to_ty:ty) => {{
+                let mut temp_buf: Vec<$from_ty> = Vec::with_capacity(other.len());
+                temp_buf.resize(other.len(), Default::default());
+                let size = other.len() * from_dtype.size_in_bytes();
+                unsafe {
+                    other.copy_to_host(temp_buf.as_mut_ptr() as *mut std::ffi::c_void, size)?;
+                    let converted: Vec<$to_ty> = temp_buf.iter().map(|&x| (x as $mid_ty) as $to_ty).collect();
+                    self.copy_from_host(
+                        converted.as_ptr() as *const std::ffi::c_void,
+                        converted.len() * std::mem::size_of::<$to_ty>(),
+                    )
+                }
+            }};
+            ($from_ty:ty => $to_ty:ty) => {{
+                let mut temp_buf: Vec<$from_ty> = Vec::with_capacity(other.len());
+                temp_buf.resize(other.len(), Default::default());
+                let size = other.len() * from_dtype.size_in_bytes();
+                unsafe {
+                    other.copy_to_host(temp_buf.as_mut_ptr() as *mut std::ffi::c_void, size)?;
+                    let converted: Vec<$to_ty> = temp_buf.iter().map(|&x| x as $to_ty).collect();
+                    self.copy_from_host(
+                        converted.as_ptr() as *const std::ffi::c_void,
+                        converted.len() * std::mem::size_of::<$to_ty>(),
+                    )
+                }
+            }};
+        }
+
+        macro_rules! convert_buffer_from {
+            ($from_ty:ty => $to_ty:ty) => {{
+                let mut temp_buf: Vec<$from_ty> = Vec::with_capacity(other.len());
+                temp_buf.resize(other.len(), Default::default());
+                let size = other.len() * from_dtype.size_in_bytes();
+                unsafe {
+                    other.copy_to_host(temp_buf.as_mut_ptr() as *mut std::ffi::c_void, size)?;
+                    let converted: Vec<$to_ty> = temp_buf.iter().map(|&x| <$to_ty>::from(x)).collect();
+                    self.copy_from_host(
+                        converted.as_ptr() as *const std::ffi::c_void,
+                        converted.len() * std::mem::size_of::<$to_ty>(),
+                    )
+                }
+            }};
+        }
+
+        macro_rules! convert_buffer_through_from {
+            ($from_ty:ty => $mid_ty:ty => $to_ty:ty) => {{
+                let mut temp_buf: Vec<$from_ty> = Vec::with_capacity(other.len());
+                temp_buf.resize(other.len(), Default::default());
+                let size = other.len() * from_dtype.size_in_bytes();
+                unsafe {
+                    other.copy_to_host(temp_buf.as_mut_ptr() as *mut std::ffi::c_void, size)?;
+                    let converted: Vec<$to_ty> = temp_buf.iter().map(|&x| <$to_ty>::from(x as $mid_ty)).collect();
+                    self.copy_from_host(
+                        converted.as_ptr() as *const std::ffi::c_void,
+                        converted.len() * std::mem::size_of::<$to_ty>(),
+                    )
+                }
+            }};
+        }
+
+        macro_rules! convert_buffer_to_bool {
+            ($from_ty:ty) => {{
+                let mut temp_buf: Vec<$from_ty> = Vec::with_capacity(other.len());
+                temp_buf.resize(other.len(), Default::default());
+                let size = other.len() * from_dtype.size_in_bytes();
+                unsafe {
+                    other.copy_to_host(temp_buf.as_mut_ptr() as *mut std::ffi::c_void, size)?;
+                    let converted: Vec<bool> = temp_buf.iter().map(|&x| x != <$from_ty>::default()).collect();
+                    self.copy_from_host(
+                        converted.as_ptr() as *const std::ffi::c_void,
+                        converted.len() * std::mem::size_of::<bool>(),
+                    )
+                }
+            }};
+        }
+
+        macro_rules! convert_buffer_f32_to_half {
+            ($from_ty:ty => $to_ty:ty) => {{
+                let mut temp_buf: Vec<$from_ty> = Vec::with_capacity(other.len());
+                temp_buf.resize(other.len(), Default::default());
+                let size = other.len() * from_dtype.size_in_bytes();
+                unsafe {
+                    other.copy_to_host(temp_buf.as_mut_ptr() as *mut std::ffi::c_void, size)?;
+                    let converted: Vec<$to_ty> = temp_buf.iter().map(|&x| <$to_ty>::from_f32(x as f32)).collect();
+                    self.copy_from_host(
+                        converted.as_ptr() as *const std::ffi::c_void,
+                        converted.len() * std::mem::size_of::<$to_ty>(),
+                    )
+                }
+            }};
+        }
+
+        macro_rules! convert_buffer_half_to_numeric {
+            // half -> half
+            (half::bf16 => half::f16) => {{
+                let mut temp_buf: Vec<half::bf16> = Vec::with_capacity(other.len());
+                temp_buf.resize(other.len(), Default::default());
+                let size = other.len() * from_dtype.size_in_bytes();
+                unsafe {
+                    other.copy_to_host(temp_buf.as_mut_ptr() as *mut std::ffi::c_void, size)?;
+                    let converted: Vec<half::f16> = temp_buf.iter().map(|&x| half::f16::from_f32(x.to_f32())).collect();
+                    self.copy_from_host(
+                        converted.as_ptr() as *const std::ffi::c_void,
+                        converted.len() * std::mem::size_of::<half::f16>(),
+                    )
+                }
+            }};
+            (half::f16 => half::bf16) => {{
+                let mut temp_buf: Vec<half::f16> = Vec::with_capacity(other.len());
+                temp_buf.resize(other.len(), Default::default());
+                let size = other.len() * from_dtype.size_in_bytes();
+                unsafe {
+                    other.copy_to_host(temp_buf.as_mut_ptr() as *mut std::ffi::c_void, size)?;
+                    let converted: Vec<half::bf16> = temp_buf.iter().map(|&x| half::bf16::from_f32(x.to_f32())).collect();
+                    self.copy_from_host(
+                        converted.as_ptr() as *const std::ffi::c_void,
+                        converted.len() * std::mem::size_of::<half::bf16>(),
+                    )
+                }
+            }};
+            // half -> bool
+            ($from_ty:ty => bool) => {{
+                let mut temp_buf: Vec<$from_ty> = Vec::with_capacity(other.len());
+                temp_buf.resize(other.len(), Default::default());
+                let size = other.len() * from_dtype.size_in_bytes();
+                unsafe {
+                    other.copy_to_host(temp_buf.as_mut_ptr() as *mut std::ffi::c_void, size)?;
+                    let converted: Vec<bool> = temp_buf.iter().map(|&x| <$from_ty>::to_f32(x) != 0.0).collect();
+                    self.copy_from_host(
+                        converted.as_ptr() as *const std::ffi::c_void,
+                        converted.len() * std::mem::size_of::<bool>(),
+                    )
+                }
+            }};
+            // half -> numeric
+            ($from_ty:ty => $to_ty:ty) => {{
+                let mut temp_buf: Vec<$from_ty> = Vec::with_capacity(other.len());
+                temp_buf.resize(other.len(), Default::default());
+                let size = other.len() * from_dtype.size_in_bytes();
+                unsafe {
+                    other.copy_to_host(temp_buf.as_mut_ptr() as *mut std::ffi::c_void, size)?;
+                    let converted: Vec<$to_ty> = temp_buf.iter().map(|&x| <$from_ty>::to_f32(x) as $to_ty).collect();
+                    self.copy_from_host(
+                        converted.as_ptr() as *const std::ffi::c_void,
+                        converted.len() * std::mem::size_of::<$to_ty>(),
+                    )
+                }
+            }};
+        }
+
+        // Define allowed type conversions
+        match (from_dtype, to_dtype) {
+            // From BF16
+            (DType::BF16, DType::F16) => convert_buffer_half_to_numeric!(half::bf16 => half::f16),
+            (DType::BF16, DType::F32) => convert_buffer_from!(half::bf16 => f32),
+            (DType::BF16, DType::F64) => convert_buffer_half_to_numeric!(half::bf16 => f64),
+            (DType::BF16, DType::BOOL) => convert_buffer_half_to_numeric!(half::bf16 => bool),
+            (DType::BF16, DType::U8) => convert_buffer_half_to_numeric!(half::bf16 => u8),
+            (DType::BF16, DType::U32) => convert_buffer_half_to_numeric!(half::bf16 => u32),
+            (DType::BF16, DType::I8) => convert_buffer_half_to_numeric!(half::bf16 => i8),
+            (DType::BF16, DType::I32) => convert_buffer_half_to_numeric!(half::bf16 => i32),
+            (DType::BF16, DType::I64) => convert_buffer_half_to_numeric!(half::bf16 => i64),
+
+            // From F16
+            (DType::F16, DType::BF16) => convert_buffer_half_to_numeric!(half::f16 => half::bf16),
+            (DType::F16, DType::F32) => convert_buffer_from!(half::f16 => f32),
+            (DType::F16, DType::F64) => convert_buffer_half_to_numeric!(half::f16 => f64),
+            (DType::F16, DType::BOOL) => convert_buffer_half_to_numeric!(half::f16 => bool),
+            (DType::F16, DType::U8) => convert_buffer_half_to_numeric!(half::f16 => u8),
+            (DType::F16, DType::U32) => convert_buffer_half_to_numeric!(half::f16 => u32),
+            (DType::F16, DType::I8) => convert_buffer_half_to_numeric!(half::f16 => i8),
+            (DType::F16, DType::I32) => convert_buffer_half_to_numeric!(half::f16 => i32),
+            (DType::F16, DType::I64) => convert_buffer_half_to_numeric!(half::f16 => i64),
+
+            // From F32
+            (DType::F32, DType::BF16) => convert_buffer_f32_to_half!(f32 => half::bf16),
+            (DType::F32, DType::F16) => convert_buffer_f32_to_half!(f32 => half::f16),
+            (DType::F32, DType::F64) => convert_buffer_primitive!(f32 => f64),
+            (DType::F32, DType::BOOL) => convert_buffer_to_bool!(f32),
+            (DType::F32, DType::U8) => convert_buffer_primitive!(f32 => u8),
+            (DType::F32, DType::U32) => convert_buffer_primitive!(f32 => u32),
+            (DType::F32, DType::I8) => convert_buffer_primitive!(f32 => i8),
+            (DType::F32, DType::I32) => convert_buffer_primitive!(f32 => i32),
+            (DType::F32, DType::I64) => convert_buffer_primitive!(f32 => i64),
+
+            // From F64
+            (DType::F64, DType::BF16) => convert_buffer_f32_to_half!(f64 => half::bf16),
+            (DType::F64, DType::F16) => convert_buffer_f32_to_half!(f64 => half::f16),
+            (DType::F64, DType::F32) => convert_buffer_primitive!(f64 => f32),
+            (DType::F64, DType::BOOL) => convert_buffer_to_bool!(f64),
+            (DType::F64, DType::U8) => convert_buffer_primitive!(f64 => u8),
+            (DType::F64, DType::U32) => convert_buffer_primitive!(f64 => u32),
+            (DType::F64, DType::I8) => convert_buffer_primitive!(f64 => i8),
+            (DType::F64, DType::I32) => convert_buffer_primitive!(f64 => i32),
+            (DType::F64, DType::I64) => convert_buffer_primitive!(f64 => i64),
+
+            // From BOOL
+            (DType::BOOL, DType::BF16) => convert_buffer_through_from!(bool => u8 => half::bf16),
+            (DType::BOOL, DType::F16) => convert_buffer_through_from!(bool => u8 => half::f16),
+            (DType::BOOL, DType::F32) => convert_buffer_primitive!(bool => u8 => f32),
+            (DType::BOOL, DType::F64) => convert_buffer_primitive!(bool => u8 => f64),
+            (DType::BOOL, DType::U8) => convert_buffer_primitive!(bool => u8),
+            (DType::BOOL, DType::U32) => convert_buffer_primitive!(bool => u32),
+            (DType::BOOL, DType::I8) => convert_buffer_primitive!(bool => i8),
+            (DType::BOOL, DType::I32) => convert_buffer_primitive!(bool => i32),
+            (DType::BOOL, DType::I64) => convert_buffer_primitive!(bool => i64),
+
+            // From U8
+            (DType::U8, DType::BF16) => convert_buffer_from!(u8 => half::bf16),
+            (DType::U8, DType::F16) => convert_buffer_from!(u8 => half::f16),
+            (DType::U8, DType::F32) => convert_buffer_primitive!(u8 => f32),
+            (DType::U8, DType::F64) => convert_buffer_primitive!(u8 => f64),
+            (DType::U8, DType::BOOL) => convert_buffer_to_bool!(u8),
+            (DType::U8, DType::U32) => convert_buffer_primitive!(u8 => u32),
+            (DType::U8, DType::I8) => convert_buffer_primitive!(u8 => i8),
+            (DType::U8, DType::I32) => convert_buffer_primitive!(u8 => i32),
+            (DType::U8, DType::I64) => convert_buffer_primitive!(u8 => i64),
+
+            // From U32
+            (DType::U32, DType::BF16) => convert_buffer_through_from!(u32 => u8 => half::bf16),
+            (DType::U32, DType::F16) => convert_buffer_through_from!(u32 => u8 => half::f16),
+            (DType::U32, DType::F32) => convert_buffer_primitive!(u32 => f32),
+            (DType::U32, DType::F64) => convert_buffer_primitive!(u32 => f64),
+            (DType::U32, DType::BOOL) => convert_buffer_to_bool!(u32),
+            (DType::U32, DType::U8) => convert_buffer_primitive!(u32 => u8),
+            (DType::U32, DType::I8) => convert_buffer_primitive!(u32 => i8),
+            (DType::U32, DType::I32) => convert_buffer_primitive!(u32 => i32),
+            (DType::U32, DType::I64) => convert_buffer_primitive!(u32 => i64),
+
+            // From I8
+            (DType::I8, DType::BF16) => convert_buffer_from!(i8 => half::bf16),
+            (DType::I8, DType::F16) => convert_buffer_from!(i8 => half::f16),
+            (DType::I8, DType::F32) => convert_buffer_primitive!(i8 => f32),
+            (DType::I8, DType::F64) => convert_buffer_primitive!(i8 => f64),
+            (DType::I8, DType::BOOL) => convert_buffer_to_bool!(i8),
+            (DType::I8, DType::U8) => convert_buffer_primitive!(i8 => u8),
+            (DType::I8, DType::U32) => convert_buffer_primitive!(i8 => u32),
+            (DType::I8, DType::I32) => convert_buffer_primitive!(i8 => i32),
+            (DType::I8, DType::I64) => convert_buffer_primitive!(i8 => i64),
+
+            // From I32
+            (DType::I32, DType::BF16) => convert_buffer_through_from!(i32 => i8 => half::bf16),
+            (DType::I32, DType::F16) => convert_buffer_through_from!(i32 => i8 => half::f16),
+            (DType::I32, DType::F32) => convert_buffer_primitive!(i32 => f32),
+            (DType::I32, DType::F64) => convert_buffer_primitive!(i32 => f64),
+            (DType::I32, DType::BOOL) => convert_buffer_to_bool!(i32),
+            (DType::I32, DType::U8) => convert_buffer_primitive!(i32 => u8),
+            (DType::I32, DType::U32) => convert_buffer_primitive!(i32 => u32),
+            (DType::I32, DType::I8) => convert_buffer_primitive!(i32 => i8),
+            (DType::I32, DType::I64) => convert_buffer_primitive!(i32 => i64),
+
+            // From I64
+            (DType::I64, DType::BF16) => convert_buffer_through_from!(i64 => i8 => half::bf16),
+            (DType::I64, DType::F16) => convert_buffer_through_from!(i64 => i8 => half::f16),
+            (DType::I64, DType::F32) => convert_buffer_primitive!(i64 => f32),
+            (DType::I64, DType::F64) => convert_buffer_primitive!(i64 => f64),
+            (DType::I64, DType::BOOL) => convert_buffer_to_bool!(i64),
+            (DType::I64, DType::U8) => convert_buffer_primitive!(i64 => u8),
+            (DType::I64, DType::U32) => convert_buffer_primitive!(i64 => u32),
+            (DType::I64, DType::I8) => convert_buffer_primitive!(i64 => i8),
+            (DType::I64, DType::I32) => convert_buffer_primitive!(i64 => i32),
+
+            _ => Err(Error::InvalidArgument(format!(
+                "Unsupported dtype conversion from {:?} to {:?}",
+                from_dtype, to_dtype
+            ))),
+        }
+    }
+}

@@ -1,0 +1,89 @@
+use half::{bf16, f16};
+
+#[link(name = "ops")]
+extern "C" {}
+
+#[macro_export]
+macro_rules! declare_extern_reduction_ops {
+    ($(
+        $dtype:ident => {
+            type: $ty:ty,
+            standard_ops: [$($std_op:ident),*],
+            shape_ops: [$($shape_op:ident),*]
+        }
+    ),*) => {
+        paste::paste! {
+            extern "C" {
+                $(
+                    $(
+                        pub fn [<cuda_ $std_op _ $dtype:lower>](
+                            num_els: usize,
+                            num_dims: usize,
+                            num_red_dims: usize,
+                            info: *const usize,
+                            inp: *const $ty,
+                            out: *mut $ty,
+                        );
+                    )*
+                    $(
+                        pub fn [<cuda_ $shape_op _ $dtype:lower>](
+                            num_els: usize,
+                            num_dims: usize,
+                            info: *const usize,
+                            inp: *const $ty,
+                            out: *mut $ty,
+                        );
+                    )*
+                )*
+            }
+        }
+    }
+}
+
+declare_extern_reduction_ops! {
+    BF16 => {
+        type: bf16,
+        standard_ops: [sum, mean],
+        shape_ops: [sum_to_shape]
+    },
+    F16 => {
+        type: f16,
+        standard_ops: [sum, mean],
+        shape_ops: [sum_to_shape]
+    },
+    F32 => {
+        type: f32,
+        standard_ops: [sum, mean],
+        shape_ops: [sum_to_shape]
+    },
+    F64 => {
+        type: f64,
+        standard_ops: [sum, mean],
+        shape_ops: [sum_to_shape]
+    },
+    U8 => {
+        type: u8,
+        standard_ops: [sum],
+        shape_ops: [sum_to_shape]
+    },
+    U32 => {
+        type: u32,
+        standard_ops: [sum],
+        shape_ops: [sum_to_shape]
+    },
+    I8 => {
+        type: i8,
+        standard_ops: [sum],
+        shape_ops: [sum_to_shape]
+    },
+    I32 => {
+        type: i32,
+        standard_ops: [sum],
+        shape_ops: [sum_to_shape]
+    },
+    I64 => {
+        type: i64,
+        standard_ops: [sum],
+        shape_ops: [sum_to_shape]
+    }
+}

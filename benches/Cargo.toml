@@ -1,0 +1,26 @@
+[package]
+name = "benches"
+edition = "2021"
+description = "Benchmarks that test MaidenX's performance"
+publish = false
+license = "BSD-3-Clause"
+autobenches = false
+
+[features]
+cpu = []
+cuda = ["maidenx_core/cuda", "maidenx_tensor/cuda"]
+
+[dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }
+
+[dev-dependencies]
+maidenx_core = { path = "../crates/maidenx_core" }
+maidenx_tensor = { path = "../crates/maidenx_tensor" }
+
+[lib]
+bench = false
+
+[[bench]]
+name = "tensor"
+path = "benches/maidenx_tensor/main.rs"
+harness = false
