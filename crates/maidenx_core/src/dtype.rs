@@ -1,5 +1,7 @@
 #![allow(non_upper_case_globals)]
 
+use crate::scalar::Scalar;
+
 pub const bfloat16: DType = DType::BF16;
 pub const float16: DType = DType::F16;
 pub const half: DType = DType::F16;
@@ -76,6 +78,104 @@ impl DType {
         match self {
             Self::BF16 | Self::F16 | Self::F32 | Self::F64 => true,
             Self::BOOL | Self::U8 | Self::U32 | Self::I8 | Self::I32 | Self::I64 => false,
+        }
+    }
+
+    /// # Safety
+    ///
+    /// This function performs an unsafe read operation from the provided pointer.
+    /// The caller must ensure that:
+    /// - The pointer is valid and properly aligned for the target data type
+    /// - The pointer points to memory of sufficient size for the data type being read
+    /// - The memory location is initialized with valid data for the specified DType
+    /// - The lifetime of the pointed memory is valid for the duration of this function call
+    pub unsafe fn read_scalar(&self, ptr: *const u8) -> Scalar {
+        match self {
+            Self::BF16 => {
+                let val = *(ptr as *const half::bf16);
+                Scalar::from(f32::from(val))
+            }
+            Self::F16 => {
+                let val = *(ptr as *const half::f16);
+                Scalar::from(f32::from(val))
+            }
+            Self::F32 => {
+                let val = *(ptr as *const f32);
+                Scalar::from(val)
+            }
+            Self::F64 => {
+                let val = *(ptr as *const f64);
+                Scalar::from(val)
+            }
+            Self::BOOL => {
+                let val = *(ptr as *const bool);
+                Scalar::from(val)
+            }
+            Self::U8 => {
+                let val = ptr;
+                Scalar::from(val as i32)
+            }
+            Self::U32 => {
+                let val = *(ptr as *const u32);
+                Scalar::from(val as i32)
+            }
+            Self::I8 => {
+                let val = *(ptr as *const i8);
+                Scalar::from(val as i32)
+            }
+            Self::I32 => {
+                let val = *(ptr as *const i32);
+                Scalar::from(val)
+            }
+            Self::I64 => {
+                let val = *(ptr as *const i64);
+                Scalar::from(val)
+            }
+        }
+    }
+
+    /// # Safety
+    ///
+    /// This function performs an unsafe write operation to the provided pointer.
+    /// The caller must ensure that:
+    /// - The pointer is valid and properly aligned for the target data type
+    /// - The pointer points to writable memory of sufficient size for the data type
+    /// - No other references to this memory location are being accessed concurrently
+    /// - The lifetime of the pointed memory is valid for the duration of this function call
+    pub unsafe fn write_scalar(&self, ptr: *mut u8, value: Scalar) {
+        match self {
+            Self::BF16 => {
+                let float_val = value.as_f32();
+                *(ptr as *mut half::bf16) = half::bf16::from_f32(float_val);
+            }
+            Self::F16 => {
+                let float_val = value.as_f32();
+                *(ptr as *mut half::f16) = half::f16::from_f32(float_val);
+            }
+            Self::F32 => {
+                *(ptr as *mut f32) = value.as_f32();
+            }
+            Self::F64 => {
+                *(ptr as *mut f64) = value.as_f64();
+            }
+            Self::BOOL => {
+                *(ptr as *mut bool) = value.as_bool();
+            }
+            Self::U8 => {
+                *ptr = value.as_i32() as u8;
+            }
+            Self::U32 => {
+                *(ptr as *mut u32) = value.as_i32() as u32;
+            }
+            Self::I8 => {
+                *(ptr as *mut i8) = value.as_i32() as i8;
+            }
+            Self::I32 => {
+                *(ptr as *mut i32) = value.as_i32();
+            }
+            Self::I64 => {
+                *(ptr as *mut i64) = value.as_i64();
+            }
         }
     }
 }

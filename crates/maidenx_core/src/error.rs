@@ -39,7 +39,14 @@ pub enum Error {
         dim: i32,
         ndim: usize,
     },
+    IndexOutOfBounds {
+        index: usize,
+        size: usize,
+    },
     //
+    Internal {
+        message: String,
+    },
     External {
         message: String,
     },
@@ -81,6 +88,12 @@ impl fmt::Display for Error {
                     "Dimension out of bounds: dimension {} is not valid for tensor with {} dimensions",
                     dim, ndim
                 )
+            }
+            Self::IndexOutOfBounds { index, size } => {
+                write!(f, "Index out of bounds: index {} is out of bounds for tensor with size {}", index, size)
+            }
+            Self::Internal { message } => {
+                write!(f, "Internal error: {}", message)
             }
             Self::External { message } => {
                 write!(f, "External error: {}", message)

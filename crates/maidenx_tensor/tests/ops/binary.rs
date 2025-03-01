@@ -103,9 +103,7 @@ mod test_functions {
         let y = setup_grad_tensor(vec![2.0f32, 4.0], device, dtype)?;
 
         let result = x.div(&y)?;
-        println!("Before:\nx: {:?}\ny: {:?}\nresult: {:?}", x, y, result);
         result.backward()?;
-        println!("After:\nx: {:?}\ny: {:?}\nresult: {:?}", x, y, result);
 
         assert_eq!(result.to_flatten_vec::<f32>()?, vec![3.0, 2.5]);
 

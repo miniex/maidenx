@@ -23,7 +23,7 @@ impl Tensor {
         }
         shape.remove(dim);
 
-        let mut result = Self::empty_with_spec(&shape, self.device(), self.dtype())?;
+        let mut result = Self::zeros_with_spec(&shape, self.device(), self.dtype())?;
 
         let dims_and_strides = prepare_dims_and_strides(self, dim);
         unsafe {
@@ -88,7 +88,7 @@ impl Tensor {
             }
         }
 
-        let mut result = Self::empty_with_spec(shape, self.device(), self.dtype())?;
+        let mut result = Self::zeros_with_spec(shape, self.device(), self.dtype())?;
 
         let dims_and_strides = prepare_dims_and_strides_for_shape(self, shape);
         unsafe {
@@ -133,7 +133,7 @@ impl Tensor {
         let target_dtype = if self.dtype().is_int() { DType::F32 } else { self.dtype() };
         let input = promote_tensor(self, target_dtype)?;
 
-        let mut result = Self::empty_with_spec(&shape, input.device(), input.dtype())?;
+        let mut result = Self::zeros_with_spec(&shape, input.device(), input.dtype())?;
 
         let dims_and_strides = prepare_dims_and_strides(self, dim);
         unsafe {

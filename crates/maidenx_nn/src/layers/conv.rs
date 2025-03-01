@@ -8,6 +8,100 @@ use maidenx_core::{
 };
 use maidenx_tensor::{Tensor, TensorNode};
 
+// #[derive(Layer, Clone)]
+// pub struct Conv1d {
+//     weight: Tensor,
+//     bias: Option<Tensor>,
+//     kernel_size: usize,
+//     stride: usize,
+//     padding: usize,
+// }
+//
+// impl Conv1d {
+//     pub fn new(in_channels: usize, out_channels: usize, kernel_size: usize, stride: usize, padding: usize, with_bias: bool) -> Result<Self> {
+//         let device = get_default_device();
+//         let dtype = get_default_dtype();
+//
+//         Self::new_with_spec(in_channels, out_channels, kernel_size, stride, padding, with_bias, device, dtype)
+//     }
+//
+//     pub fn new_with_spec(
+//         in_channels: usize,
+//         out_channels: usize,
+//         kernel_size: usize,
+//         stride: usize,
+//         padding: usize,
+//         with_bias: bool,
+//         device: Device,
+//         dtype: DType,
+//     ) -> Result<Self> {
+//         let k: f32 = 1.0 / ((in_channels * kernel_size) as f32).sqrt();
+//
+//         let mut w = Tensor::randn_with_spec(&[out_channels, in_channels, kernel_size], device, dtype)?;
+//         w.with_grad()?;
+//         w.mul_scalar(k)?;
+//
+//         let b = if with_bias {
+//             let mut b = Tensor::randn_with_spec(&[out_channels], device, dtype)?;
+//             b.with_grad()?;
+//             b.mul_scalar(k)?;
+//             Some(b)
+//         } else {
+//             None
+//         };
+//
+//         Ok(Self {
+//             weight: w,
+//             bias: b,
+//             kernel_size,
+//             stride,
+//             padding,
+//         })
+//     }
+//
+//     pub fn forward(&self, input: &Tensor) -> Result<Tensor> {
+//         let input_shape = input.shape();
+//         if input_shape.len() != 3 {
+//             return Err(maidenx_core::error::Error::InvalidShape {
+//                 message: "Expected 3D input (batch_size, channels, length)".to_string(),
+//             });
+//         }
+//
+//         let batch_size = input_shape[0];
+//         let in_channels = input_shape[1];
+//         let input_length = input_shape[2];
+//
+//         let output_length = (input_length + 2 * self.padding - self.kernel_size) / self.stride + 1;
+//
+//         let weight_reshaped = self.weight.reshape(&[self.weight.shape()[0], -1])?;
+//         let mut output = input
+//             .unfold(2, self.kernel_size, self.stride)?
+//             .matmul(&weight_reshaped.transpose(-1, -2)?)?;
+//
+//         if let Some(ref bias) = self.bias {
+//             output = output.add(bias)?;
+//         }
+//
+//         Ok(output)
+//     }
+//
+//     pub fn parameters(&mut self) -> Vec<&mut Tensor> {
+//         let mut params = vec![&mut self.weight];
+//         if let Some(ref mut b) = self.bias {
+//             params.push(b);
+//         }
+//         params
+//     }
+//
+//     pub fn weight(&self) -> &Tensor {
+//         &self.weight
+//     }
+//
+//     pub fn bias(&self) -> Option<&Tensor> {
+//         self.bias.as_ref()
+//     }
+// }
+
 #[derive(Layer, Clone)]
 pub struct Conv2d {
     weight: Tensor,

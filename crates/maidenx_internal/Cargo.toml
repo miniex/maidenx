@@ -1,6 +1,6 @@
 [package]
 name = "maidenx_internal"
-version = "0.1.0"
+version = "0.2.0-dev"
 description = "maidenx internal"
 license = "BSD-3-Clause"
 authors = ["Han Damin <miniex@daminstudio.net>"]
@@ -12,6 +12,6 @@ repository = "https://github.com/miniex/maidenx"
 cuda = ["maidenx_core/cuda", "maidenx_tensor/cuda"]
 
 [dependencies]
-maidenx_core = { path = "../maidenx_core", version = "0.1.0" }
-maidenx_nn = { path = "../maidenx_nn", version = "0.1.0" }
-maidenx_tensor = { path = "../maidenx_tensor", version = "0.1.0" }
+maidenx_core = { path = "../maidenx_core", version = "0.2.0-dev" }
+maidenx_nn = { path = "../maidenx_nn", version = "0.2.0-dev" }
+maidenx_tensor = { path = "../maidenx_tensor", version = "0.2.0-dev" }

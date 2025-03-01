@@ -1,6 +1,7 @@
 pub mod layer;
 pub mod optimizer;
 
+pub mod functional;
 pub mod layers;
 pub mod losses;
 pub mod optimizers;

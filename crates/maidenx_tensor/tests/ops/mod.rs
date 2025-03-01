@@ -9,7 +9,7 @@ mod total {
     use maidenx_tensor::Tensor;
 
     #[test]
-    fn test1() -> Result<()> {
+    fn test() -> Result<()> {
         let mut x = Tensor::new(vec![2.0])?;
         let mut y = Tensor::new(vec![3.0])?;
         x.with_grad()?;

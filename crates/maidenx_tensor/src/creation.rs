@@ -8,6 +8,7 @@ use maidenx_core::{
     dtype::{get_default_dtype, DType},
     error::{Error, Result},
     layout::Layout,
+    scalar::Scalar,
 };
 use rand::distributions::Distribution;
 use std::sync::{Arc, RwLock};
@@ -18,15 +19,15 @@ impl Tensor {
         T: TensorAdapter,
     {
         let device = get_default_device();
+        let dtype = get_default_dtype();
 
-        Self::new_with_spec(data, device)
+        Self::new_with_spec(data, device, dtype)
     }
 
-    pub fn new_with_spec<T>(data: T, device: Device) -> Result<Self>
+    pub fn new_with_spec<T>(data: T, device: Device, dtype: DType) -> Result<Self>
     where
         T: TensorAdapter,
     {
-        let dtype = data.dtype();
         let shape = data.to_shape();
         let layout = Layout::from_shape(&shape);
         let size = layout.size();
@@ -37,11 +38,30 @@ impl Tensor {
             Device::CUDA(id) => Arc::new(RwLock::new(CudaBuffer::new(size, dtype, id)?)),
         };
 
-        let flat_data = data.to_flat_vec()?;
+        let src_dtype = data.dtype();
+        let src_data = data.to_flat_vec()?;
+
         {
             let mut guard = buffer.write().map_err(|_| Error::BufferLocked)?;
-            unsafe {
-                guard.copy_from_host(flat_data.as_ptr() as *const std::ffi::c_void, size * dtype.size_in_bytes())?;
+
+            if src_dtype == dtype {
+                unsafe {
+                    guard.copy_from_host(src_data.as_ptr() as *const std::ffi::c_void, size * dtype.size_in_bytes())?;
+                }
+            } else {
+                let mut converted_data = vec![0u8; size * dtype.size_in_bytes()];
+
+                for i in 0..src_data.len() {
+                    let scalar = unsafe { src_dtype.read_scalar((src_data.as_ptr() as *const u8).add(i * src_dtype.size_in_bytes())) };
+
+                    unsafe {
+                        dtype.write_scalar(converted_data.as_mut_ptr().add(i * dtype.size_in_bytes()), scalar);
+                    }
+                }
+
+                unsafe {
+                    guard.copy_from_host(converted_data.as_ptr() as *const std::ffi::c_void, size * dtype.size_in_bytes())?;
+                }
             }
         }
 
@@ -192,6 +212,60 @@ impl Tensor {
         Self::ones_with_spec(src.layout().shape(), src.device(), src.dtype())
     }
 
+    pub fn fill<T: Into<Scalar>>(shape: &[usize], value: T) -> Result<Self> {
+        let device = get_default_device();
+        let dtype = get_default_dtype();
+
+        Self::fill_with_spec(shape, value, device, dtype)
+    }
+
+    pub fn fill_with_spec<T: Into<Scalar>>(shape: &[usize], value: T, device: Device, dtype: DType) -> Result<Self> {
+        let layout = Layout::from_shape(shape);
+        let size = layout.size();
+        let scalar_value = value.into();
+
+        let buffer: Arc<RwLock<dyn Buffer>> = match device {
+            Device::CPU => Arc::new(RwLock::new(CpuBuffer::new(size, dtype)?)),
+            #[cfg(feature = "cuda")]
+            Device::CUDA(id) => Arc::new(RwLock::new(CudaBuffer::new(size, dtype, id)?)),
+        };
+
+        let value_bytes = match dtype {
+            DType::F32 => scalar_value.as_f32().to_ne_bytes().to_vec(),
+            DType::F64 => scalar_value.as_f64().to_ne_bytes().to_vec(),
+            DType::BF16 => bf16::from_f32(scalar_value.as_f32()).to_ne_bytes().to_vec(),
+            DType::F16 => f16::from_f32(scalar_value.as_f32()).to_ne_bytes().to_vec(),
+            DType::I32 => scalar_value.as_i32().to_ne_bytes().to_vec(),
+            DType::I64 => scalar_value.as_i64().to_ne_bytes().to_vec(),
+            DType::U32 => scalar_value.as_u32().to_ne_bytes().to_vec(),
+            DType::I8 => (scalar_value.as_i32() as i8).to_ne_bytes().to_vec(),
+            DType::U8 => (scalar_value.as_u32() as u8).to_ne_bytes().to_vec(),
+            DType::BOOL => vec![if scalar_value.as_bool() { 1u8 } else { 0u8 }],
+        };
+
+        let elem_size = dtype.size_in_bytes();
+        let mut host_buf = Vec::with_capacity(size * elem_size);
+
+        for _ in 0..size {
+            host_buf.extend_from_slice(&value_bytes);
+        }
+
+        {
+            let mut guard = buffer.write().map_err(|_| Error::BufferLocked)?;
+            unsafe {
+                guard.copy_from_host(host_buf.as_ptr() as *const std::ffi::c_void, host_buf.len())?;
+            }
+        }
+
+        Ok(Self {
+            data: TensorData { buffer, layout, grad: None },
+            node: None,
+            device,
+            dtype,
+            requires_grad: false,
+        })
+    }
+
     pub fn randn(shape: &[usize]) -> Result<Self> {
         let device = get_default_device();
         let dtype = get_default_dtype();
@@ -207,7 +281,7 @@ impl Tensor {
         })?;
         let data: Vec<f32> = (0..size).map(|_| normal.sample(&mut rng) as f32).collect();
 
-        let mut result = Self::new_with_spec(data, device)?;
+        let mut result = Self::new_with_spec(data, device, dtype)?;
         result.with_dtype(dtype)?;
         result.with_shape(shape)?;
 
