@@ -90,14 +90,14 @@ impl Tensor {
         }
 
         self.data.buffer = new_buffer;
-        self.data.layout.set_strides(&new_strides);
+        self.metadata.layout.set_strides(&new_strides);
 
         Ok(())
     }
 
     pub fn detach(&self) -> Result<Self> {
         let mut result = self.clone();
-        result.requires_grad = false;
+        result.metadata.requires_grad = false;
         result.node = None;
 
         Ok(result)

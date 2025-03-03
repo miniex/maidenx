@@ -12,7 +12,7 @@ impl Tensor {
             })?;
         }
 
-        if self.requires_grad {
+        if self.requires_grad() {
             result.with_grad()?;
 
             let backward_fn = Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> { Ok(vec![grad_out.neg()?]) });
@@ -33,7 +33,7 @@ impl Tensor {
             })?;
         }
 
-        if self.requires_grad {
+        if self.requires_grad() {
             result.with_grad()?;
 
             let input = self.clone();
@@ -56,7 +56,7 @@ impl Tensor {
             })?;
         }
 
-        if self.requires_grad {
+        if self.requires_grad() {
             result.with_grad()?;
 
             let backward_fn = Box::new(move |_inputs: &[Tensor], _grad_out: &Tensor| -> Result<Vec<Tensor>> { Ok(vec![]) });
@@ -77,7 +77,7 @@ impl Tensor {
             })?;
         }
 
-        if self.requires_grad {
+        if self.requires_grad() {
             result.with_grad()?;
 
             let input = self.clone();
@@ -109,7 +109,7 @@ impl Tensor {
             })?;
         }
 
-        if self.requires_grad {
+        if self.requires_grad() {
             result.with_grad()?;
 
             let output = result.clone();
@@ -141,7 +141,7 @@ impl Tensor {
             })?;
         }
 
-        if self.requires_grad {
+        if self.requires_grad() {
             result.with_grad()?;
 
             let input = self.clone();
@@ -175,7 +175,7 @@ impl Tensor {
             })?;
         }
 
-        if self.requires_grad {
+        if self.requires_grad() {
             result.with_grad()?;
 
             let output = result.clone();
@@ -208,7 +208,7 @@ impl Tensor {
             })?;
         }
 
-        if self.requires_grad {
+        if self.requires_grad() {
             result.with_grad()?;
 
             let output = result.clone();
@@ -261,7 +261,7 @@ impl Tensor {
             })?;
         }
 
-        if self.requires_grad {
+        if self.requires_grad() {
             result.with_grad()?;
 
             let backward_fn = Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> { Ok(vec![grad_out.clone()]) });
@@ -290,7 +290,7 @@ impl Tensor {
             })?;
         }
 
-        if self.requires_grad {
+        if self.requires_grad() {
             result.with_grad()?;
 
             let backward_fn = Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> { Ok(vec![grad_out.clone()]) });
@@ -319,7 +319,7 @@ impl Tensor {
             })?;
         }
 
-        if self.requires_grad {
+        if self.requires_grad() {
             result.with_grad()?;
 
             let backward_fn =
@@ -352,7 +352,7 @@ impl Tensor {
             })?;
         }
 
-        if self.requires_grad {
+        if self.requires_grad() {
             result.with_grad()?;
 
             let backward_fn =
@@ -385,7 +385,7 @@ impl Tensor {
             })?;
         }
 
-        if self.requires_grad {
+        if self.requires_grad() {
             result.with_grad()?;
 
             let input = self.clone();

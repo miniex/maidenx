@@ -1,4 +1,4 @@
-use crate::{adapter::TensorAdapter, Tensor, TensorData};
+use crate::{adapter::TensorAdapter, Tensor, TensorData, TensorMetadata};
 use half::{bf16, f16};
 #[cfg(feature = "cuda")]
 use maidenx_core::buffer::cuda::CudaBuffer;
@@ -66,11 +66,14 @@ impl Tensor {
         }
 
         Ok(Self {
-            data: TensorData { buffer, layout, grad: None },
+            data: TensorData { buffer, grad: None },
+            metadata: TensorMetadata {
+                device,
+                dtype,
+                layout,
+                requires_grad: false,
+            },
             node: None,
-            device,
-            dtype,
-            requires_grad: false,
         })
     }
 
@@ -106,11 +109,14 @@ impl Tensor {
         };
 
         Ok(Self {
-            data: TensorData { buffer, layout, grad: None },
+            data: TensorData { buffer, grad: None },
+            metadata: TensorMetadata {
+                device,
+                dtype,
+                layout,
+                requires_grad: false,
+            },
             node: None,
-            device,
-            dtype,
-            requires_grad: false,
         })
     }
 
@@ -143,11 +149,14 @@ impl Tensor {
         }
 
         Ok(Self {
-            data: TensorData { buffer, layout, grad: None },
+            data: TensorData { buffer, grad: None },
+            metadata: TensorMetadata {
+                device,
+                dtype,
+                layout,
+                requires_grad: false,
+            },
             node: None,
-            device,
-            dtype,
-            requires_grad: false,
         })
     }
 
@@ -200,11 +209,14 @@ impl Tensor {
         }
 
         Ok(Self {
-            data: TensorData { buffer, layout, grad: None },
-            device,
-            dtype,
+            data: TensorData { buffer, grad: None },
+            metadata: TensorMetadata {
+                device,
+                dtype,
+                layout,
+                requires_grad: false,
+            },
             node: None,
-            requires_grad: false,
         })
     }
 
@@ -258,11 +270,14 @@ impl Tensor {
         }
 
         Ok(Self {
-            data: TensorData { buffer, layout, grad: None },
+            data: TensorData { buffer, grad: None },
+            metadata: TensorMetadata {
+                device,
+                dtype,
+                layout,
+                requires_grad: false,
+            },
             node: None,
-            device,
-            dtype,
-            requires_grad: false,
         })
     }
 

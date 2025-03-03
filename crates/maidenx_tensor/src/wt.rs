@@ -1,6 +1,6 @@
 use crate::{
     utils::broadcast::{compute_broadcast_shape, pad_shape},
-    Tensor, TensorData,
+    Tensor, TensorData, TensorMetadata,
 };
 #[cfg(feature = "cuda")]
 use maidenx_core::buffer::cuda::CudaBuffer;
@@ -36,11 +36,14 @@ impl Tensor {
         }
 
         Ok(Self {
-            data: TensorData { buffer, layout, grad: None },
+            data: TensorData { buffer, grad: None },
+            metadata: TensorMetadata {
+                device,
+                dtype,
+                layout,
+                requires_grad: self.requires_grad(),
+            },
             node: None,
-            device,
-            dtype,
-            requires_grad: self.requires_grad,
         })
     }
 
@@ -56,7 +59,7 @@ impl Tensor {
             });
         }
 
-        self.data.layout = Layout::from_shape(shape);
+        self.metadata.layout = Layout::from_shape(shape);
 
         Ok(())
     }
@@ -74,7 +77,7 @@ impl Tensor {
         }
 
         let mut tensor = self.copy()?;
-        tensor.data.layout = Layout::from_shape(shape);
+        tensor.metadata.layout = Layout::from_shape(shape);
 
         Ok(())
     }
@@ -101,7 +104,7 @@ impl Tensor {
         }
 
         self.data.buffer = buffer;
-        self.device = device;
+        self.metadata.device = device;
 
         Ok(())
     }
@@ -129,11 +132,14 @@ impl Tensor {
         }
 
         Ok(Self {
-            data: TensorData { buffer, layout, grad: None },
+            data: TensorData { buffer, grad: None },
+            metadata: TensorMetadata {
+                device,
+                dtype,
+                layout,
+                requires_grad: self.requires_grad(),
+            },
             node: None,
-            device,
-            dtype,
-            requires_grad: self.requires_grad,
         })
     }
 
@@ -156,7 +162,7 @@ impl Tensor {
         }
 
         self.data.buffer = buffer;
-        self.dtype = dtype;
+        self.metadata.dtype = dtype;
 
         Ok(())
     }
@@ -187,20 +193,23 @@ impl Tensor {
         }
 
         Ok(Self {
-            data: TensorData { buffer, layout, grad: None },
+            data: TensorData { buffer, grad: None },
+            metadata: TensorMetadata {
+                device,
+                dtype,
+                layout,
+                requires_grad: self.requires_grad(),
+            },
             node: None,
-            device,
-            dtype,
-            requires_grad: self.requires_grad,
         })
     }
 
     pub fn with_grad(&mut self) -> Result<()> {
-        if matches!(self.dtype, DType::BOOL | DType::U8 | DType::U32) {
+        if matches!(self.metadata.dtype, DType::BOOL | DType::U8 | DType::U32) {
             return Err(Error::UnsupportedDType);
         }
 
-        self.requires_grad = true;
+        self.metadata.requires_grad = true;
         if self.data.grad.is_none() {
             let grad_storage = Tensor::zeros_like(self)?;
             self.data.grad = Some(Arc::new(Mutex::new(grad_storage)));
@@ -244,7 +253,7 @@ impl Tensor {
             }
 
             self.data.buffer = new_buffer;
-            self.data.layout = target.layout().clone();
+            self.metadata.layout = target.layout().clone();
 
             return Ok(());
         }
@@ -317,7 +326,7 @@ impl Tensor {
         }
 
         self.data.buffer = new_buffer;
-        self.data.layout = Layout::from_shape(&broadcasted_shape);
+        self.metadata.layout = Layout::from_shape(&broadcasted_shape);
 
         Ok(())
     }
@@ -329,4 +338,3 @@ impl Tensor {
         Ok(t)
     }
 }
-

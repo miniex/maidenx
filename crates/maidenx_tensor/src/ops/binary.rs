@@ -34,7 +34,7 @@ impl Tensor {
             })?;
         }
 
-        if self.requires_grad || rhs.requires_grad {
+        if self.requires_grad() || rhs.requires_grad() {
             result.with_grad()?;
 
             let backward_fn = Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> {
@@ -77,7 +77,7 @@ impl Tensor {
             })?;
         }
 
-        if self.requires_grad || rhs.requires_grad {
+        if self.requires_grad() || rhs.requires_grad() {
             result.with_grad()?;
 
             let backward_fn = Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> {
@@ -120,7 +120,7 @@ impl Tensor {
             })?;
         }
 
-        if self.requires_grad || rhs.requires_grad {
+        if self.requires_grad() || rhs.requires_grad() {
             result.with_grad()?;
 
             let lhs_clone = lhs.clone();
@@ -167,7 +167,7 @@ impl Tensor {
             })?;
         }
 
-        if self.requires_grad || rhs.requires_grad {
+        if self.requires_grad() || rhs.requires_grad() {
             result.with_grad()?;
 
             let lhs_clone = lhs.clone();
@@ -548,4 +548,3 @@ fn prepare_dims_and_strides(lhs: &Tensor, rhs: &Tensor) -> Vec<usize> {
 
     dims_and_strides
 }
-

@@ -34,7 +34,7 @@ impl Tensor {
             })?;
         }
 
-        if self.requires_grad {
+        if self.requires_grad() {
             result.with_grad()?;
 
             let input_shape = self.shape().to_vec();
@@ -99,7 +99,7 @@ impl Tensor {
             })?;
         }
 
-        if self.requires_grad {
+        if self.requires_grad() {
             result.with_grad()?;
 
             let input_shape = self.shape().to_vec();
@@ -144,7 +144,7 @@ impl Tensor {
             })?;
         }
 
-        if self.requires_grad {
+        if self.requires_grad() {
             result.with_grad()?;
 
             let input_shape = self.shape().to_vec();

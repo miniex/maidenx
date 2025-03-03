@@ -19,8 +19,15 @@ use std::sync::{Arc, Mutex, RwLock, RwLockReadGuard};
 #[derive(Clone)]
 pub struct TensorData {
     buffer: Arc<RwLock<dyn Buffer>>,
-    layout: Layout,
     grad: Option<Arc<Mutex<Tensor>>>,
+}
+
+#[derive(Clone)]
+pub struct TensorMetadata {
+    device: Device,
+    dtype: DType,
+    layout: Layout,
+    requires_grad: bool,
 }
 
 #[derive(Clone)]
@@ -34,10 +41,8 @@ pub struct TensorNode {
 #[derive(Clone)]
 pub struct Tensor {
     data: TensorData,
+    metadata: TensorMetadata,
     node: Option<TensorNode>,
-    device: Device,
-    dtype: DType,
-    requires_grad: bool,
 }
 
 #[allow(clippy::type_complexity)]
@@ -97,31 +102,31 @@ impl Tensor {
     }
 
     pub fn layout(&self) -> &Layout {
-        &self.data.layout
+        &self.metadata.layout
     }
 
     pub fn layout_mut(&mut self) -> &mut Layout {
-        &mut self.data.layout
+        &mut self.metadata.layout
     }
 
     pub fn shape(&self) -> &[usize] {
-        self.data.layout.shape()
+        self.metadata.layout.shape()
     }
 
     pub fn strides(&self) -> &[usize] {
-        self.data.layout.strides()
+        self.metadata.layout.strides()
     }
 
     pub fn size(&self) -> usize {
-        self.data.layout.size()
+        self.metadata.layout.size()
     }
 
     pub fn ndim(&self) -> usize {
-        self.data.layout.ndim()
+        self.metadata.layout.ndim()
     }
 
     pub fn size_dim(&self, dim: usize) -> Option<usize> {
-        self.data.layout.size_dim(dim)
+        self.metadata.layout.size_dim(dim)
     }
 
     // data - grad
@@ -167,7 +172,7 @@ impl Tensor {
     }
 
     pub fn backward(&self) -> Result<()> {
-        if self.requires_grad {
+        if self.requires_grad() {
             let grad_out = Self::ones_like(self)?;
             self._backward(&grad_out)?;
         }
@@ -186,14 +191,14 @@ impl Tensor {
     // etc
 
     pub fn device(&self) -> Device {
-        self.device
+        self.metadata.device
     }
 
     pub fn dtype(&self) -> DType {
-        self.dtype
+        self.metadata.dtype
     }
 
     pub fn requires_grad(&self) -> bool {
-        self.requires_grad
+        self.metadata.requires_grad
     }
 }

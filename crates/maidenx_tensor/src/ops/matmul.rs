@@ -50,7 +50,7 @@ impl Tensor {
             }
         }
 
-        if self.requires_grad || rhs.requires_grad {
+        if self.requires_grad() || rhs.requires_grad() {
             result.with_grad()?;
 
             let backward_fn = Box::new(move |inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> {

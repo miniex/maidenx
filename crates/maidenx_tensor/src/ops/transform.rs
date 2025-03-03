@@ -12,7 +12,7 @@ impl Tensor {
         let mut result = Self::from_tensor(self)?;
         result.layout_mut().view(&computed_shape)?;
 
-        if self.requires_grad {
+        if self.requires_grad() {
             result.with_grad()?;
 
             let orig_shape = self.shape().to_vec();
@@ -54,7 +54,7 @@ impl Tensor {
         let mut result = Self::from_tensor(self)?;
         result.layout_mut().view(&shape)?;
 
-        if self.requires_grad {
+        if self.requires_grad() {
             result.with_grad()?;
 
             let orig_shape = self.shape().to_vec();
@@ -72,7 +72,7 @@ impl Tensor {
         let mut result = Self::from_tensor(self)?;
         result.layout_mut().view(&shape)?;
 
-        if self.requires_grad {
+        if self.requires_grad() {
             result.with_grad()?;
 
             let orig_shape = self.shape().to_vec();
@@ -106,7 +106,7 @@ impl Tensor {
         let mut result = Self::from_tensor(self)?;
         result.layout_mut().view(&shape)?;
 
-        if self.requires_grad {
+        if self.requires_grad() {
             result.with_grad()?;
 
             let orig_shape = self.shape().to_vec();
@@ -137,7 +137,7 @@ impl Tensor {
         let mut result = Self::from_tensor(self)?;
         result.layout_mut().transpose(dim0, dim1)?;
 
-        if self.requires_grad {
+        if self.requires_grad() {
             result.with_grad()?;
 
             let backward_fn =
@@ -157,7 +157,7 @@ impl Tensor {
         let mut result = Self::from_tensor(self)?;
         result.layout_mut().view(&computed_shape)?;
 
-        if self.requires_grad {
+        if self.requires_grad() {
             result.with_grad()?;
 
             let orig_shape = self.shape().to_vec();
@@ -257,7 +257,7 @@ impl Tensor {
             })?;
         }
 
-        if self.requires_grad {
+        if self.requires_grad() {
             result.with_grad()?;
             let orig_shape = self.shape().to_vec();
             let backward_fn =
