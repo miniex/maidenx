@@ -1,8 +1,8 @@
 #![allow(unused_imports)]
 #![allow(unreachable_patterns)]
 
-use super::CleanupFn;
 use crate::{
+    be::CleanupFn,
     buffer::Buffer,
     device::Device,
     dtype::DType,

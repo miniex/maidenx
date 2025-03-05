@@ -1,30 +1,33 @@
 #![allow(unused_imports)]
 #![allow(unreachable_patterns)]
 
-use super::CleanupFn;
 use crate::{
+    be::CleanupFn,
     buffer::Buffer,
     device::Device,
     dtype::DType,
     error::{Error, Result},
 };
 use half::{bf16, f16};
-use maidenx_cpu::nn::conv::*;
+use maidenx_cpu::ops::matmul::*;
 #[cfg(feature = "cuda")]
-use maidenx_cuda::{cuda_alloc_and_copy_dims, cuda_free, cuda_set_device, nn::conv::*};
+use maidenx_cuda::{cuda_alloc_and_copy_dims, cuda_free, cuda_set_device, ops::matmul::*};
 
 #[macro_export]
-macro_rules! declare_conv2d_op {
+macro_rules! declare_matmul_op {
     ([$($dtype:ident),* $(,)?]) => {
         paste::paste! {
             /// # Safety
             /// This function is unsafe because it performs raw pointer operations.
-            pub unsafe fn im2col(
+            pub unsafe fn matmul(
                 output: &mut dyn Buffer,
-                input: &dyn Buffer,
+                lhs: &dyn Buffer,
+                rhs: &dyn Buffer,
                 num_els: usize,
                 dims_and_strides: Option<&[usize]>,
             ) -> Result<()> {
+                assert_eq!(lhs.dtype(), rhs.dtype(), concat!("DType mismatch in ", stringify!($name)));
+
                 let (dims_and_strides, cleanup_fn): (*const usize, CleanupFn) = match output.device() {
                     Device::CPU => (
                         dims_and_strides.map_or(std::ptr::null(), |d| d.as_ptr()),
@@ -51,15 +54,16 @@ macro_rules! declare_conv2d_op {
                     },
                 };
 
-                match input.device() {
+                match lhs.device() {
                     Device::CPU => {
-                        match input.dtype() {
+                        match lhs.dtype() {
                             $(
                                 DType::$dtype => {
-                                    [<conv2d_im2col_ $dtype:lower>](
+                                    [<matmul_ $dtype:lower>](
                                         num_els,
                                         dims_and_strides,
-                                        input.as_ptr() as *const [<$dtype:lower>],
+                                        lhs.as_ptr() as *const [<$dtype:lower>],
+                                        rhs.as_ptr() as *const [<$dtype:lower>],
                                         output.as_mut_ptr() as *mut [<$dtype:lower>],
                                     )
                                 }
@@ -69,13 +73,14 @@ macro_rules! declare_conv2d_op {
                     },
                     #[cfg(feature = "cuda")]
                     Device::CUDA(_) => {
-                        match input.dtype() {
+                        match lhs.dtype() {
                             $(
                                 DType::$dtype => {
-                                    [<cuda_conv2d_im2col_ $dtype:lower>](
+                                    [<cuda_matmul_ $dtype:lower>](
                                         num_els,
                                         dims_and_strides,
-                                        input.as_ptr() as *const [<$dtype:lower>],
+                                        lhs.as_ptr() as *const [<$dtype:lower>],
+                                        rhs.as_ptr() as *const [<$dtype:lower>],
                                         output.as_mut_ptr() as *mut [<$dtype:lower>],
                                     )
                                 }
@@ -95,13 +100,20 @@ macro_rules! declare_conv2d_op {
             /// # Safety
             /// This function is unsafe because it performs raw pointer operations.
             #[allow(clippy::too_many_arguments)]
-            pub unsafe fn col2im(
-                output: &dyn Buffer,
-                col: &dyn Buffer,
-                num_els: usize,
+            pub unsafe fn matmul_backward(
+                grad_lhs: Option<&mut dyn Buffer>,
+                grad_rhs: Option<&mut dyn Buffer>,
+                grad_output: &dyn Buffer,
+                lhs: &dyn Buffer,
+                rhs: &dyn Buffer,
+                num_els_a: usize,
+                num_els_b: usize,
                 dims_and_strides: Option<&[usize]>,
+
             ) -> Result<()> {
-                let (dims_and_strides, cleanup_fn): (*const usize, CleanupFn) = match output.device() {
+                assert_eq!(lhs.dtype(), rhs.dtype(), concat!("DType mismatch in ", stringify!($name)));
+
+                let (dims_and_strides, cleanup_fn): (*const usize, CleanupFn) = match grad_output.device() {
                     Device::CPU => (
                         dims_and_strides.map_or(std::ptr::null(), |d| d.as_ptr()),
                         None
@@ -127,16 +139,20 @@ macro_rules! declare_conv2d_op {
                     },
                 };
 
-                match output.device() {
+                match lhs.device() {
                     Device::CPU => {
-                        match output.dtype() {
+                        match lhs.dtype() {
                             $(
                                 DType::$dtype => {
-                                    [<conv2d_col2im_ $dtype:lower>](
-                                        num_els,
+                                    [<matmul_backward_ $dtype:lower>](
+                                        num_els_a,
+                                        num_els_b,
                                         dims_and_strides,
-                                        col.as_ptr() as *const [<$dtype:lower>],
-                                        output.as_ptr() as *mut [<$dtype:lower>],
+                                        grad_output.as_ptr() as *const [<$dtype:lower>],
+                                        lhs.as_ptr() as *const [<$dtype:lower>],
+                                        rhs.as_ptr() as *const [<$dtype:lower>],
+                                        grad_lhs.map_or(std::ptr::null_mut(), |buf| buf.as_mut_ptr() as *mut [<$dtype:lower>]),
+                                        grad_rhs.map_or(std::ptr::null_mut(), |buf| buf.as_mut_ptr() as *mut [<$dtype:lower>]),
                                     )
                                 }
                             )*
@@ -145,14 +161,18 @@ macro_rules! declare_conv2d_op {
                     },
                     #[cfg(feature = "cuda")]
                     Device::CUDA(_) => {
-                        match output.dtype() {
+                        match lhs.dtype() {
                             $(
                                 DType::$dtype => {
-                                    [<cuda_conv2d_col2im_ $dtype:lower>](
-                                        num_els,
+                                    [<cuda_matmul_backward_ $dtype:lower>](
+                                        num_els_a,
+                                        num_els_b,
                                         dims_and_strides,
-                                        col.as_ptr() as *const [<$dtype:lower>],
-                                        output.as_ptr() as *mut [<$dtype:lower>],
+                                        grad_output.as_ptr() as *const [<$dtype:lower>],
+                                        lhs.as_ptr() as *const [<$dtype:lower>],
+                                        rhs.as_ptr() as *const [<$dtype:lower>],
+                                        grad_lhs.map_or(std::ptr::null_mut(), |buf| buf.as_mut_ptr() as *mut [<$dtype:lower>]),
+                                        grad_rhs.map_or(std::ptr::null_mut(), |buf| buf.as_mut_ptr() as *mut [<$dtype:lower>]),
                                     )
                                 }
                             )*
@@ -171,4 +191,4 @@ macro_rules! declare_conv2d_op {
     };
 }
 
-declare_conv2d_op!([BF16, F16, F32, F64]);
+declare_matmul_op!([BF16, F16, F32, F64, U8, U32, I8, I32, I64]);

@@ -338,7 +338,7 @@ mod conv2d {
 
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::buffer::nn::conv::im2col(out_buf, input.buffer(), num_els, Some(&dims_and_strides))?;
+                maidenx_core::be::nn::conv::im2col(out_buf, input.buffer(), num_els, Some(&dims_and_strides))?;
 
                 Ok(())
             })?;
@@ -380,7 +380,7 @@ mod conv2d {
 
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::buffer::nn::conv::col2im(out_buf, input.buffer(), num_els, Some(&dims_and_strides))?;
+                maidenx_core::be::nn::conv::col2im(out_buf, input.buffer(), num_els, Some(&dims_and_strides))?;
 
                 Ok(())
             })?;

@@ -1,27 +1,28 @@
-use super::CleanupFn;
+#![allow(unused_imports)]
+#![allow(unreachable_patterns)]
+
 use crate::{
+    be::CleanupFn,
     buffer::Buffer,
     device::Device,
     dtype::DType,
     error::{Error, Result},
 };
 use half::{bf16, f16};
-use maidenx_cpu::ops::reduction::*;
+use maidenx_cpu::nn::conv::*;
 #[cfg(feature = "cuda")]
-use maidenx_cuda::{cuda_alloc_and_copy_dims, cuda_free, cuda_set_device, ops::reduction::*};
+use maidenx_cuda::{cuda_alloc_and_copy_dims, cuda_free, cuda_set_device, nn::conv::*};
 
 #[macro_export]
-macro_rules! declare_reduction_op {
-    ($name:ident: standard, [$($dtype:ident),* $(,)?]) => {
+macro_rules! declare_conv2d_op {
+    ([$($dtype:ident),* $(,)?]) => {
         paste::paste! {
             /// # Safety
             /// This function is unsafe because it performs raw pointer operations.
-            pub unsafe fn $name(
+            pub unsafe fn im2col(
                 output: &mut dyn Buffer,
                 input: &dyn Buffer,
                 num_els: usize,
-                num_dims: usize,
-                num_red_dims: usize,
                 dims_and_strides: Option<&[usize]>,
             ) -> Result<()> {
                 let (dims_and_strides, cleanup_fn): (*const usize, CleanupFn) = match output.device() {
@@ -55,10 +56,8 @@ macro_rules! declare_reduction_op {
                         match input.dtype() {
                             $(
                                 DType::$dtype => {
-                                    [<$name _ $dtype:lower>](
+                                    [<conv2d_im2col_ $dtype:lower>](
                                         num_els,
-                                        num_dims,
-                                        num_red_dims,
                                         dims_and_strides,
                                         input.as_ptr() as *const [<$dtype:lower>],
                                         output.as_mut_ptr() as *mut [<$dtype:lower>],
@@ -73,10 +72,8 @@ macro_rules! declare_reduction_op {
                         match input.dtype() {
                             $(
                                 DType::$dtype => {
-                                    [<cuda_ $name _ $dtype:lower>](
+                                    [<cuda_conv2d_im2col_ $dtype:lower>](
                                         num_els,
-                                        num_dims,
-                                        num_red_dims,
                                         dims_and_strides,
                                         input.as_ptr() as *const [<$dtype:lower>],
                                         output.as_mut_ptr() as *mut [<$dtype:lower>],
@@ -94,17 +91,14 @@ macro_rules! declare_reduction_op {
 
                 Ok(())
             }
-        }
-    };
-    ($name:ident: shape, [$($dtype:ident),* $(,)?]) => {
-        paste::paste! {
+
             /// # Safety
             /// This function is unsafe because it performs raw pointer operations.
-            pub unsafe fn $name(
-                output: &mut dyn Buffer,
-                input: &dyn Buffer,
+            #[allow(clippy::too_many_arguments)]
+            pub unsafe fn col2im(
+                output: &dyn Buffer,
+                col: &dyn Buffer,
                 num_els: usize,
-                num_dims: usize,
                 dims_and_strides: Option<&[usize]>,
             ) -> Result<()> {
                 let (dims_and_strides, cleanup_fn): (*const usize, CleanupFn) = match output.device() {
@@ -133,17 +127,16 @@ macro_rules! declare_reduction_op {
                     },
                 };
 
-                match input.device() {
+                match output.device() {
                     Device::CPU => {
-                        match input.dtype() {
+                        match output.dtype() {
                             $(
                                 DType::$dtype => {
-                                    [<$name _ $dtype:lower>](
+                                    [<conv2d_col2im_ $dtype:lower>](
                                         num_els,
-                                        num_dims,
                                         dims_and_strides,
-                                        input.as_ptr() as *const [<$dtype:lower>],
-                                        output.as_mut_ptr() as *mut [<$dtype:lower>],
+                                        col.as_ptr() as *const [<$dtype:lower>],
+                                        output.as_ptr() as *mut [<$dtype:lower>],
                                     )
                                 }
                             )*
@@ -152,15 +145,14 @@ macro_rules! declare_reduction_op {
                     },
                     #[cfg(feature = "cuda")]
                     Device::CUDA(_) => {
-                        match input.dtype() {
+                        match output.dtype() {
                             $(
                                 DType::$dtype => {
-                                    [<cuda_ $name _ $dtype:lower>](
+                                    [<cuda_conv2d_col2im_ $dtype:lower>](
                                         num_els,
-                                        num_dims,
                                         dims_and_strides,
-                                        input.as_ptr() as *const [<$dtype:lower>],
-                                        output.as_mut_ptr() as *mut [<$dtype:lower>],
+                                        col.as_ptr() as *const [<$dtype:lower>],
+                                        output.as_ptr() as *mut [<$dtype:lower>],
                                     )
                                 }
                             )*
@@ -179,6 +171,4 @@ macro_rules! declare_reduction_op {
     };
 }
 
-declare_reduction_op!(sum: standard, [BF16, F16, F32, F64, U8, U32, I8, I32, I64]);
-declare_reduction_op!(sum_to_shape: shape, [BF16, F16, F32, F64, U8, U32, I8, I32, I64]);
-declare_reduction_op!(mean: standard, [BF16, F16, F32, F64]);
+declare_conv2d_op!([BF16, F16, F32, F64]);

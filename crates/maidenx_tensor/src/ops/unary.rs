@@ -7,7 +7,7 @@ impl Tensor {
 
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::buffer::ops::unary::neg(out_buf, self.buffer(), self.size(), self.ndim(), Some(&prepare_dims_and_strides(self)))?;
+                maidenx_core::be::ops::unary::neg(out_buf, self.buffer(), self.size(), self.ndim(), Some(&prepare_dims_and_strides(self)))?;
                 Ok(())
             })?;
         }
@@ -28,7 +28,7 @@ impl Tensor {
 
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::buffer::ops::unary::abs(out_buf, self.buffer(), self.size(), self.ndim(), Some(&prepare_dims_and_strides(self)))?;
+                maidenx_core::be::ops::unary::abs(out_buf, self.buffer(), self.size(), self.ndim(), Some(&prepare_dims_and_strides(self)))?;
                 Ok(())
             })?;
         }
@@ -51,7 +51,7 @@ impl Tensor {
 
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::buffer::ops::unary::sign(out_buf, self.buffer(), self.size(), self.ndim(), Some(&prepare_dims_and_strides(self)))?;
+                maidenx_core::be::ops::unary::sign(out_buf, self.buffer(), self.size(), self.ndim(), Some(&prepare_dims_and_strides(self)))?;
                 Ok(())
             })?;
         }
@@ -72,7 +72,7 @@ impl Tensor {
 
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::buffer::ops::unary::square(out_buf, self.buffer(), self.size(), self.ndim(), Some(&prepare_dims_and_strides(self)))?;
+                maidenx_core::be::ops::unary::square(out_buf, self.buffer(), self.size(), self.ndim(), Some(&prepare_dims_and_strides(self)))?;
                 Ok(())
             })?;
         }
@@ -98,7 +98,7 @@ impl Tensor {
 
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::buffer::ops::unary::sqrt(
+                maidenx_core::be::ops::unary::sqrt(
                     out_buf,
                     input.buffer(),
                     input.size(),
@@ -130,7 +130,7 @@ impl Tensor {
 
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::buffer::ops::unary::relu(
+                maidenx_core::be::ops::unary::relu(
                     out_buf,
                     input.buffer(),
                     input.size(),
@@ -164,7 +164,7 @@ impl Tensor {
 
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::buffer::ops::unary::sigmoid(
+                maidenx_core::be::ops::unary::sigmoid(
                     out_buf,
                     input.buffer(),
                     input.size(),
@@ -197,7 +197,7 @@ impl Tensor {
 
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::buffer::ops::unary::tanh(
+                maidenx_core::be::ops::unary::tanh(
                     out_buf,
                     input.buffer(),
                     input.size(),
@@ -230,7 +230,7 @@ impl Tensor {
 
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::buffer::ops::unary::gelu(
+                maidenx_core::be::ops::unary::gelu(
                     out_buf,
                     input.buffer(),
                     input.size(),
@@ -277,13 +277,7 @@ impl Tensor {
 
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::buffer::ops::unary::logical_not(
-                    out_buf,
-                    self.buffer(),
-                    self.size(),
-                    self.ndim(),
-                    Some(&prepare_dims_and_strides(self)),
-                )?;
+                maidenx_core::be::ops::unary::logical_not(out_buf, self.buffer(), self.size(), self.ndim(), Some(&prepare_dims_and_strides(self)))?;
                 Ok(())
             })?;
         }
@@ -299,7 +293,7 @@ impl Tensor {
 
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::buffer::ops::unary::add_scalar(
+                maidenx_core::be::ops::unary::add_scalar(
                     out_buf,
                     self.buffer(),
                     scalar,
@@ -328,7 +322,7 @@ impl Tensor {
 
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::buffer::ops::unary::sub_scalar(
+                maidenx_core::be::ops::unary::sub_scalar(
                     out_buf,
                     self.buffer(),
                     scalar,
@@ -357,7 +351,7 @@ impl Tensor {
 
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::buffer::ops::unary::mul_scalar(
+                maidenx_core::be::ops::unary::mul_scalar(
                     out_buf,
                     self.buffer(),
                     scalar,
@@ -390,7 +384,7 @@ impl Tensor {
 
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::buffer::ops::unary::div_scalar(
+                maidenx_core::be::ops::unary::div_scalar(
                     out_buf,
                     input.buffer(),
                     scalar,
@@ -423,7 +417,7 @@ impl Tensor {
 
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::buffer::ops::unary::pow(
+                maidenx_core::be::ops::unary::pow(
                     out_buf,
                     input.buffer(),
                     exponent,
@@ -458,7 +452,7 @@ impl Tensor {
 
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::buffer::ops::unary::leaky_relu(
+                maidenx_core::be::ops::unary::leaky_relu(
                     out_buf,
                     input.buffer(),
                     exponent,
@@ -498,7 +492,7 @@ impl Tensor {
 
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::buffer::ops::unary::elu(
+                maidenx_core::be::ops::unary::elu(
                     out_buf,
                     input.buffer(),
                     exponent,
@@ -537,7 +531,7 @@ impl Tensor {
 
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::buffer::ops::unary::eq_scalar(
+                maidenx_core::be::ops::unary::eq_scalar(
                     out_buf,
                     self.buffer(),
                     scalar,
@@ -558,7 +552,7 @@ impl Tensor {
 
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::buffer::ops::unary::ne_scalar(
+                maidenx_core::be::ops::unary::ne_scalar(
                     out_buf,
                     self.buffer(),
                     scalar,
@@ -579,7 +573,7 @@ impl Tensor {
 
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::buffer::ops::unary::lt_scalar(
+                maidenx_core::be::ops::unary::lt_scalar(
                     out_buf,
                     self.buffer(),
                     scalar,
@@ -600,7 +594,7 @@ impl Tensor {
 
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::buffer::ops::unary::le_scalar(
+                maidenx_core::be::ops::unary::le_scalar(
                     out_buf,
                     self.buffer(),
                     scalar,
@@ -621,7 +615,7 @@ impl Tensor {
 
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::buffer::ops::unary::gt_scalar(
+                maidenx_core::be::ops::unary::gt_scalar(
                     out_buf,
                     self.buffer(),
                     scalar,
@@ -642,7 +636,7 @@ impl Tensor {
 
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::buffer::ops::unary::ge_scalar(
+                maidenx_core::be::ops::unary::ge_scalar(
                     out_buf,
                     self.buffer(),
                     scalar,

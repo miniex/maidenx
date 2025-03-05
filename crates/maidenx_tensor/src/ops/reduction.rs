@@ -28,7 +28,7 @@ impl Tensor {
         let dims_and_strides = prepare_dims_and_strides(self, dim);
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::buffer::ops::reduction::sum(out_buf, self.buffer(), self.size(), self.ndim(), 1, Some(&dims_and_strides))?;
+                maidenx_core::be::ops::reduction::sum(out_buf, self.buffer(), self.size(), self.ndim(), 1, Some(&dims_and_strides))?;
 
                 Ok(())
             })?;
@@ -93,7 +93,7 @@ impl Tensor {
         let dims_and_strides = prepare_dims_and_strides_for_shape(self, shape);
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::buffer::ops::reduction::sum_to_shape(out_buf, self.buffer(), self.size(), self.ndim(), Some(&dims_and_strides))?;
+                maidenx_core::be::ops::reduction::sum_to_shape(out_buf, self.buffer(), self.size(), self.ndim(), Some(&dims_and_strides))?;
 
                 Ok(())
             })?;
@@ -138,7 +138,7 @@ impl Tensor {
         let dims_and_strides = prepare_dims_and_strides(self, dim);
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::buffer::ops::reduction::mean(out_buf, input.buffer(), input.size(), input.ndim(), 1, Some(&dims_and_strides))?;
+                maidenx_core::be::ops::reduction::mean(out_buf, input.buffer(), input.size(), input.ndim(), 1, Some(&dims_and_strides))?;
 
                 Ok(())
             })?;

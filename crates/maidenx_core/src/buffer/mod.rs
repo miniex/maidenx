@@ -1,8 +1,6 @@
 pub mod cpu;
 #[cfg(feature = "cuda")]
 pub mod cuda;
-pub mod nn;
-pub mod ops;
 
 use crate::{
     device::Device,

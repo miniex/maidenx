@@ -28,7 +28,7 @@ impl Tensor {
         let dims_and_strides = prepare_dims_and_strides(&lhs, &rhs);
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::buffer::ops::binary::add(out_buf, lhs.buffer(), rhs.buffer(), lhs.size(), lhs.ndim(), Some(&dims_and_strides))?;
+                maidenx_core::be::ops::binary::add(out_buf, lhs.buffer(), rhs.buffer(), lhs.size(), lhs.ndim(), Some(&dims_and_strides))?;
 
                 Ok(())
             })?;
@@ -71,7 +71,7 @@ impl Tensor {
         let dims_and_strides = prepare_dims_and_strides(&lhs, &rhs);
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::buffer::ops::binary::sub(out_buf, lhs.buffer(), rhs.buffer(), lhs.size(), lhs.ndim(), Some(&dims_and_strides))?;
+                maidenx_core::be::ops::binary::sub(out_buf, lhs.buffer(), rhs.buffer(), lhs.size(), lhs.ndim(), Some(&dims_and_strides))?;
 
                 Ok(())
             })?;
@@ -114,7 +114,7 @@ impl Tensor {
         let dims_and_strides = prepare_dims_and_strides(&lhs, &rhs);
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::buffer::ops::binary::mul(out_buf, lhs.buffer(), rhs.buffer(), lhs.size(), lhs.ndim(), Some(&dims_and_strides))?;
+                maidenx_core::be::ops::binary::mul(out_buf, lhs.buffer(), rhs.buffer(), lhs.size(), lhs.ndim(), Some(&dims_and_strides))?;
 
                 Ok(())
             })?;
@@ -161,7 +161,7 @@ impl Tensor {
         let dims_and_strides = prepare_dims_and_strides(&lhs, &rhs);
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::buffer::ops::binary::div(out_buf, lhs.buffer(), rhs.buffer(), lhs.size(), lhs.ndim(), Some(&dims_and_strides))?;
+                maidenx_core::be::ops::binary::div(out_buf, lhs.buffer(), rhs.buffer(), lhs.size(), lhs.ndim(), Some(&dims_and_strides))?;
 
                 Ok(())
             })?;
@@ -207,7 +207,7 @@ impl Tensor {
         let dims_and_strides = prepare_dims_and_strides(&lhs, &rhs);
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::buffer::ops::binary::logical_and(out_buf, lhs.buffer(), rhs.buffer(), lhs.size(), lhs.ndim(), Some(&dims_and_strides))?;
+                maidenx_core::be::ops::binary::logical_and(out_buf, lhs.buffer(), rhs.buffer(), lhs.size(), lhs.ndim(), Some(&dims_and_strides))?;
 
                 Ok(())
             })?;
@@ -233,7 +233,7 @@ impl Tensor {
         let dims_and_strides = prepare_dims_and_strides(&lhs, &rhs);
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::buffer::ops::binary::logical_or(out_buf, lhs.buffer(), rhs.buffer(), lhs.size(), lhs.ndim(), Some(&dims_and_strides))?;
+                maidenx_core::be::ops::binary::logical_or(out_buf, lhs.buffer(), rhs.buffer(), lhs.size(), lhs.ndim(), Some(&dims_and_strides))?;
 
                 Ok(())
             })?;
@@ -259,7 +259,7 @@ impl Tensor {
         let dims_and_strides = prepare_dims_and_strides(&lhs, &rhs);
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::buffer::ops::binary::logical_xor(out_buf, lhs.buffer(), rhs.buffer(), lhs.size(), lhs.ndim(), Some(&dims_and_strides))?;
+                maidenx_core::be::ops::binary::logical_xor(out_buf, lhs.buffer(), rhs.buffer(), lhs.size(), lhs.ndim(), Some(&dims_and_strides))?;
 
                 Ok(())
             })?;
@@ -285,7 +285,7 @@ impl Tensor {
         let dims_and_strides = prepare_dims_and_strides(&lhs, &rhs);
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::buffer::ops::binary::eq(out_buf, lhs.buffer(), rhs.buffer(), lhs.size(), lhs.ndim(), Some(&dims_and_strides))?;
+                maidenx_core::be::ops::binary::eq(out_buf, lhs.buffer(), rhs.buffer(), lhs.size(), lhs.ndim(), Some(&dims_and_strides))?;
 
                 Ok(())
             })?;
@@ -311,7 +311,7 @@ impl Tensor {
         let dims_and_strides = prepare_dims_and_strides(&lhs, &rhs);
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::buffer::ops::binary::ne(out_buf, lhs.buffer(), rhs.buffer(), lhs.size(), lhs.ndim(), Some(&dims_and_strides))?;
+                maidenx_core::be::ops::binary::ne(out_buf, lhs.buffer(), rhs.buffer(), lhs.size(), lhs.ndim(), Some(&dims_and_strides))?;
 
                 Ok(())
             })?;
@@ -337,7 +337,7 @@ impl Tensor {
         let dims_and_strides = prepare_dims_and_strides(&lhs, &rhs);
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::buffer::ops::binary::lt(out_buf, lhs.buffer(), rhs.buffer(), lhs.size(), lhs.ndim(), Some(&dims_and_strides))?;
+                maidenx_core::be::ops::binary::lt(out_buf, lhs.buffer(), rhs.buffer(), lhs.size(), lhs.ndim(), Some(&dims_and_strides))?;
 
                 Ok(())
             })?;
@@ -363,7 +363,7 @@ impl Tensor {
         let dims_and_strides = prepare_dims_and_strides(&lhs, &rhs);
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::buffer::ops::binary::le(out_buf, lhs.buffer(), rhs.buffer(), lhs.size(), lhs.ndim(), Some(&dims_and_strides))?;
+                maidenx_core::be::ops::binary::le(out_buf, lhs.buffer(), rhs.buffer(), lhs.size(), lhs.ndim(), Some(&dims_and_strides))?;
 
                 Ok(())
             })?;
@@ -389,7 +389,7 @@ impl Tensor {
         let dims_and_strides = prepare_dims_and_strides(&lhs, &rhs);
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::buffer::ops::binary::gt(out_buf, lhs.buffer(), rhs.buffer(), lhs.size(), lhs.ndim(), Some(&dims_and_strides))?;
+                maidenx_core::be::ops::binary::gt(out_buf, lhs.buffer(), rhs.buffer(), lhs.size(), lhs.ndim(), Some(&dims_and_strides))?;
 
                 Ok(())
             })?;
@@ -415,7 +415,7 @@ impl Tensor {
         let dims_and_strides = prepare_dims_and_strides(&lhs, &rhs);
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::buffer::ops::binary::ge(out_buf, lhs.buffer(), rhs.buffer(), lhs.size(), lhs.ndim(), Some(&dims_and_strides))?;
+                maidenx_core::be::ops::binary::ge(out_buf, lhs.buffer(), rhs.buffer(), lhs.size(), lhs.ndim(), Some(&dims_and_strides))?;
 
                 Ok(())
             })?;
@@ -441,7 +441,7 @@ impl Tensor {
             self.with_buffer_mut(|out_buf| {
                 let lhs_in = &*out_buf as *const dyn Buffer;
                 let lhs_out = &mut *out_buf as *mut dyn Buffer;
-                maidenx_core::buffer::ops::binary::add(&mut *lhs_out, &*lhs_in, rhs.buffer(), size, ndim, Some(&dims_and_strides))?;
+                maidenx_core::be::ops::binary::add(&mut *lhs_out, &*lhs_in, rhs.buffer(), size, ndim, Some(&dims_and_strides))?;
 
                 Ok(())
             })?;
@@ -465,7 +465,7 @@ impl Tensor {
             self.with_buffer_mut(|out_buf| {
                 let lhs_in = &*out_buf as *const dyn Buffer;
                 let lhs_out = &mut *out_buf as *mut dyn Buffer;
-                maidenx_core::buffer::ops::binary::sub(&mut *lhs_out, &*lhs_in, rhs.buffer(), size, ndim, Some(&dims_and_strides))?;
+                maidenx_core::be::ops::binary::sub(&mut *lhs_out, &*lhs_in, rhs.buffer(), size, ndim, Some(&dims_and_strides))?;
 
                 Ok(())
             })?;
@@ -489,7 +489,7 @@ impl Tensor {
             self.with_buffer_mut(|out_buf| {
                 let lhs_in = &*out_buf as *const dyn Buffer;
                 let lhs_out = &mut *out_buf as *mut dyn Buffer;
-                maidenx_core::buffer::ops::binary::mul(&mut *lhs_out, &*lhs_in, rhs.buffer(), size, ndim, Some(&dims_and_strides))?;
+                maidenx_core::be::ops::binary::mul(&mut *lhs_out, &*lhs_in, rhs.buffer(), size, ndim, Some(&dims_and_strides))?;
 
                 Ok(())
             })?;
@@ -513,7 +513,7 @@ impl Tensor {
             self.with_buffer_mut(|out_buf| {
                 let lhs_in = &*out_buf as *const dyn Buffer;
                 let lhs_out = &mut *out_buf as *mut dyn Buffer;
-                maidenx_core::buffer::ops::binary::div(&mut *lhs_out, &*lhs_in, rhs.buffer(), size, ndim, Some(&dims_and_strides))?;
+                maidenx_core::be::ops::binary::div(&mut *lhs_out, &*lhs_in, rhs.buffer(), size, ndim, Some(&dims_and_strides))?;
 
                 Ok(())
             })?;

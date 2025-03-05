@@ -30,7 +30,7 @@ impl Tensor {
         unsafe {
             let num_els = final_out_shape.iter().product();
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::buffer::ops::matmul::matmul(out_buf, lhs.buffer(), rhs.buffer(), num_els, Some(&dims_and_strides))?;
+                maidenx_core::be::ops::matmul::matmul(out_buf, lhs.buffer(), rhs.buffer(), num_els, Some(&dims_and_strides))?;
 
                 Ok(())
             })?;
@@ -66,7 +66,7 @@ impl Tensor {
                 unsafe {
                     grad_lhs.with_buffer_mut(|gl_buf| {
                         grad_rhs.with_buffer_mut(|gr_buf| {
-                            maidenx_core::buffer::ops::matmul::matmul_backward(
+                            maidenx_core::be::ops::matmul::matmul_backward(
                                 Some(gl_buf),
                                 Some(gr_buf),
                                 grad_out.buffer(),

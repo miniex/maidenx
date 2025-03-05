@@ -1,33 +1,29 @@
-#![allow(unused_imports)]
-#![allow(unreachable_patterns)]
-
-use super::CleanupFn;
 use crate::{
+    be::CleanupFn,
     buffer::Buffer,
     device::Device,
     dtype::DType,
     error::{Error, Result},
 };
 use half::{bf16, f16};
-use maidenx_cpu::ops::matmul::*;
+use maidenx_cpu::ops::reduction::*;
 #[cfg(feature = "cuda")]
-use maidenx_cuda::{cuda_alloc_and_copy_dims, cuda_free, cuda_set_device, ops::matmul::*};
+use maidenx_cuda::{cuda_alloc_and_copy_dims, cuda_free, cuda_set_device, ops::reduction::*};
 
 #[macro_export]
-macro_rules! declare_matmul_op {
-    ([$($dtype:ident),* $(,)?]) => {
+macro_rules! declare_reduction_op {
+    ($name:ident: standard, [$($dtype:ident),* $(,)?]) => {
         paste::paste! {
             /// # Safety
             /// This function is unsafe because it performs raw pointer operations.
-            pub unsafe fn matmul(
+            pub unsafe fn $name(
                 output: &mut dyn Buffer,
-                lhs: &dyn Buffer,
-                rhs: &dyn Buffer,
+                input: &dyn Buffer,
                 num_els: usize,
+                num_dims: usize,
+                num_red_dims: usize,
                 dims_and_strides: Option<&[usize]>,
             ) -> Result<()> {
-                assert_eq!(lhs.dtype(), rhs.dtype(), concat!("DType mismatch in ", stringify!($name)));
-
                 let (dims_and_strides, cleanup_fn): (*const usize, CleanupFn) = match output.device() {
                     Device::CPU => (
                         dims_and_strides.map_or(std::ptr::null(), |d| d.as_ptr()),
@@ -54,16 +50,17 @@ macro_rules! declare_matmul_op {
                     },
                 };
 
-                match lhs.device() {
+                match input.device() {
                     Device::CPU => {
-                        match lhs.dtype() {
+                        match input.dtype() {
                             $(
                                 DType::$dtype => {
-                                    [<matmul_ $dtype:lower>](
+                                    [<$name _ $dtype:lower>](
                                         num_els,
+                                        num_dims,
+                                        num_red_dims,
                                         dims_and_strides,
-                                        lhs.as_ptr() as *const [<$dtype:lower>],
-                                        rhs.as_ptr() as *const [<$dtype:lower>],
+                                        input.as_ptr() as *const [<$dtype:lower>],
                                         output.as_mut_ptr() as *mut [<$dtype:lower>],
                                     )
                                 }
@@ -73,14 +70,15 @@ macro_rules! declare_matmul_op {
                     },
                     #[cfg(feature = "cuda")]
                     Device::CUDA(_) => {
-                        match lhs.dtype() {
+                        match input.dtype() {
                             $(
                                 DType::$dtype => {
-                                    [<cuda_matmul_ $dtype:lower>](
+                                    [<cuda_ $name _ $dtype:lower>](
                                         num_els,
+                                        num_dims,
+                                        num_red_dims,
                                         dims_and_strides,
-                                        lhs.as_ptr() as *const [<$dtype:lower>],
-                                        rhs.as_ptr() as *const [<$dtype:lower>],
+                                        input.as_ptr() as *const [<$dtype:lower>],
                                         output.as_mut_ptr() as *mut [<$dtype:lower>],
                                     )
                                 }
@@ -96,24 +94,20 @@ macro_rules! declare_matmul_op {
 
                 Ok(())
             }
-
+        }
+    };
+    ($name:ident: shape, [$($dtype:ident),* $(,)?]) => {
+        paste::paste! {
             /// # Safety
             /// This function is unsafe because it performs raw pointer operations.
-            #[allow(clippy::too_many_arguments)]
-            pub unsafe fn matmul_backward(
-                grad_lhs: Option<&mut dyn Buffer>,
-                grad_rhs: Option<&mut dyn Buffer>,
-                grad_output: &dyn Buffer,
-                lhs: &dyn Buffer,
-                rhs: &dyn Buffer,
-                num_els_a: usize,
-                num_els_b: usize,
+            pub unsafe fn $name(
+                output: &mut dyn Buffer,
+                input: &dyn Buffer,
+                num_els: usize,
+                num_dims: usize,
                 dims_and_strides: Option<&[usize]>,
-
             ) -> Result<()> {
-                assert_eq!(lhs.dtype(), rhs.dtype(), concat!("DType mismatch in ", stringify!($name)));
-
-                let (dims_and_strides, cleanup_fn): (*const usize, CleanupFn) = match grad_output.device() {
+                let (dims_and_strides, cleanup_fn): (*const usize, CleanupFn) = match output.device() {
                     Device::CPU => (
                         dims_and_strides.map_or(std::ptr::null(), |d| d.as_ptr()),
                         None
@@ -139,20 +133,17 @@ macro_rules! declare_matmul_op {
                     },
                 };
 
-                match lhs.device() {
+                match input.device() {
                     Device::CPU => {
-                        match lhs.dtype() {
+                        match input.dtype() {
                             $(
                                 DType::$dtype => {
-                                    [<matmul_backward_ $dtype:lower>](
-                                        num_els_a,
-                                        num_els_b,
+                                    [<$name _ $dtype:lower>](
+                                        num_els,
+                                        num_dims,
                                         dims_and_strides,
-                                        grad_output.as_ptr() as *const [<$dtype:lower>],
-                                        lhs.as_ptr() as *const [<$dtype:lower>],
-                                        rhs.as_ptr() as *const [<$dtype:lower>],
-                                        grad_lhs.map_or(std::ptr::null_mut(), |buf| buf.as_mut_ptr() as *mut [<$dtype:lower>]),
-                                        grad_rhs.map_or(std::ptr::null_mut(), |buf| buf.as_mut_ptr() as *mut [<$dtype:lower>]),
+                                        input.as_ptr() as *const [<$dtype:lower>],
+                                        output.as_mut_ptr() as *mut [<$dtype:lower>],
                                     )
                                 }
                             )*
@@ -161,18 +152,15 @@ macro_rules! declare_matmul_op {
                     },
                     #[cfg(feature = "cuda")]
                     Device::CUDA(_) => {
-                        match lhs.dtype() {
+                        match input.dtype() {
                             $(
                                 DType::$dtype => {
-                                    [<cuda_matmul_backward_ $dtype:lower>](
-                                        num_els_a,
-                                        num_els_b,
+                                    [<cuda_ $name _ $dtype:lower>](
+                                        num_els,
+                                        num_dims,
                                         dims_and_strides,
-                                        grad_output.as_ptr() as *const [<$dtype:lower>],
-                                        lhs.as_ptr() as *const [<$dtype:lower>],
-                                        rhs.as_ptr() as *const [<$dtype:lower>],
-                                        grad_lhs.map_or(std::ptr::null_mut(), |buf| buf.as_mut_ptr() as *mut [<$dtype:lower>]),
-                                        grad_rhs.map_or(std::ptr::null_mut(), |buf| buf.as_mut_ptr() as *mut [<$dtype:lower>]),
+                                        input.as_ptr() as *const [<$dtype:lower>],
+                                        output.as_mut_ptr() as *mut [<$dtype:lower>],
                                     )
                                 }
                             )*
@@ -191,4 +179,6 @@ macro_rules! declare_matmul_op {
     };
 }
 
-declare_matmul_op!([BF16, F16, F32, F64, U8, U32, I8, I32, I64]);
+declare_reduction_op!(sum: standard, [BF16, F16, F32, F64, U8, U32, I8, I32, I64]);
+declare_reduction_op!(sum_to_shape: shape, [BF16, F16, F32, F64, U8, U32, I8, I32, I64]);
+declare_reduction_op!(mean: standard, [BF16, F16, F32, F64]);
