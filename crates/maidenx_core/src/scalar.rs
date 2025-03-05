@@ -169,6 +169,106 @@ macro_rules! numeric_variants {
                 }
             }
         }
+
+        impl Scalar {
+            #[inline]
+            pub fn powi(self, exp: i32) -> Self {
+                match self {
+                    Self::BOOL(a) => {
+                        if exp == 0 {
+                            Self::BOOL(true)
+                        } else {
+                            Self::BOOL(a)
+                        }
+                    },
+                    Self::F32(a) => Self::F32(a.powi(exp)),
+                    Self::F64(a) => Self::F64(a.powi(exp)),
+                    Self::F16(a) => Self::F16(f16::from_f32(a.to_f32().powi(exp))),
+                    Self::BF16(a) => Self::BF16(bf16::from_f32(a.to_f32().powi(exp))),
+                    Self::I8(a) => {
+                        if exp == 0 {
+                            Self::I8(1)
+                        } else if exp < 0 {
+                            Self::F32((a as f32).powi(exp))
+                        } else {
+                            let result = (a as i32).pow(exp as u32);
+                            if result >= i8::MIN as i32 && result <= i8::MAX as i32 {
+                                Self::I8(result as i8)
+                            } else {
+                                Self::F32((a as f32).powi(exp))
+                            }
+                        }
+                    },
+                    Self::I32(a) => {
+                        if exp == 0 {
+                            Self::I32(1)
+                        } else if exp < 0 {
+                            Self::F32((a as f32).powi(exp))
+                        } else {
+                            let result = (a as i64).pow(exp as u32);
+                            if result >= i32::MIN as i64 && result <= i32::MAX as i64 {
+                                Self::I32(result as i32)
+                            } else {
+                                Self::F64((a as f64).powi(exp))
+                            }
+                        }
+                    },
+                    Self::I64(a) => {
+                        if exp == 0 {
+                            Self::I64(1)
+                        } else if exp < 0 {
+                            Self::F64((a as f64).powi(exp))
+                        } else {
+                            let mut result: i64 = 1;
+                            let mut overflow = false;
+
+                            for _ in 0..exp {
+                                if let Some(r) = result.checked_mul(a) {
+                                    result = r;
+                                } else {
+                                    overflow = true;
+                                    break;
+                                }
+                            }
+
+                            if overflow {
+                                Self::F64((a as f64).powi(exp))
+                            } else {
+                                Self::I64(result)
+                            }
+                        }
+                    },
+                    Self::U8(a) => {
+                        if exp == 0 {
+                            Self::U8(1)
+                        } else if exp < 0 {
+                            Self::F32((a as f32).powi(exp))
+                        } else {
+                            let result = (a as u32).pow(exp as u32);
+                            if result <= u8::MAX as u32 {
+                                Self::U8(result as u8)
+                            } else {
+                                Self::F32((a as f32).powi(exp))
+                            }
+                        }
+                    },
+                    Self::U32(a) => {
+                        if exp == 0 {
+                            Self::U32(1)
+                        } else if exp < 0 {
+                            Self::F32((a as f32).powi(exp))
+                        } else {
+                            let result = (a as u64).pow(exp as u32);
+                            if result <= u32::MAX as u64 {
+                                Self::U32(result as u32)
+                            } else {
+                                Self::F64((a as f64).powi(exp))
+                            }
+                        }
+                    },
+                }
+            }
+        }
     };
 
     (@as_f64 BF16, $x:ident) => {

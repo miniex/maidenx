@@ -1,4 +1,5 @@
 #![allow(clippy::comparison_chain)]
+#![allow(clippy::excessive_precision)]
 
 use half::{bf16, f16};
 use rayon::prelude::*;
@@ -319,6 +320,33 @@ unary_op!(tanh_bool, bool, |x: bool| x);
 unary_op!(tanh_f16, f16, |x: f16| f16::from_f32(x.to_f32().tanh()));
 unary_op!(tanh_bf16, bf16, |x: bf16| bf16::from_f32(x.to_f32().tanh()));
 
+unary_op!(gelu_f32, f32, |x: f32| {
+    let sqrt_2_over_pi = 0.7978845608028654;
+    let coeff = 0.044715;
+    let tanh_arg = sqrt_2_over_pi * (x + coeff * x * x * x);
+    0.5 * x * (1.0 + tanh_arg.tanh())
+});
+unary_op!(gelu_f64, f64, |x: f64| {
+    let sqrt_2_over_pi = 0.7978845608028654;
+    let coeff = 0.044715;
+    let tanh_arg = sqrt_2_over_pi * (x + coeff * x * x * x);
+    0.5 * x * (1.0 + tanh_arg.tanh())
+});
+unary_op!(gelu_f16, f16, |x: f16| {
+    let x_f32 = x.to_f32();
+    let sqrt_2_over_pi = 0.7978845608028654;
+    let coeff = 0.044715;
+    let tanh_arg = sqrt_2_over_pi * (x_f32 + coeff * x_f32 * x_f32 * x_f32);
+    f16::from_f32(0.5 * x_f32 * (1.0 + tanh_arg.tanh()))
+});
+unary_op!(gelu_bf16, bf16, |x: bf16| {
+    let x_f32 = x.to_f32();
+    let sqrt_2_over_pi = 0.7978845608028654;
+    let coeff = 0.044715;
+    let tanh_arg = sqrt_2_over_pi * (x_f32 + coeff * x_f32 * x_f32 * x_f32);
+    bf16::from_f32(0.5 * x_f32 * (1.0 + tanh_arg.tanh()))
+});
+
 unary_op_output!(logical_not_f32, f32, bool, |x: f32| x == 0.0);
 unary_op_output!(logical_not_f64, f64, bool, |x: f64| x == 0.0);
 unary_op_output!(logical_not_bool, bool, bool, |x: bool| !x);
@@ -463,6 +491,56 @@ unary_op_with_constant!(pow_i32, i32, |x: i32, c: i32| (x as f64).powf(c as f64)
 unary_op_with_constant!(pow_i64, i64, |x: i64, c: i64| (x as f64).powf(c as f64) as i64);
 unary_op_with_constant!(pow_f16, f16, |x: f16, c: f16| { f16::from_f32(x.to_f32().powf(c.to_f32())) });
 unary_op_with_constant!(pow_bf16, bf16, |x: bf16, c: bf16| { bf16::from_f32(x.to_f32().powf(c.to_f32())) });
+
+unary_op_with_constant!(leaky_relu_f32, f32, |x: f32, alpha: f32| if x > 0.0 { x } else { alpha * x });
+unary_op_with_constant!(leaky_relu_f64, f64, |x: f64, alpha: f64| if x > 0.0 { x } else { alpha * x });
+unary_op_with_constant!(leaky_relu_f16, f16, |x: f16, alpha: f16| {
+    if x > f16::from_f32(0.0) {
+        x
+    } else {
+        alpha * x
+    }
+});
+unary_op_with_constant!(leaky_relu_bf16, bf16, |x: bf16, alpha: bf16| {
+    if x > bf16::from_f32(0.0) {
+        x
+    } else {
+        alpha * x
+    }
+});
+
+unary_op_with_constant!(elu_f32, f32, |x: f32, alpha: f32| {
+    if x > 0.0 {
+        x
+    } else {
+        alpha * (x.exp() - 1.0)
+    }
+});
+unary_op_with_constant!(elu_f64, f64, |x: f64, alpha: f64| {
+    if x > 0.0 {
+        x
+    } else {
+        alpha * (x.exp() - 1.0)
+    }
+});
+unary_op_with_constant!(elu_f16, f16, |x: f16, alpha: f16| {
+    let x_f32 = x.to_f32();
+    let alpha_f32 = alpha.to_f32();
+    if x_f32 > 0.0 {
+        x
+    } else {
+        f16::from_f32(alpha_f32 * (x_f32.exp() - 1.0))
+    }
+});
+unary_op_with_constant!(elu_bf16, bf16, |x: bf16, alpha: bf16| {
+    let x_f32 = x.to_f32();
+    let alpha_f32 = alpha.to_f32();
+    if x_f32 > 0.0 {
+        x
+    } else {
+        bf16::from_f32(alpha_f32 * (x_f32.exp() - 1.0))
+    }
+});
 
 // Comparison ops with constant (output = u8)
 // -- f32

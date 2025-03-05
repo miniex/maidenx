@@ -222,6 +222,56 @@ impl Tensor {
         Ok(result)
     }
 
+    pub fn gelu(&self) -> Result<Tensor> {
+        let target_dtype = if self.dtype().is_int() { DType::F32 } else { self.dtype() };
+
+        let input = promote_tensor(self, target_dtype)?;
+        let mut result = Self::empty_with_spec(input.shape(), input.device(), input.dtype())?;
+
+        unsafe {
+            result.with_buffer_mut(|out_buf| {
+                maidenx_core::buffer::ops::unary::gelu(
+                    out_buf,
+                    input.buffer(),
+                    input.size(),
+                    input.ndim(),
+                    Some(&prepare_dims_and_strides(&input)),
+                )?;
+                Ok(())
+            })?;
+        }
+
+        if self.requires_grad() {
+            result.with_grad()?;
+
+            let input = self.clone();
+            let backward_fn = Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> {
+                let sqrt_2_over_pi = 0.7978845608028654;
+                let coeff = 0.044715;
+
+                let x_squared = input.mul(&input)?;
+                let x_cubed = x_squared.mul(&input)?;
+                let tanh_arg = input.add(&x_cubed.mul_scalar(coeff)?)?.mul_scalar(sqrt_2_over_pi)?;
+
+                let tanh_val = tanh_arg.tanh()?;
+                let sech_squared = tanh_val.mul(&tanh_val)?.mul_scalar(-1.0)?.add_scalar(1.0)?;
+                let inner_derivative = x_squared.mul_scalar(3.0 * coeff)?.add_scalar(1.0)?.mul_scalar(sqrt_2_over_pi)?;
+
+                let term1 = tanh_val.add_scalar(1.0)?.mul_scalar(0.5)?;
+                let term2 = input.mul(&sech_squared)?.mul(&inner_derivative)?.mul_scalar(0.5)?;
+                let grad = grad_out.mul(&term1.add(&term2)?)?;
+
+                Ok(vec![grad])
+            });
+            let node = TensorNode::new("gelu".to_string(), vec![self.clone()], Some(backward_fn));
+            result.node = Some(node);
+        }
+
+        Ok(result)
+    }
+
+    // Comparison
+
     pub fn logical_not(&self) -> Result<Tensor> {
         let mut result = Self::empty_with_spec(self.shape(), self.device(), DType::BOOL)?;
 
@@ -393,6 +443,87 @@ impl Tensor {
                 Ok(vec![grad_out.mul_scalar(exponent)?.mul(&input.pow(exponent.as_f32() - 1.0)?)?])
             });
             let node = TensorNode::new("pow".to_string(), vec![self.clone()], Some(backward_fn));
+            result.node = Some(node);
+        }
+
+        Ok(result)
+    }
+
+    pub fn leaky_relu(&self, exponent: impl Into<Scalar>) -> Result<Tensor> {
+        let exponent = exponent.into();
+        let target_dtype = if self.dtype().is_int() { DType::F32 } else { self.dtype() };
+
+        let input = promote_tensor(self, target_dtype)?;
+        let mut result = Self::empty_with_spec(input.shape(), input.device(), input.dtype())?;
+
+        unsafe {
+            result.with_buffer_mut(|out_buf| {
+                maidenx_core::buffer::ops::unary::leaky_relu(
+                    out_buf,
+                    input.buffer(),
+                    exponent,
+                    input.size(),
+                    input.ndim(),
+                    Some(&prepare_dims_and_strides(&input)),
+                )?;
+                Ok(())
+            })?;
+        }
+
+        if self.requires_grad() {
+            result.with_grad()?;
+
+            let input = self.clone();
+            let output = result.clone();
+            let backward_fn = Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> {
+                let ones = input.gt_scalar(0.0)?.to_dtype(output.dtype())?;
+                let alpha_mask = ones.mul_scalar(-1.0)?.add_scalar(1.0)?;
+
+                let grad = grad_out.mul(&ones.add(&alpha_mask.mul_scalar(exponent)?)?)?;
+                Ok(vec![grad])
+            });
+            let node = TensorNode::new("leaky_relu".to_string(), vec![self.clone()], Some(backward_fn));
+            result.node = Some(node);
+        }
+
+        Ok(result)
+    }
+
+    pub fn elu(&self, exponent: impl Into<Scalar>) -> Result<Tensor> {
+        let exponent = exponent.into();
+        let target_dtype = if self.dtype().is_int() { DType::F32 } else { self.dtype() };
+
+        let input = promote_tensor(self, target_dtype)?;
+        let mut result = Self::empty_with_spec(input.shape(), input.device(), input.dtype())?;
+
+        unsafe {
+            result.with_buffer_mut(|out_buf| {
+                maidenx_core::buffer::ops::unary::elu(
+                    out_buf,
+                    input.buffer(),
+                    exponent,
+                    input.size(),
+                    input.ndim(),
+                    Some(&prepare_dims_and_strides(&input)),
+                )?;
+                Ok(())
+            })?;
+        }
+
+        if self.requires_grad() {
+            result.with_grad()?;
+
+            let input = self.clone();
+            let output = result.clone();
+            let backward_fn = Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> {
+                let pos_mask = input.gt_scalar(0.0)?.to_dtype(output.dtype())?;
+                let neg_mask = pos_mask.mul_scalar(-1.0)?.add_scalar(1.0)?;
+                let neg_grad = output.mul(&neg_mask)?.add_scalar(exponent)?.mul(&neg_mask)?;
+                let grad = grad_out.mul(&pos_mask.add(&neg_grad)?)?;
+
+                Ok(vec![grad])
+            });
+            let node = TensorNode::new("elu".to_string(), vec![self.clone()], Some(backward_fn));
             result.node = Some(node);
         }
 

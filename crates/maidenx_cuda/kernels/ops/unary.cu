@@ -86,12 +86,14 @@ UNARY_OP(bool, neg_bool, !x);
 UNARY_OP(int8_t, neg_i8, -x);
 UNARY_OP(int32_t, neg_i32, -x);
 UNARY_OP(int64_t, neg_i64, -x);
+
 UNARY_OP(float, abs_f32, fabsf(x));
 UNARY_OP(double, abs_f64, fabs(x));
 UNARY_OP(bool, abs_bool, x);
 UNARY_OP(int8_t, abs_i8, abs(x));
 UNARY_OP(int32_t, abs_i32, abs(x));
 UNARY_OP(int64_t, abs_i64, abs(x));
+
 UNARY_OP(float, sign_f32, (x > 0) ? 1.0f : ((x < 0) ? -1.0f : 0.0f));
 UNARY_OP(double, sign_f64, (x > 0) ? 1.0 : ((x < 0) ? -1.0 : 0.0));
 UNARY_OP(bool, sign_bool, x ? 1 : 0);
@@ -100,6 +102,7 @@ UNARY_OP(uint32_t, sign_u32, (x > 0) ? 1 : 0);
 UNARY_OP(int8_t, sign_i8, (x > 0) ? 1 : ((x < 0) ? -1 : 0));
 UNARY_OP(int32_t, sign_i32, (x > 0) ? 1 : ((x < 0) ? -1 : 0));
 UNARY_OP(int64_t, sign_i64, (x > 0) ? 1 : ((x < 0) ? -1 : 0));
+
 UNARY_OP(float, square_f32, x *x);
 UNARY_OP(double, square_f64, x *x);
 UNARY_OP(bool, square_bool, x);
@@ -108,6 +111,7 @@ UNARY_OP(uint32_t, square_u32, x *x);
 UNARY_OP(int8_t, square_i8, x *x);
 UNARY_OP(int32_t, square_i32, x *x);
 UNARY_OP(int64_t, square_i64, x *x);
+
 UNARY_OP(float, sqrt_f32, sqrtf(x));
 UNARY_OP(double, sqrt_f64, sqrt(x));
 UNARY_OP(bool, sqrt_bool, x);
@@ -116,15 +120,25 @@ UNARY_OP(uint32_t, sqrt_u32, __float2int_rn(sqrtf(__int2float_rn(x))));
 UNARY_OP(int8_t, sqrt_i8, __float2int_rn(sqrtf(__int2float_rn(abs(x)))));
 UNARY_OP(int32_t, sqrt_i32, __float2int_rn(sqrtf(__int2float_rn(abs(x)))));
 UNARY_OP(int64_t, sqrt_i64, __double2ll_rn(sqrt(__ll2double_rn(abs(x)))));
+
 UNARY_OP(float, relu_f32, x > 0 ? x : 0);
 UNARY_OP(double, relu_f64, x > 0 ? x : 0);
 UNARY_OP(bool, relu_bool, x);
+
 UNARY_OP(float, sigmoid_f32, 1.0f / (1.0f + expf(-x)));
 UNARY_OP(double, sigmoid_f64, 1.0 / (1.0 + exp(-x)));
 UNARY_OP(bool, sigmoid_bool, x);
+
 UNARY_OP(float, tanh_f32, tanhf(x));
 UNARY_OP(double, tanh_f64, tanh(x));
 UNARY_OP(bool, tanh_bool, x);
+
+UNARY_OP(float, gelu_f32,
+         0.5f * x *
+             (1.0f + tanhf(0.7978845608028654f * (x + 0.044715f * x * x * x))));
+UNARY_OP(double, gelu_f64,
+         0.5 * x *
+             (1.0 + tanh(0.7978845608028654 * (x + 0.044715 * x * x * x))));
 
 UNARY_OP_OUTPUT(float, bool, logical_not_f32, x == 0.0f);
 UNARY_OP_OUTPUT(double, bool, logical_not_f64, x == 0.0f);
@@ -146,6 +160,14 @@ UNARY_OP(__half, relu_f16, x > __half(0) ? x : __half(0));
 UNARY_OP(__half, sigmoid_f16,
          __float2half(1.0f / (1.0f + expf(-__half2float(x)))));
 UNARY_OP(__half, tanh_f16, __float2half(tanhf(__half2float(x))));
+UNARY_OP(__half, gelu_f16,
+         __hmul(__hmul(__float2half(0.5f), x),
+                __hadd(__float2half(1.0f),
+                       __float2half(tanhf(0.7978845608028654f *
+                                          (__half2float(x) +
+                                           0.044715f * __half2float(x) *
+                                               __half2float(x) *
+                                               __half2float(x)))))));
 
 UNARY_OP_OUTPUT(__half, bool, logical_not_f16, x == __half(0.0f));
 
@@ -164,9 +186,14 @@ UNARY_OP(__nv_bfloat16, sigmoid_bf16,
          __float2bfloat16(1.0f / (1.0f + expf(-__bfloat162float(x)))));
 UNARY_OP(__nv_bfloat16, tanh_bf16,
          __float2bfloat16(tanhf(__bfloat162float(x))));
-
-UNARY_OP_OUTPUT(__nv_bfloat16, bool, logical_not_bf16,
-                x == __nv_bfloat16(0.0f));
+UNARY_OP(__nv_bfloat16, gelu_bf16,
+         __hmul(__hmul(__float2bfloat16(0.5f), x),
+                __hadd(__float2bfloat16(1.0f),
+                       __float2bfloat16(tanhf(0.7978845608028654f *
+                                              (__bfloat162float(x) +
+                                               0.044715f * __bfloat162float(x) *
+                                                   __bfloat162float(x) *
+                                                   __bfloat162float(x)))))));
 
 // ==== with constant ====
 
@@ -210,6 +237,16 @@ UNARY_OP_WITH_CONSTANT(uint32_t, uint32_t, pow_u32, pow(x, constant));
 UNARY_OP_WITH_CONSTANT(int8_t, int8_t, pow_i8, pow(x, constant));
 UNARY_OP_WITH_CONSTANT(int32_t, int32_t, pow_i32, pow(x, constant));
 UNARY_OP_WITH_CONSTANT(int64_t, int64_t, pow_i64, pow(x, constant));
+UNARY_OP_WITH_CONSTANT(float, float, leaky_relu_f32, x > 0 ? x : constant * x);
+UNARY_OP_WITH_CONSTANT(double, double, leaky_relu_f64,
+                       x > 0 ? x : constant * x);
+UNARY_OP_WITH_CONSTANT(float, float, elu_f32,
+                       x > 0 ? x : constant * (expf(x) - 1.0f));
+UNARY_OP_WITH_CONSTANT(double, double, elu_f64,
+                       x > 0 ? x : constant * (exp(x) - 1.0));
+
+UNARY_OP_OUTPUT(__nv_bfloat16, bool, logical_not_bf16,
+                x == __nv_bfloat16(0.0f));
 
 UNARY_OP_WITH_CONSTANT(float, bool, eq_scalar_f32, x == constant);
 UNARY_OP_WITH_CONSTANT(float, bool, ne_scalar_f32, x != constant);
@@ -268,6 +305,14 @@ UNARY_OP_WITH_CONSTANT(__half, __half, div_scalar_f16, x / constant);
 UNARY_OP_WITH_CONSTANT(__half, __half, pow_f16,
                        __float2half(powf(__half2float(x),
                                          __half2float(constant))));
+UNARY_OP_WITH_CONSTANT(__half, __half, leaky_relu_f16,
+                       x > __half(0) ? x : constant * x);
+UNARY_OP_WITH_CONSTANT(__half, __half, elu_f16,
+                       x > __half(0)
+                           ? x
+                           : __hmul(constant,
+                                    __hsub(__float2half(expf(__half2float(x))),
+                                           __float2half(1.0f))));
 
 UNARY_OP_WITH_CONSTANT(__half, bool, eq_scalar_f16, x == constant);
 UNARY_OP_WITH_CONSTANT(__half, bool, ne_scalar_f16, x != constant);
@@ -288,6 +333,14 @@ UNARY_OP_WITH_CONSTANT(__nv_bfloat16, __nv_bfloat16, div_scalar_bf16,
 UNARY_OP_WITH_CONSTANT(__nv_bfloat16, __nv_bfloat16, pow_bf16,
                        __float2bfloat16(powf(__bfloat162float(x),
                                              __bfloat162float(constant))));
+UNARY_OP_WITH_CONSTANT(__nv_bfloat16, __nv_bfloat16, leaky_relu_bf16,
+                       x > __nv_bfloat16(0) ? x : constant * x);
+UNARY_OP_WITH_CONSTANT(
+    __nv_bfloat16, __nv_bfloat16, elu_bf16,
+    x > __nv_bfloat16(0)
+        ? x
+        : __hmul(constant, __hsub(__float2bfloat16(expf(__bfloat162float(x))),
+                                  __float2bfloat16(1.0f))));
 
 UNARY_OP_WITH_CONSTANT(__nv_bfloat16, bool, eq_scalar_bf16, x == constant);
 UNARY_OP_WITH_CONSTANT(__nv_bfloat16, bool, ne_scalar_bf16, x != constant);

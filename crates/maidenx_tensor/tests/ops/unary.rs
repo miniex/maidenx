@@ -1,3 +1,5 @@
+#![allow(clippy::excessive_precision)]
+
 use maidenx_core::{device::Device, dtype::DType, error::Result};
 use maidenx_tensor::{adapter::TensorAdapter, Tensor};
 
@@ -222,6 +224,61 @@ mod test_functions {
         Ok(())
     }
 
+    pub fn gelu_test(device: Device, dtype: DType) -> Result<()> {
+        let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), device, dtype)?;
+
+        let result = x.gelu()?;
+        result.backward()?;
+
+        let sqrt_2_over_pi = 0.7978845608028654;
+        let coeff = 0.044715;
+
+        let mut expected_output = Vec::new();
+        for &val in &TEST_DATA_F32 {
+            let tanh_arg = sqrt_2_over_pi * (val + coeff * val.powi(3));
+            let gelu_val = 0.5 * val * (1.0 + tanh_arg.tanh());
+            expected_output.push(gelu_val);
+        }
+
+        let result_vec = result.to_flatten_vec::<f32>()?;
+        for (a, b) in result_vec.iter().zip(expected_output.iter()) {
+            let tolerance = match dtype {
+                DType::BF16 | DType::F16 => 1e-2,
+                _ => 1e-5,
+            };
+            assert!((a - b).abs() < tolerance, "Values differ: {} vs {} (tolerance: {})", a, b, tolerance);
+        }
+
+        if let Some(g) = x.grad()? {
+            let grad_vec = g.to_flatten_vec::<f32>()?;
+            for (i, &x_val) in TEST_DATA_F32.iter().enumerate() {
+                let tanh_arg = sqrt_2_over_pi * (x_val + coeff * x_val.powi(3));
+                let tanh_val = tanh_arg.tanh();
+
+                let sech_squared = 1.0 - tanh_val * tanh_val;
+                let inner_derivative = sqrt_2_over_pi * (1.0 + 3.0 * coeff * x_val.powi(2));
+
+                let expected_grad = 0.5 * (1.0 + tanh_val) + 0.5 * x_val * sech_squared * inner_derivative;
+
+                let tolerance = match dtype {
+                    DType::BF16 | DType::F16 => 1e-2,
+                    _ => 1e-4,
+                };
+
+                assert!(
+                    (grad_vec[i] - expected_grad).abs() < tolerance,
+                    "Gradients differ at index {}: {} vs {} (tolerance: {})",
+                    i,
+                    grad_vec[i],
+                    expected_grad,
+                    tolerance
+                );
+            }
+        }
+
+        Ok(())
+    }
+
     pub fn logical_not_test(device: Device, dtype: DType) -> Result<()> {
         let test_data = vec![1, 0, 1, 0];
         let x = setup_tensor(test_data, device, dtype)?;
@@ -302,6 +359,95 @@ mod test_functions {
         assert_eq!(result.to_flatten_vec::<f32>()?, vec![1.0, 4.0, 0.0]);
         if let Some(g) = x.grad()? {
             assert_eq!(g.to_flatten_vec::<f32>()?, vec![2.0, 4.0, 0.0]);
+        }
+
+        Ok(())
+    }
+
+    pub fn leaky_relu_test(device: Device, dtype: DType) -> Result<()> {
+        let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), device, dtype)?;
+        let alpha = 0.1;
+
+        let result = x.leaky_relu(alpha)?;
+        result.backward()?;
+
+        let expected_output = [-0.1, 0.0, 2.0, -0.3];
+        let result_vec = result.to_flatten_vec::<f32>()?;
+        for (a, b) in result_vec.iter().zip(expected_output.iter()) {
+            let tolerance = match dtype {
+                DType::BF16 | DType::F16 => 1e-2,
+                _ => 1e-5,
+            };
+            assert!((a - b).abs() < tolerance, "Values differ: {} vs {} (tolerance: {})", a, b, tolerance);
+        }
+
+        if let Some(g) = x.grad()? {
+            let expected_grad = [0.1, 0.1, 1.0, 0.1];
+            let grad_vec = g.to_flatten_vec::<f32>()?;
+
+            for (i, (actual, expected)) in grad_vec.iter().zip(expected_grad.iter()).enumerate() {
+                let tolerance = match dtype {
+                    DType::BF16 | DType::F16 => 1e-2,
+                    _ => 1e-5,
+                };
+                assert!(
+                    (actual - expected).abs() < tolerance,
+                    "Gradients differ at index {}: {} vs {} (tolerance: {})",
+                    i,
+                    actual,
+                    expected,
+                    tolerance
+                );
+            }
+        }
+
+        Ok(())
+    }
+
+    pub fn elu_test(device: Device, dtype: DType) -> Result<()> {
+        let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), device, dtype)?;
+        let alpha = 1.0;
+
+        let result = x.elu(alpha)?;
+        result.backward()?;
+
+        let mut expected_output = Vec::new();
+        for &val in &TEST_DATA_F32 {
+            if val > 0.0 {
+                expected_output.push(val);
+            } else {
+                expected_output.push(alpha * (val.exp() - 1.0));
+            }
+        }
+
+        let result_vec = result.to_flatten_vec::<f32>()?;
+        for (a, b) in result_vec.iter().zip(expected_output.iter()) {
+            let tolerance = match dtype {
+                DType::BF16 | DType::F16 => 1e-2,
+                _ => 1e-5,
+            };
+            assert!((a - b).abs() < tolerance, "Values differ: {} vs {} (tolerance: {})", a, b, tolerance);
+        }
+
+        if let Some(g) = x.grad()? {
+            let grad_vec = g.to_flatten_vec::<f32>()?;
+            for (i, &x_val) in TEST_DATA_F32.iter().enumerate() {
+                let expected_grad = if x_val > 0.0 { 1.0 } else { alpha * x_val.exp() };
+
+                let tolerance = match dtype {
+                    DType::BF16 | DType::F16 => 1e-2,
+                    _ => 1e-5,
+                };
+
+                assert!(
+                    (grad_vec[i] - expected_grad).abs() < tolerance,
+                    "Gradients differ at index {}: {} vs {} (tolerance: {})",
+                    i,
+                    grad_vec[i],
+                    expected_grad,
+                    tolerance
+                );
+            }
         }
 
         Ok(())
@@ -920,6 +1066,54 @@ mod tanh {
     }
 }
 
+// gelu operation tests
+mod gelu {
+    use super::*;
+
+    mod cpu {
+        use super::*;
+
+        #[test]
+        fn bf16() -> Result<()> {
+            test_functions::gelu_test(Device::CPU, DType::BF16)
+        }
+        #[test]
+        fn f16() -> Result<()> {
+            test_functions::gelu_test(Device::CPU, DType::F16)
+        }
+        #[test]
+        fn f32() -> Result<()> {
+            test_functions::gelu_test(Device::CPU, DType::F32)
+        }
+        #[test]
+        fn f64() -> Result<()> {
+            test_functions::gelu_test(Device::CPU, DType::F64)
+        }
+    }
+
+    #[cfg(feature = "cuda")]
+    mod cuda {
+        use super::*;
+
+        #[test]
+        fn bf16() -> Result<()> {
+            test_functions::gelu_test(Device::CUDA(0), DType::BF16)
+        }
+        #[test]
+        fn f16() -> Result<()> {
+            test_functions::gelu_test(Device::CUDA(0), DType::F16)
+        }
+        #[test]
+        fn f32() -> Result<()> {
+            test_functions::gelu_test(Device::CUDA(0), DType::F32)
+        }
+        #[test]
+        fn f64() -> Result<()> {
+            test_functions::gelu_test(Device::CUDA(0), DType::F64)
+        }
+    }
+}
+
 // logical_not operation tests
 mod logical_not {
     use super::*;
@@ -1196,6 +1390,102 @@ mod pow {
         #[test]
         fn f64() -> Result<()> {
             test_functions::pow_test(Device::CUDA(0), DType::F64)
+        }
+    }
+}
+
+// leaky_relu operation tests
+mod leaky_relu {
+    use super::*;
+
+    mod cpu {
+        use super::*;
+
+        #[test]
+        fn bf16() -> Result<()> {
+            test_functions::leaky_relu_test(Device::CPU, DType::BF16)
+        }
+        #[test]
+        fn f16() -> Result<()> {
+            test_functions::leaky_relu_test(Device::CPU, DType::F16)
+        }
+        #[test]
+        fn f32() -> Result<()> {
+            test_functions::leaky_relu_test(Device::CPU, DType::F32)
+        }
+        #[test]
+        fn f64() -> Result<()> {
+            test_functions::leaky_relu_test(Device::CPU, DType::F64)
+        }
+    }
+
+    #[cfg(feature = "cuda")]
+    mod cuda {
+        use super::*;
+
+        #[test]
+        fn bf16() -> Result<()> {
+            test_functions::leaky_relu_test(Device::CUDA(0), DType::BF16)
+        }
+        #[test]
+        fn f16() -> Result<()> {
+            test_functions::leaky_relu_test(Device::CUDA(0), DType::F16)
+        }
+        #[test]
+        fn f32() -> Result<()> {
+            test_functions::leaky_relu_test(Device::CUDA(0), DType::F32)
+        }
+        #[test]
+        fn f64() -> Result<()> {
+            test_functions::leaky_relu_test(Device::CUDA(0), DType::F64)
+        }
+    }
+}
+
+// elu operation tests
+mod elu {
+    use super::*;
+
+    mod cpu {
+        use super::*;
+
+        #[test]
+        fn bf16() -> Result<()> {
+            test_functions::elu_test(Device::CPU, DType::BF16)
+        }
+        #[test]
+        fn f16() -> Result<()> {
+            test_functions::elu_test(Device::CPU, DType::F16)
+        }
+        #[test]
+        fn f32() -> Result<()> {
+            test_functions::elu_test(Device::CPU, DType::F32)
+        }
+        #[test]
+        fn f64() -> Result<()> {
+            test_functions::elu_test(Device::CPU, DType::F64)
+        }
+    }
+
+    #[cfg(feature = "cuda")]
+    mod cuda {
+        use super::*;
+
+        #[test]
+        fn bf16() -> Result<()> {
+            test_functions::elu_test(Device::CUDA(0), DType::BF16)
+        }
+        #[test]
+        fn f16() -> Result<()> {
+            test_functions::elu_test(Device::CUDA(0), DType::F16)
+        }
+        #[test]
+        fn f32() -> Result<()> {
+            test_functions::elu_test(Device::CUDA(0), DType::F32)
+        }
+        #[test]
+        fn f64() -> Result<()> {
+            test_functions::elu_test(Device::CUDA(0), DType::F64)
         }
     }
 }

@@ -62,6 +62,7 @@ Blank: Upcoming support
 |            | `relu`             | ✓ | ✓ | ✓ |
 |            | `sigmoid`          | ✓ | ✓ | ✓ |
 |            | `tanh`             | ✓ | ✓ | ✓ |
+|            | `gelu`             | ✓ | ✓ | ✓ |
 | logical operations |
 |            | `logical_not`      | ✗ | ✓ | ✓ |
 | with constant |
@@ -70,6 +71,8 @@ Blank: Upcoming support
 |            | `mul_scalar`       | ✓ | ✓ | ✓ |
 |            | `div_scalar`       | ✓ | ✓ | ✓ |
 |            | `pow`              | ✓ | ✓ | ✓ |
+|            | `leaky_relu`       | ✓ | ✓ | ✓ |
+|            | `elu`              | ✓ | ✓ | ✓ |
 | comparison operations |
 |            | `eq_scalar`        | ✗ | ✓ | ✓ |
 |            | `ne_scalar`        | ✗ | ✓ | ✓ |
@@ -117,10 +120,13 @@ Blank: Upcoming support
 |            | `Linear`           | ✓ | ✓ |
 | **Convolution Layers** |
 |            | `Conv2d`           | ✓ | ✓ |
-| **Functional Layers** |
+| **Functional Layers (Activations)** |
 |            | `ReLU`             | ✓ | ✓ |
 |            | `Sigmoid`          | ✓ | ✓ |
 |            | `Tanh`             | ✓ | ✓ |
+|            | `LeakyReLU`        | ✓ | ✓ | 
+|            | `GELU`             | ✓ | ✓ | 
+|            | `ELU`              | ✓ | ✓ | 
 
 <br/>
 

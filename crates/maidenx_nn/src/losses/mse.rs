@@ -2,7 +2,7 @@ use crate::layer::Layer;
 use maidenx_core::{error::Result, scalar::Scalar};
 use maidenx_tensor::Tensor;
 
-#[derive(Default, Layer)]
+#[derive(Layer, Clone, Default)]
 #[layer(inputs = 2)]
 pub struct MSE {}
 

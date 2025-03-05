@@ -356,6 +356,7 @@ declare_unary_op!(sqrt: standard, [BF16, F16, F32, F64, U8, U32, I8, I32, I64]);
 declare_unary_op!(relu: standard, [BF16, F16, F32, F64]);
 declare_unary_op!(sigmoid: standard, [BF16, F16, F32, F64]);
 declare_unary_op!(tanh: standard, [BF16, F16, F32, F64]);
+declare_unary_op!(gelu: standard, [BF16, F16, F32, F64]);
 declare_unary_op!(logical_not: to_bool, [BF16, F16, F32, F64, BOOL, U8, U32, I8, I32, I64]);
 
 // Operations with constant
@@ -364,6 +365,8 @@ declare_unary_op!(sub_scalar: constant, [BF16, F16, F32, F64, U8, U32, I8, I32, 
 declare_unary_op!(mul_scalar: constant, [BF16, F16, F32, F64, U8, U32, I8, I32, I64]);
 declare_unary_op!(div_scalar: constant, [BF16, F16, F32, F64, U8, U32, I8, I32, I64]);
 declare_unary_op!(pow: constant, [BF16, F16, F32, F64, U8, U32, I8, I32, I64]);
+declare_unary_op!(leaky_relu: constant, [BF16, F16, F32, F64]);
+declare_unary_op!(elu: constant, [BF16, F16, F32, F64]);
 
 // Comparison ops with constant
 declare_unary_op!(eq_scalar: constant_to_bool, [BF16, F16, F32, F64, U8, U32, I8, I32, I64]);

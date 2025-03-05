@@ -2,15 +2,15 @@ use crate::layer::Layer;
 use maidenx_core::{error::Result, scalar::Scalar};
 use maidenx_tensor::Tensor;
 
-#[derive(Default, Layer)]
+#[derive(Layer, Clone)]
 #[layer(inputs = 2)]
 pub struct Huber {
-    delta: f32,
+    delta: Scalar,
 }
 
 impl Huber {
-    pub fn new(delta: f32) -> Self {
-        Huber { delta }
+    pub fn new(delta: impl Into<Scalar>) -> Self {
+        Self { delta: delta.into() }
     }
 
     pub fn forward(&self, (pred, target): (&Tensor, &Tensor)) -> Result<Tensor> {
@@ -21,7 +21,7 @@ impl Huber {
         let quadratic_loss = diff.pow(2.0)?.div_scalar(2.0)?;
 
         // Compute linear terms for large differences
-        let linear_loss = abs_diff.mul_scalar(self.delta)?.sub_scalar(self.delta.powi(2) / 2.0)?;
+        let linear_loss = abs_diff.mul_scalar(self.delta)?.sub_scalar(self.delta.powi(2) / Scalar::new(2))?;
 
         // Create mask for selecting between quadratic and linear terms
         let mask = abs_diff.le_scalar(self.delta)?.to_dtype(abs_diff.dtype())?;
