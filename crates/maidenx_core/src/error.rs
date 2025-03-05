@@ -22,6 +22,7 @@ pub enum Error {
     CudaError(String),
     //
     BufferLocked,
+    BufferShared,
     GradLocked,
     InvalidShape {
         message: String,
@@ -72,6 +73,7 @@ impl fmt::Display for Error {
             Self::CudaError(msg) => write!(f, "CUDA error: {}", msg),
 
             Self::BufferLocked => write!(f, "Buffer is locked"),
+            Self::BufferShared => write!(f, "Buffer is shared"),
             Self::GradLocked => write!(f, "Grad is locked"),
             Self::InvalidShape { message } => {
                 write!(f, "Invalid shape: {}", message)

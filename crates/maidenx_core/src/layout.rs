@@ -4,6 +4,7 @@ use crate::error::{Error, Result};
 pub struct Layout {
     shape: Vec<usize>,
     strides: Vec<usize>,
+    offset: usize,
 }
 
 impl Layout {
@@ -11,6 +12,7 @@ impl Layout {
         Self {
             shape: shape.to_vec(),
             strides: strides.to_vec(),
+            offset: 0,
         }
     }
 
@@ -18,7 +20,18 @@ impl Layout {
         Self {
             shape: shape.to_vec(),
             strides: Self::compute_strides(shape),
+            offset: 0,
         }
+    }
+
+    pub fn shape(&self) -> &[usize] {
+        &self.shape
+    }
+    pub fn strides(&self) -> &[usize] {
+        &self.strides
+    }
+    pub fn offset(&self) -> usize {
+        self.offset
     }
 
     pub fn set_shape(&mut self, shape: &[usize]) {
@@ -26,6 +39,9 @@ impl Layout {
     }
     pub fn set_strides(&mut self, strides: &[usize]) {
         self.strides = strides.to_vec();
+    }
+    pub fn set_offset(&mut self, offset: usize) {
+        self.offset = offset;
     }
 
     pub fn ndim(&self) -> usize {
@@ -36,12 +52,6 @@ impl Layout {
     }
     pub fn size(&self) -> usize {
         self.shape.iter().product()
-    }
-    pub fn shape(&self) -> &[usize] {
-        &self.shape
-    }
-    pub fn strides(&self) -> &[usize] {
-        &self.strides
     }
 
     pub fn view(&mut self, new_shape: &[usize]) -> Result<()> {

@@ -30,7 +30,7 @@ impl Tensor {
         unsafe {
             let num_els = final_out_shape.iter().product();
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::buffer::ops::matmul::matmul(out_buf, &*lhs.buffer()?, &*rhs.buffer()?, num_els, Some(&dims_and_strides))?;
+                maidenx_core::buffer::ops::matmul::matmul(out_buf, lhs.buffer(), rhs.buffer(), num_els, Some(&dims_and_strides))?;
 
                 Ok(())
             })?;
@@ -58,8 +58,10 @@ impl Tensor {
                 let rhs = &inputs[1];
                 let (dims_and_strides, _) = prepare_dims_and_strides(lhs, rhs);
 
-                let grad_lhs = Self::zeros_like(lhs)?;
-                let grad_rhs = Self::zeros_like(rhs)?;
+                let mut grad_lhs = Self::zeros_like(lhs)?;
+                let mut grad_rhs = Self::zeros_like(rhs)?;
+                let grad_lhs_size = grad_lhs.size();
+                let grad_rhs_size = grad_rhs.size();
 
                 unsafe {
                     grad_lhs.with_buffer_mut(|gl_buf| {
@@ -67,11 +69,11 @@ impl Tensor {
                             maidenx_core::buffer::ops::matmul::matmul_backward(
                                 Some(gl_buf),
                                 Some(gr_buf),
-                                &*grad_out.buffer()?,
-                                &*lhs.buffer()?,
-                                &*rhs.buffer()?,
-                                grad_lhs.size(),
-                                grad_rhs.size(),
+                                grad_out.buffer(),
+                                lhs.buffer(),
+                                rhs.buffer(),
+                                grad_lhs_size,
+                                grad_rhs_size,
                                 Some(&dims_and_strides),
                             )?;
 

@@ -6,7 +6,7 @@ use maidenx_core::{
     device::Device,
     error::{Error, Result},
 };
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 
 impl Tensor {
     pub fn is_contiguous(&self) -> bool {
@@ -38,7 +38,7 @@ impl Tensor {
         let byte_size = size * dtype.size_in_bytes();
         let mut host_in = vec![0u8; byte_size];
         unsafe {
-            self.buffer()?.copy_to_host(host_in.as_mut_ptr() as *mut std::ffi::c_void, byte_size)?;
+            self.buffer().copy_to_host(host_in.as_mut_ptr() as *mut std::ffi::c_void, byte_size)?;
         }
 
         let mut new_strides = vec![0; ndim];
@@ -76,17 +76,15 @@ impl Tensor {
             host_out[dst_byte..(dst_byte + elem_size)].copy_from_slice(&host_in[src_byte..(src_byte + elem_size)]);
         }
 
-        let new_buffer: Arc<RwLock<dyn Buffer>> = match self.device() {
-            Device::CPU => Arc::new(RwLock::new(CpuBuffer::new(size, dtype)?)),
+        let mut new_buffer: Arc<dyn Buffer> = match self.device() {
+            Device::CPU => Arc::new(CpuBuffer::new(size, dtype)?),
             #[cfg(feature = "cuda")]
-            Device::CUDA(id) => Arc::new(RwLock::new(CudaBuffer::new(size, dtype, id)?)),
+            Device::CUDA(id) => Arc::new(CudaBuffer::new(size, dtype, id)?),
         };
 
         unsafe {
-            new_buffer
-                .write()
-                .map_err(|_| Error::BufferLocked)?
-                .copy_from_host(host_out.as_ptr() as *const std::ffi::c_void, byte_size)?;
+            let buffer_mut = Arc::get_mut(&mut new_buffer).ok_or(Error::BufferShared)?;
+            buffer_mut.copy_from_host(host_out.as_ptr() as *const std::ffi::c_void, byte_size)?;
         }
 
         self.data.buffer = new_buffer;

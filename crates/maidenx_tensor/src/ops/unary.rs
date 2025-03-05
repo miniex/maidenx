@@ -7,7 +7,7 @@ impl Tensor {
 
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::buffer::ops::unary::neg(out_buf, &*self.buffer()?, self.size(), self.ndim(), Some(&prepare_dims_and_strides(self)))?;
+                maidenx_core::buffer::ops::unary::neg(out_buf, self.buffer(), self.size(), self.ndim(), Some(&prepare_dims_and_strides(self)))?;
                 Ok(())
             })?;
         }
@@ -28,7 +28,7 @@ impl Tensor {
 
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::buffer::ops::unary::abs(out_buf, &*self.buffer()?, self.size(), self.ndim(), Some(&prepare_dims_and_strides(self)))?;
+                maidenx_core::buffer::ops::unary::abs(out_buf, self.buffer(), self.size(), self.ndim(), Some(&prepare_dims_and_strides(self)))?;
                 Ok(())
             })?;
         }
@@ -51,7 +51,7 @@ impl Tensor {
 
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::buffer::ops::unary::sign(out_buf, &*self.buffer()?, self.size(), self.ndim(), Some(&prepare_dims_and_strides(self)))?;
+                maidenx_core::buffer::ops::unary::sign(out_buf, self.buffer(), self.size(), self.ndim(), Some(&prepare_dims_and_strides(self)))?;
                 Ok(())
             })?;
         }
@@ -72,7 +72,7 @@ impl Tensor {
 
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::buffer::ops::unary::square(out_buf, &*self.buffer()?, self.size(), self.ndim(), Some(&prepare_dims_and_strides(self)))?;
+                maidenx_core::buffer::ops::unary::square(out_buf, self.buffer(), self.size(), self.ndim(), Some(&prepare_dims_and_strides(self)))?;
                 Ok(())
             })?;
         }
@@ -100,7 +100,7 @@ impl Tensor {
             result.with_buffer_mut(|out_buf| {
                 maidenx_core::buffer::ops::unary::sqrt(
                     out_buf,
-                    &*input.buffer()?,
+                    input.buffer(),
                     input.size(),
                     input.ndim(),
                     Some(&prepare_dims_and_strides(&input)),
@@ -132,7 +132,7 @@ impl Tensor {
             result.with_buffer_mut(|out_buf| {
                 maidenx_core::buffer::ops::unary::relu(
                     out_buf,
-                    &*input.buffer()?,
+                    input.buffer(),
                     input.size(),
                     input.ndim(),
                     Some(&prepare_dims_and_strides(&input)),
@@ -166,7 +166,7 @@ impl Tensor {
             result.with_buffer_mut(|out_buf| {
                 maidenx_core::buffer::ops::unary::sigmoid(
                     out_buf,
-                    &*input.buffer()?,
+                    input.buffer(),
                     input.size(),
                     input.ndim(),
                     Some(&prepare_dims_and_strides(&input)),
@@ -199,7 +199,7 @@ impl Tensor {
             result.with_buffer_mut(|out_buf| {
                 maidenx_core::buffer::ops::unary::tanh(
                     out_buf,
-                    &*input.buffer()?,
+                    input.buffer(),
                     input.size(),
                     input.ndim(),
                     Some(&prepare_dims_and_strides(&input)),
@@ -223,13 +223,13 @@ impl Tensor {
     }
 
     pub fn logical_not(&self) -> Result<Tensor> {
-        let result = Self::empty_with_spec(self.shape(), self.device(), DType::BOOL)?;
+        let mut result = Self::empty_with_spec(self.shape(), self.device(), DType::BOOL)?;
 
         unsafe {
             result.with_buffer_mut(|out_buf| {
                 maidenx_core::buffer::ops::unary::logical_not(
                     out_buf,
-                    &*self.buffer()?,
+                    self.buffer(),
                     self.size(),
                     self.ndim(),
                     Some(&prepare_dims_and_strides(self)),
@@ -251,7 +251,7 @@ impl Tensor {
             result.with_buffer_mut(|out_buf| {
                 maidenx_core::buffer::ops::unary::add_scalar(
                     out_buf,
-                    &*self.buffer()?,
+                    self.buffer(),
                     scalar,
                     self.size(),
                     self.ndim(),
@@ -280,7 +280,7 @@ impl Tensor {
             result.with_buffer_mut(|out_buf| {
                 maidenx_core::buffer::ops::unary::sub_scalar(
                     out_buf,
-                    &*self.buffer()?,
+                    self.buffer(),
                     scalar,
                     self.size(),
                     self.ndim(),
@@ -309,7 +309,7 @@ impl Tensor {
             result.with_buffer_mut(|out_buf| {
                 maidenx_core::buffer::ops::unary::mul_scalar(
                     out_buf,
-                    &*self.buffer()?,
+                    self.buffer(),
                     scalar,
                     self.size(),
                     self.ndim(),
@@ -342,7 +342,7 @@ impl Tensor {
             result.with_buffer_mut(|out_buf| {
                 maidenx_core::buffer::ops::unary::div_scalar(
                     out_buf,
-                    &*input.buffer()?,
+                    input.buffer(),
                     scalar,
                     input.size(),
                     input.ndim(),
@@ -375,7 +375,7 @@ impl Tensor {
             result.with_buffer_mut(|out_buf| {
                 maidenx_core::buffer::ops::unary::pow(
                     out_buf,
-                    &*input.buffer()?,
+                    input.buffer(),
                     exponent,
                     input.size(),
                     input.ndim(),
@@ -402,13 +402,13 @@ impl Tensor {
     // Comparison operators
     pub fn eq_scalar(&self, scalar: impl Into<Scalar>) -> Result<Tensor> {
         let scalar = scalar.into();
-        let result = Self::empty_with_spec(self.shape(), self.device(), DType::BOOL)?;
+        let mut result = Self::empty_with_spec(self.shape(), self.device(), DType::BOOL)?;
 
         unsafe {
             result.with_buffer_mut(|out_buf| {
                 maidenx_core::buffer::ops::unary::eq_scalar(
                     out_buf,
-                    &*self.buffer()?,
+                    self.buffer(),
                     scalar,
                     self.size(),
                     self.ndim(),
@@ -423,13 +423,13 @@ impl Tensor {
 
     pub fn ne_scalar(&self, scalar: impl Into<Scalar>) -> Result<Tensor> {
         let scalar = scalar.into();
-        let result = Self::empty_with_spec(self.shape(), self.device(), DType::BOOL)?;
+        let mut result = Self::empty_with_spec(self.shape(), self.device(), DType::BOOL)?;
 
         unsafe {
             result.with_buffer_mut(|out_buf| {
                 maidenx_core::buffer::ops::unary::ne_scalar(
                     out_buf,
-                    &*self.buffer()?,
+                    self.buffer(),
                     scalar,
                     self.size(),
                     self.ndim(),
@@ -444,13 +444,13 @@ impl Tensor {
 
     pub fn lt_scalar(&self, scalar: impl Into<Scalar>) -> Result<Tensor> {
         let scalar = scalar.into();
-        let result = Self::empty_with_spec(self.shape(), self.device(), DType::BOOL)?;
+        let mut result = Self::empty_with_spec(self.shape(), self.device(), DType::BOOL)?;
 
         unsafe {
             result.with_buffer_mut(|out_buf| {
                 maidenx_core::buffer::ops::unary::lt_scalar(
                     out_buf,
-                    &*self.buffer()?,
+                    self.buffer(),
                     scalar,
                     self.size(),
                     self.ndim(),
@@ -465,13 +465,13 @@ impl Tensor {
 
     pub fn le_scalar(&self, scalar: impl Into<Scalar>) -> Result<Tensor> {
         let scalar = scalar.into();
-        let result = Self::empty_with_spec(self.shape(), self.device(), DType::BOOL)?;
+        let mut result = Self::empty_with_spec(self.shape(), self.device(), DType::BOOL)?;
 
         unsafe {
             result.with_buffer_mut(|out_buf| {
                 maidenx_core::buffer::ops::unary::le_scalar(
                     out_buf,
-                    &*self.buffer()?,
+                    self.buffer(),
                     scalar,
                     self.size(),
                     self.ndim(),
@@ -486,13 +486,13 @@ impl Tensor {
 
     pub fn gt_scalar(&self, scalar: impl Into<Scalar>) -> Result<Tensor> {
         let scalar = scalar.into();
-        let result = Self::empty_with_spec(self.shape(), self.device(), DType::BOOL)?;
+        let mut result = Self::empty_with_spec(self.shape(), self.device(), DType::BOOL)?;
 
         unsafe {
             result.with_buffer_mut(|out_buf| {
                 maidenx_core::buffer::ops::unary::gt_scalar(
                     out_buf,
-                    &*self.buffer()?,
+                    self.buffer(),
                     scalar,
                     self.size(),
                     self.ndim(),
@@ -507,13 +507,13 @@ impl Tensor {
 
     pub fn ge_scalar(&self, scalar: impl Into<Scalar>) -> Result<Tensor> {
         let scalar = scalar.into();
-        let result = Self::empty_with_spec(self.shape(), self.device(), DType::BOOL)?;
+        let mut result = Self::empty_with_spec(self.shape(), self.device(), DType::BOOL)?;
 
         unsafe {
             result.with_buffer_mut(|out_buf| {
                 maidenx_core::buffer::ops::unary::ge_scalar(
                     out_buf,
-                    &*self.buffer()?,
+                    self.buffer(),
                     scalar,
                     self.size(),
                     self.ndim(),

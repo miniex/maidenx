@@ -318,7 +318,7 @@ mod conv2d {
         padding: (usize, usize),
     ) -> Result<Tensor> {
         let cols_shape = [batch_size * output_height * output_width, channels * kernel_size.0 * kernel_size.1];
-        let result = Tensor::empty_with_spec(&cols_shape, input.device(), input.dtype())?;
+        let mut result = Tensor::empty_with_spec(&cols_shape, input.device(), input.dtype())?;
 
         let num_els = cols_shape.iter().product();
         let dims_and_strides = vec![
@@ -338,7 +338,7 @@ mod conv2d {
 
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::buffer::nn::conv::im2col(out_buf, &*input.buffer()?, num_els, Some(&dims_and_strides))?;
+                maidenx_core::buffer::nn::conv::im2col(out_buf, input.buffer(), num_els, Some(&dims_and_strides))?;
 
                 Ok(())
             })?;
@@ -360,7 +360,7 @@ mod conv2d {
         padding: (usize, usize),
     ) -> Result<Tensor> {
         let output_shape = [batch_size, channels, height, width];
-        let result = Tensor::empty_with_spec(&output_shape, input.device(), input.dtype())?;
+        let mut result = Tensor::empty_with_spec(&output_shape, input.device(), input.dtype())?;
 
         let num_els = output_shape.iter().product();
         let dims_and_strides = vec![
@@ -380,7 +380,7 @@ mod conv2d {
 
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::buffer::nn::conv::col2im(out_buf, &*input.buffer()?, num_els, Some(&dims_and_strides))?;
+                maidenx_core::buffer::nn::conv::col2im(out_buf, input.buffer(), num_els, Some(&dims_and_strides))?;
 
                 Ok(())
             })?;

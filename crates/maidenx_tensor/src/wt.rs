@@ -11,11 +11,11 @@ use maidenx_core::{
     error::{Error, Result},
     layout::Layout,
 };
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::{Arc, Mutex};
 
 impl Tensor {
     pub fn copy(&self) -> Result<Self> {
-        let buffer_len = self.buffer()?.len();
+        let buffer_len = self.buffer().len();
         let layout_size = self.size();
         let size = if buffer_len != layout_size { buffer_len } else { layout_size };
 
@@ -23,16 +23,15 @@ impl Tensor {
         let device = self.device();
         let dtype = self.dtype();
 
-        let buffer: Arc<RwLock<dyn Buffer>> = match device {
-            Device::CPU => Arc::new(RwLock::new(CpuBuffer::new(size, dtype)?)),
+        let mut buffer: Arc<dyn Buffer> = match device {
+            Device::CPU => Arc::new(CpuBuffer::new(size, dtype)?),
             #[cfg(feature = "cuda")]
-            Device::CUDA(id) => Arc::new(RwLock::new(CudaBuffer::new(size, dtype, id)?)),
+            Device::CUDA(id) => Arc::new(CudaBuffer::new(size, dtype, id)?),
         };
 
         {
-            let src_guard = self.buffer()?;
-            let mut dst_guard = buffer.write().map_err(|_| Error::BufferLocked)?;
-            dst_guard.copy_from_with_dtype_cast(&*src_guard)?;
+            let buffer_mut = Arc::get_mut(&mut buffer).ok_or(Error::BufferShared)?;
+            buffer_mut.copy_from_with_dtype_cast(self.buffer())?;
         }
 
         Ok(Self {
@@ -91,16 +90,15 @@ impl Tensor {
         let size = self.size();
         let dtype = self.dtype();
 
-        let buffer: Arc<RwLock<dyn Buffer>> = match device {
-            Device::CPU => Arc::new(RwLock::new(CpuBuffer::new(size, dtype)?)),
+        let mut buffer: Arc<dyn Buffer> = match device {
+            Device::CPU => Arc::new(CpuBuffer::new(size, dtype)?),
             #[cfg(feature = "cuda")]
-            Device::CUDA(id) => Arc::new(RwLock::new(CudaBuffer::new(size, dtype, id)?)),
+            Device::CUDA(id) => Arc::new(CudaBuffer::new(size, dtype, id)?),
         };
 
         {
-            let src_guard = self.buffer()?;
-            let mut dst_guard = buffer.write().map_err(|_| Error::BufferLocked)?;
-            dst_guard.copy_from_with_device(&*src_guard)?;
+            let buffer_mut = Arc::get_mut(&mut buffer).ok_or(Error::BufferShared)?;
+            buffer_mut.copy_from_with_device(self.buffer())?;
         }
 
         self.data.buffer = buffer;
@@ -119,16 +117,15 @@ impl Tensor {
         let dtype = self.dtype();
         let layout = self.layout().clone();
 
-        let buffer: Arc<RwLock<dyn Buffer>> = match device {
-            Device::CPU => Arc::new(RwLock::new(CpuBuffer::new(size, dtype)?)),
+        let mut buffer: Arc<dyn Buffer> = match device {
+            Device::CPU => Arc::new(CpuBuffer::new(size, dtype)?),
             #[cfg(feature = "cuda")]
-            Device::CUDA(id) => Arc::new(RwLock::new(CudaBuffer::new(size, dtype, id)?)),
+            Device::CUDA(id) => Arc::new(CudaBuffer::new(size, dtype, id)?),
         };
 
         {
-            let src_guard = self.buffer()?;
-            let mut dst_guard = buffer.write().map_err(|_| Error::BufferLocked)?;
-            dst_guard.copy_from_with_device(&*src_guard)?;
+            let buffer_mut = Arc::get_mut(&mut buffer).ok_or(Error::BufferShared)?;
+            buffer_mut.copy_from_with_device(self.buffer())?;
         }
 
         Ok(Self {
@@ -144,21 +141,21 @@ impl Tensor {
     }
 
     pub fn with_dtype(&mut self, dtype: DType) -> Result<()> {
-        let buffer_len = self.buffer()?.len(); // read lock for length
+        let buffer_len = self.buffer().len(); // read lock for length
         let layout_size = self.size();
         let size = if buffer_len != layout_size { buffer_len } else { layout_size };
 
         let device = self.device();
-        let buffer: Arc<RwLock<dyn Buffer>> = match device {
-            Device::CPU => Arc::new(RwLock::new(CpuBuffer::new(size, dtype)?)),
+
+        let mut buffer: Arc<dyn Buffer> = match device {
+            Device::CPU => Arc::new(CpuBuffer::new(size, dtype)?),
             #[cfg(feature = "cuda")]
-            Device::CUDA(id) => Arc::new(RwLock::new(CudaBuffer::new(size, dtype, id)?)),
+            Device::CUDA(id) => Arc::new(CudaBuffer::new(size, dtype, id)?),
         };
 
         {
-            let src_guard = self.buffer()?; // read lock
-            let mut dst_guard = buffer.write().map_err(|_| Error::BufferLocked)?;
-            dst_guard.copy_from_with_dtype_cast(&*src_guard)?;
+            let buffer_mut = Arc::get_mut(&mut buffer).ok_or(Error::BufferShared)?;
+            buffer_mut.copy_from_with_dtype_cast(self.buffer())?;
         }
 
         self.data.buffer = buffer;
@@ -173,23 +170,22 @@ impl Tensor {
             return Self::from_tensor(self);
         }
 
-        let buffer_len = self.buffer()?.len();
+        let buffer_len = self.buffer().len();
         let layout_size = self.size();
         let size = if buffer_len != layout_size { buffer_len } else { layout_size };
 
         let layout = self.layout().clone();
         let device = self.device();
 
-        let buffer: Arc<RwLock<dyn Buffer>> = match device {
-            Device::CPU => Arc::new(RwLock::new(CpuBuffer::new(size, dtype)?)),
+        let mut buffer: Arc<dyn Buffer> = match device {
+            Device::CPU => Arc::new(CpuBuffer::new(size, dtype)?),
             #[cfg(feature = "cuda")]
-            Device::CUDA(id) => Arc::new(RwLock::new(CudaBuffer::new(size, dtype, id)?)),
+            Device::CUDA(id) => Arc::new(CudaBuffer::new(size, dtype, id)?),
         };
 
         {
-            let src_guard = self.buffer()?;
-            let mut dst_guard = buffer.write().map_err(|_| Error::BufferLocked)?;
-            dst_guard.copy_from_with_dtype_cast(&*src_guard)?;
+            let buffer_mut = Arc::get_mut(&mut buffer).ok_or(Error::BufferShared)?;
+            buffer_mut.copy_from_with_dtype_cast(self.buffer())?;
         }
 
         Ok(Self {
@@ -225,15 +221,15 @@ impl Tensor {
         if self.shape().is_empty() {
             let target_size = target.size();
             let dtype = self.dtype();
-            let new_buffer: Arc<RwLock<dyn Buffer>> = match self.device() {
-                Device::CPU => Arc::new(RwLock::new(CpuBuffer::new(target_size, dtype)?)),
+            let mut new_buffer: Arc<dyn Buffer> = match self.device() {
+                Device::CPU => Arc::new(CpuBuffer::new(target_size, dtype)?),
                 #[cfg(feature = "cuda")]
-                Device::CUDA(id) => Arc::new(RwLock::new(CudaBuffer::new(target_size, dtype, id)?)),
+                Device::CUDA(id) => Arc::new(CudaBuffer::new(target_size, dtype, id)?),
             };
 
             let mut scalar_buf = vec![0u8; dtype.size_in_bytes()];
             {
-                let src_guard = self.buffer()?;
+                let src_guard = self.buffer();
                 unsafe {
                     src_guard.copy_to_host(scalar_buf.as_mut_ptr() as *mut c_void, scalar_buf.len())?;
                 }
@@ -245,11 +241,9 @@ impl Tensor {
                 result_buf[offset..offset + scalar_buf.len()].copy_from_slice(&scalar_buf);
             }
 
-            {
-                let mut dst_guard = new_buffer.write().map_err(|_| Error::BufferLocked)?;
-                unsafe {
-                    dst_guard.copy_from_host(result_buf.as_ptr() as *const c_void, result_buf.len())?;
-                }
+            unsafe {
+                let dst_mut = Arc::get_mut(&mut new_buffer).ok_or(Error::BufferShared)?;
+                dst_mut.copy_from_host(result_buf.as_ptr() as *const c_void, result_buf.len())?;
             }
 
             self.data.buffer = new_buffer;
@@ -271,16 +265,16 @@ impl Tensor {
 
         let size = Layout::compute_size(&broadcasted_shape);
         let dtype = self.dtype();
-        let new_buffer: Arc<RwLock<dyn Buffer>> = match self.device() {
-            Device::CPU => Arc::new(RwLock::new(CpuBuffer::new(size, dtype)?)),
+        let mut new_buffer: Arc<dyn Buffer> = match self.device() {
+            Device::CPU => Arc::new(CpuBuffer::new(size, dtype)?),
             #[cfg(feature = "cuda")]
-            Device::CUDA(id) => Arc::new(RwLock::new(CudaBuffer::new(size, dtype, id)?)),
+            Device::CUDA(id) => Arc::new(CudaBuffer::new(size, dtype, id)?),
         };
 
         let src_size = self.size();
         let mut temp_buf = vec![0u8; src_size * dtype.size_in_bytes()];
         {
-            let src_guard = self.buffer()?;
+            let src_guard = self.buffer();
             unsafe {
                 src_guard.copy_to_host(temp_buf.as_mut_ptr() as *mut c_void, temp_buf.len())?;
             }
@@ -318,11 +312,9 @@ impl Tensor {
             result_buf[dst_offset..dst_offset + element_size].copy_from_slice(&temp_buf[src_offset..src_offset + element_size]);
         }
 
-        {
-            let mut dst_guard = new_buffer.write().map_err(|_| Error::BufferLocked)?;
-            unsafe {
-                dst_guard.copy_from_host(result_buf.as_ptr() as *const c_void, result_buf.len())?;
-            }
+        unsafe {
+            let dst_mut = Arc::get_mut(&mut new_buffer).ok_or(Error::BufferShared)?;
+            dst_mut.copy_from_host(result_buf.as_ptr() as *const c_void, result_buf.len())?;
         }
 
         self.data.buffer = new_buffer;

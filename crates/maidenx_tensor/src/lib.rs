@@ -7,18 +7,20 @@ pub mod utils;
 mod vec;
 mod wt;
 
+#[cfg(feature = "cuda")]
+use maidenx_core::buffer::cuda::CudaBuffer;
 use maidenx_core::{
-    buffer::Buffer,
+    buffer::{cpu::CpuBuffer, Buffer},
     device::Device,
     dtype::DType,
     error::{Error, Result},
     layout::Layout,
 };
-use std::sync::{Arc, Mutex, RwLock, RwLockReadGuard};
+use std::sync::{Arc, Mutex};
 
 #[derive(Clone)]
 pub struct TensorData {
-    buffer: Arc<RwLock<dyn Buffer>>,
+    buffer: Arc<dyn Buffer>,
     grad: Option<Arc<Mutex<Tensor>>>,
 }
 
@@ -88,17 +90,50 @@ impl TensorNode {
 impl Tensor {
     // data
 
-    pub fn buffer(&self) -> Result<RwLockReadGuard<'_, dyn Buffer>> {
-        self.data.buffer.read().map_err(|_| Error::BufferLocked)
+    pub fn buffer(&self) -> &dyn Buffer {
+        Arc::as_ref(&self.data.buffer)
     }
 
-    pub fn with_buffer_mut<F, R>(&self, func: F) -> Result<R>
+    fn buffer_clone(&self) -> Result<Arc<dyn Buffer>> {
+        let src_buffer = self.buffer();
+        let device = src_buffer.device();
+        let dtype = src_buffer.dtype();
+        let size = src_buffer.len();
+
+        let new_buffer: Arc<dyn Buffer> = match device {
+            Device::CPU => {
+                let buffer = CpuBuffer::new(size, dtype)?;
+                Arc::new(buffer)
+            }
+            #[cfg(feature = "cuda")]
+            Device::CUDA(device_id) => {
+                let buffer = CudaBuffer::new(size, dtype, device_id)?;
+                Arc::new(buffer)
+            }
+        };
+
+        unsafe {
+            let buffer_ptr = Arc::into_raw(new_buffer) as *mut dyn Buffer;
+            (*buffer_ptr).copy_from(src_buffer)?;
+            let new_buffer = Arc::from_raw(buffer_ptr);
+            Ok(new_buffer)
+        }
+    }
+
+    pub fn with_buffer_mut<F, R>(&mut self, func: F) -> Result<R>
     where
         F: FnOnce(&mut dyn Buffer) -> Result<R>,
     {
-        let mut guard = self.data.buffer.write().map_err(|_| Error::BufferLocked)?;
-
-        func(&mut *guard)
+        if Arc::strong_count(&self.data.buffer) == 1 {
+            let buffer = Arc::get_mut(&mut self.data.buffer).ok_or(Error::BufferShared)?;
+            func(buffer)
+        } else {
+            let mut new_buffer = self.buffer_clone()?;
+            let buffer = Arc::get_mut(&mut new_buffer).ok_or(Error::BufferShared)?;
+            let result = func(buffer)?;
+            self.data.buffer = new_buffer;
+            Ok(result)
+        }
     }
 
     pub fn layout(&self) -> &Layout {

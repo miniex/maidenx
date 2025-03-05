@@ -208,7 +208,7 @@ mod test_functions {
     }
 
     pub fn add_inplace_test(device: Device, dtype: DType) -> Result<()> {
-        let x = setup_tensor(TEST_DATA_F32.to_vec(), device, dtype)?;
+        let mut x = setup_tensor(TEST_DATA_F32.to_vec(), device, dtype)?;
         let y = setup_tensor(vec![3.0f32, 4.0], device, dtype)?;
 
         x.add_(&y)?;
@@ -220,7 +220,7 @@ mod test_functions {
     pub fn sub_inplace_test(device: Device, dtype: DType) -> Result<()> {
         match dtype {
             DType::U8 | DType::U32 => {
-                let x = setup_tensor(TEST_DATA_U32.to_vec(), device, dtype)?;
+                let mut x = setup_tensor(TEST_DATA_U32.to_vec(), device, dtype)?;
                 let y = setup_tensor(vec![1u32, 1, 0], device, dtype)?;
 
                 x.sub_(&y)?;
@@ -228,7 +228,7 @@ mod test_functions {
                 assert_eq!(x.to_flatten_vec::<u32>()?, vec![0, 1, 0]);
             }
             _ => {
-                let x = setup_tensor(TEST_DATA_F32.to_vec(), device, dtype)?;
+                let mut x = setup_tensor(TEST_DATA_F32.to_vec(), device, dtype)?;
                 let y = setup_tensor(vec![3.0f32, 4.0], device, dtype)?;
 
                 x.sub_(&y)?;
@@ -240,7 +240,7 @@ mod test_functions {
     }
 
     pub fn mul_inplace_test(device: Device, dtype: DType) -> Result<()> {
-        let x = setup_tensor(TEST_DATA_F32.to_vec(), device, dtype)?;
+        let mut x = setup_tensor(TEST_DATA_F32.to_vec(), device, dtype)?;
         let y = setup_tensor(vec![3.0f32, 4.0], device, dtype)?;
 
         x.mul_(&y)?;
@@ -250,7 +250,7 @@ mod test_functions {
     }
 
     pub fn div_inplace_test(device: Device, dtype: DType) -> Result<()> {
-        let x = setup_tensor(vec![6.0f32, 8.0], device, dtype)?;
+        let mut x = setup_tensor(vec![6.0f32, 8.0], device, dtype)?;
         let y = setup_tensor(vec![2.0f32, 4.0], device, dtype)?;
 
         x.div_(&y)?;

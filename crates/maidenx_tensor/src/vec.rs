@@ -24,7 +24,7 @@ impl Tensor {
         let mut raw_data = vec![0u8; size * elem_size];
         unsafe {
             tensor
-                .buffer()?
+                .buffer()
                 .copy_to_host(raw_data.as_mut_ptr() as *mut std::ffi::c_void, raw_data.len())?;
         }
 
@@ -77,7 +77,7 @@ impl Tensor {
         let buffer_index = self.indices_to_buffer_index(&indices)?;
 
         unsafe {
-            let buffer = self.buffer()?;
+            let buffer = self.buffer();
             let ptr = (buffer.as_ptr() as *const u8).add(buffer_index * self.dtype().size_in_bytes());
             Ok(self.dtype().read_scalar(ptr))
         }
@@ -92,11 +92,12 @@ impl Tensor {
 
         let indices = self.flat_index_to_indices(index)?;
         let buffer_index = self.indices_to_buffer_index(&indices)?;
+        let dtype = self.dtype();
 
         unsafe {
             self.with_buffer_mut(|buf| {
-                let ptr = (buf.as_mut_ptr() as *mut u8).add(buffer_index * self.dtype().size_in_bytes());
-                self.dtype().write_scalar(ptr, scalar_value);
+                let ptr = (buf.as_mut_ptr() as *mut u8).add(buffer_index * dtype.size_in_bytes());
+                dtype.write_scalar(ptr, scalar_value);
                 Ok(())
             })?
         }

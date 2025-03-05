@@ -83,7 +83,7 @@ fn run_benchmark(
         "add_" => {
             group.bench_function(&bench_name, |b| {
                 b.iter(|| -> Result<()> {
-                    let x = setup_bench_tensor(generate_data(size), device, dtype)?;
+                    let mut x = setup_bench_tensor(generate_data(size), device, dtype)?;
                     let y = setup_bench_tensor(generate_data(size).iter().map(|v| v + 1.0).collect(), device, dtype)?;
                     black_box(x.add_(&y))?;
                     Ok(())
@@ -93,7 +93,7 @@ fn run_benchmark(
         "sub_" => {
             group.bench_function(&bench_name, |b| {
                 b.iter(|| -> Result<()> {
-                    let x = setup_bench_tensor(generate_data(size), device, dtype)?;
+                    let mut x = setup_bench_tensor(generate_data(size), device, dtype)?;
                     let y = setup_bench_tensor(generate_data(size).iter().map(|v| v + 1.0).collect(), device, dtype)?;
                     black_box(x.sub_(&y))?;
                     Ok(())
@@ -103,7 +103,7 @@ fn run_benchmark(
         "mul_" => {
             group.bench_function(&bench_name, |b| {
                 b.iter(|| -> Result<()> {
-                    let x = setup_bench_tensor(generate_data(size), device, dtype)?;
+                    let mut x = setup_bench_tensor(generate_data(size), device, dtype)?;
                     let y = setup_bench_tensor(generate_data(size).iter().map(|v| v + 1.0).collect(), device, dtype)?;
                     black_box(x.mul_(&y))?;
                     Ok(())
@@ -113,7 +113,7 @@ fn run_benchmark(
         "div_" => {
             group.bench_function(&bench_name, |b| {
                 b.iter(|| -> Result<()> {
-                    let x = setup_bench_tensor(generate_data(size).iter().map(|v| v + 2.0).collect(), device, dtype)?;
+                    let mut x = setup_bench_tensor(generate_data(size).iter().map(|v| v + 2.0).collect(), device, dtype)?;
                     let y = setup_bench_tensor(generate_data(size).iter().map(|v| v + 1.0).collect(), device, dtype)?;
                     black_box(x.div_(&y))?;
                     Ok(())
@@ -278,4 +278,3 @@ pub fn basic(criterion: &mut Criterion) {
 
     group.finish();
 }
-

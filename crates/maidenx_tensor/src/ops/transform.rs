@@ -214,7 +214,7 @@ impl Tensor {
 
         let mut temp_buf = vec![0u8; self.size() * self.dtype().size_in_bytes()];
         unsafe {
-            self.buffer()?
+            self.buffer()
                 .copy_to_host(temp_buf.as_mut_ptr() as *mut std::ffi::c_void, temp_buf.len())?;
         }
 
@@ -336,11 +336,11 @@ impl Tensor {
     }
 
     fn broadcast_scalar_to(&self, shape: &[usize]) -> Result<Self> {
-        let result = Self::empty_with_spec(shape, self.device(), self.dtype())?;
+        let mut result = Self::empty_with_spec(shape, self.device(), self.dtype())?;
         let mut scalar_buf = vec![0u8; self.dtype().size_in_bytes()];
 
         unsafe {
-            self.buffer()?
+            self.buffer()
                 .copy_to_host(scalar_buf.as_mut_ptr() as *mut std::ffi::c_void, scalar_buf.len())?;
 
             let mut result_buf = vec![0u8; result.size() * result.dtype().size_in_bytes()];
