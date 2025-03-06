@@ -84,6 +84,129 @@ impl Layout {
         Ok(())
     }
 
+    pub fn slice(&self, dim: usize, start: isize, end: Option<isize>, step: isize) -> Result<Self> {
+        // Check dimension bounds
+        if dim >= self.ndim() {
+            return Err(Error::DimensionOutOfBounds {
+                dim: dim as i32,
+                ndim: self.ndim(),
+            });
+        }
+
+        if step == 0 {
+            return Err(Error::InvalidArgument("Slice step cannot be zero".to_string()));
+        }
+
+        let dim_size = self.shape[dim] as isize;
+
+        // Normalize negative indices and handle None for end
+        let start_idx = if start < 0 { dim_size + start } else { start };
+        let end_idx = match end {
+            Some(e) => {
+                if e < 0 {
+                    dim_size + e
+                } else {
+                    e
+                }
+            }
+            None => {
+                if step > 0 {
+                    dim_size
+                } else {
+                    -1
+                }
+            }
+        };
+
+        // Clamp indices to valid range
+        let start_idx = start_idx.clamp(0, dim_size);
+        let end_idx = end_idx.clamp(if step > 0 { start_idx } else { -1 }, dim_size);
+
+        // Calculate new size for the dimension
+        let new_size = if step > 0 {
+            (end_idx - start_idx + step - 1) / step
+        } else {
+            (start_idx - end_idx + (-step) - 1) / (-step)
+        };
+
+        if new_size <= 0 {
+            return Err(Error::InvalidShape {
+                message: "Slice results in empty tensor".to_string(),
+            });
+        }
+
+        // Create a new Layout with adjusted shape, strides and offset
+        let mut new_shape = self.shape.clone();
+        let mut new_strides = self.strides.clone();
+
+        new_shape[dim] = new_size as usize;
+        new_strides[dim] *= step.unsigned_abs();
+
+        // Calculate new offset
+        let new_offset = self.offset + (start_idx as usize * self.strides[dim]);
+
+        Ok(Self {
+            shape: new_shape,
+            strides: new_strides,
+            offset: new_offset,
+        })
+    }
+
+    pub fn unfold(&self, dim: usize, size: usize, step: usize) -> Result<Self> {
+        // Check dimension bounds
+        if dim >= self.ndim() {
+            return Err(Error::DimensionOutOfBounds {
+                dim: dim as i32,
+                ndim: self.ndim(),
+            });
+        }
+
+        if size == 0 {
+            return Err(Error::InvalidArgument("Unfold size cannot be zero".to_string()));
+        }
+
+        if step == 0 {
+            return Err(Error::InvalidArgument("Unfold step cannot be zero".to_string()));
+        }
+
+        let dim_size = self.shape[dim];
+
+        // Calculate number of windows
+        let n_windows = if dim_size >= size { (dim_size - size) / step + 1 } else { 0 };
+
+        if n_windows == 0 {
+            return Err(Error::InvalidShape {
+                message: "Unfold results in empty tensor".to_string(),
+            });
+        }
+
+        // Create new shape and strides
+        let mut new_shape = Vec::with_capacity(self.ndim() + 1);
+        let mut new_strides = Vec::with_capacity(self.ndim() + 1);
+
+        // Copy shape and strides up to dim
+        new_shape.extend_from_slice(&self.shape[..dim]);
+        new_strides.extend_from_slice(&self.strides[..dim]);
+
+        // Add window count for the original dimension
+        new_shape.push(n_windows);
+        new_strides.push(self.strides[dim] * step);
+
+        // Add the window size as a new dimension
+        new_shape.push(size);
+        new_strides.push(self.strides[dim]);
+
+        // Copy remaining dimensions
+        new_shape.extend_from_slice(&self.shape[dim + 1..]);
+        new_strides.extend_from_slice(&self.strides[dim + 1..]);
+
+        Ok(Self {
+            shape: new_shape,
+            strides: new_strides,
+            offset: self.offset,
+        })
+    }
+
     // helper
 
     pub fn compute_strides(shape: &[usize]) -> Vec<usize> {

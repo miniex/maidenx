@@ -18,10 +18,11 @@ impl Tensor {
         let size = tensor.size();
         let shape = tensor.shape();
         let strides = tensor.strides();
+        let offset = tensor.offset();
         let elem_size = tensor.dtype().size_in_bytes();
 
         // Get raw data from buffer
-        let mut raw_data = vec![0u8; size * elem_size];
+        let mut raw_data = vec![0u8; (size + offset) * elem_size];
         unsafe {
             tensor
                 .buffer()
@@ -33,12 +34,13 @@ impl Tensor {
         let mut dst_idx = 0;
 
         // Helper function to calculate source offset using strides
-        let calc_src_offset =
-            |indices: &[usize], strides: &[usize]| -> usize { indices.iter().zip(strides.iter()).map(|(&idx, &stride)| idx * stride).sum() };
+        let calc_src_offset = |indices: &[usize], strides: &[usize], offset: usize| -> usize {
+            offset + indices.iter().zip(strides.iter()).map(|(&idx, &stride)| idx * stride).sum::<usize>()
+        };
 
         loop {
-            // Calculate source offset using strides
-            let src_offset = calc_src_offset(&indices, strides);
+            // Calculate source offset using strides, including the base offset
+            let src_offset = calc_src_offset(&indices, strides, offset);
 
             // Copy element from source to destination
             unsafe {
@@ -114,7 +116,8 @@ impl Tensor {
             });
         }
 
-        let mut buffer_idx = 0;
+        let mut buffer_idx = self.offset();
+
         for (dim, &idx) in indices.iter().enumerate() {
             if idx >= self.shape()[dim] {
                 return Err(Error::IndexOutOfBounds {
@@ -174,3 +177,4 @@ fn get_dtype_for_type<T: 'static>() -> Option<DType> {
         None
     }
 }
+
