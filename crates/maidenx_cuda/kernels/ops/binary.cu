@@ -8,21 +8,22 @@ template <typename T> __device__ T sub_with_clamp(T x, T y) {
 
 #define BINARY_OP(IN_TYPENAME, OUT_TYPENAME, FN_NAME, FUNC)                    \
   extern "C" __global__ void cuda_##FN_NAME##_kernel(                          \
-      const size_t num_els, const size_t num_dims,                             \
-      const size_t *dims_and_strides, const IN_TYPENAME *lhs,                  \
-      const IN_TYPENAME *rhs, OUT_TYPENAME *out) {                             \
-    const size_t *dims = dims_and_strides;                                     \
-    const size_t *lhs_strides = dims_and_strides + 1 * num_dims;               \
-    const size_t *rhs_strides = dims_and_strides + 2 * num_dims;               \
-    bool lhs_cont = dims_and_strides == nullptr ||                             \
-                    is_contiguous(num_dims, dims, lhs_strides);                \
-    bool rhs_cont = dims_and_strides == nullptr ||                             \
-                    is_contiguous(num_dims, dims, rhs_strides);                \
+      const size_t num_els, const size_t num_dims, const size_t *metadata,     \
+      const IN_TYPENAME *lhs, const IN_TYPENAME *rhs, OUT_TYPENAME *out) {     \
+    const size_t *dims = metadata;                                             \
+    const size_t *lhs_strides = metadata + 1 * num_dims;                       \
+    const size_t *rhs_strides = metadata + 2 * num_dims;                       \
+    const size_t lhs_offset = metadata ? metadata[3 * num_dims] : 0;           \
+    const size_t rhs_offset = metadata ? metadata[3 * num_dims + 1] : 0;       \
+    bool lhs_cont =                                                            \
+        metadata == nullptr || is_contiguous(num_dims, dims, lhs_strides);     \
+    bool rhs_cont =                                                            \
+        metadata == nullptr || is_contiguous(num_dims, dims, rhs_strides);     \
     if (lhs_cont && rhs_cont) {                                                \
       for (unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;             \
            i < num_els; i += blockDim.x * gridDim.x) {                         \
-        IN_TYPENAME x = lhs[i];                                                \
-        IN_TYPENAME y = rhs[i];                                                \
+        IN_TYPENAME x = lhs[lhs_offset + i];                                   \
+        IN_TYPENAME y = rhs[rhs_offset + i];                                   \
         out[i] = FUNC;                                                         \
       }                                                                        \
     } else if (lhs_cont) {                                                     \
@@ -35,8 +36,8 @@ template <typename T> __device__ T sub_with_clamp(T x, T y) {
           rhs_i += i_dim * rhs_strides[d];                                     \
           tmp_i /= dims[d];                                                    \
         }                                                                      \
-        IN_TYPENAME x = lhs[i];                                                \
-        IN_TYPENAME y = rhs[rhs_i];                                            \
+        IN_TYPENAME x = lhs[lhs_offset + i];                                   \
+        IN_TYPENAME y = rhs[rhs_offset + rhs_i];                               \
         out[i] = FUNC;                                                         \
       }                                                                        \
     } else if (rhs_cont) {                                                     \
@@ -49,8 +50,8 @@ template <typename T> __device__ T sub_with_clamp(T x, T y) {
           lhs_i += i_dim * lhs_strides[d];                                     \
           tmp_i /= dims[d];                                                    \
         }                                                                      \
-        IN_TYPENAME x = lhs[lhs_i];                                            \
-        IN_TYPENAME y = rhs[i];                                                \
+        IN_TYPENAME x = lhs[lhs_offset + lhs_i];                               \
+        IN_TYPENAME y = rhs[rhs_offset + i];                                   \
         out[i] = FUNC;                                                         \
       }                                                                        \
     } else {                                                                   \
@@ -65,20 +66,20 @@ template <typename T> __device__ T sub_with_clamp(T x, T y) {
           rhs_i += i_dim * rhs_strides[d];                                     \
           tmp_i /= dims[d];                                                    \
         }                                                                      \
-        IN_TYPENAME x = lhs[lhs_i];                                            \
-        IN_TYPENAME y = rhs[rhs_i];                                            \
+        IN_TYPENAME x = lhs[lhs_offset + lhs_i];                               \
+        IN_TYPENAME y = rhs[rhs_offset + rhs_i];                               \
         out[i] = FUNC;                                                         \
       }                                                                        \
     }                                                                          \
   }                                                                            \
                                                                                \
   extern "C" void cuda_##FN_NAME(                                              \
-      size_t num_els, size_t num_dims, const size_t *dims_and_strides,         \
+      size_t num_els, size_t num_dims, const size_t *metadata,                 \
       const IN_TYPENAME *lhs, const IN_TYPENAME *rhs, OUT_TYPENAME *out) {     \
     dim3 block_dim(256);                                                       \
     dim3 grid_dim((num_els + block_dim.x - 1) / block_dim.x);                  \
-    cuda_##FN_NAME##_kernel<<<grid_dim, block_dim>>>(                          \
-        num_els, num_dims, dims_and_strides, lhs, rhs, out);                   \
+    cuda_##FN_NAME##_kernel<<<grid_dim, block_dim>>>(num_els, num_dims,        \
+                                                     metadata, lhs, rhs, out); \
   }
 
 BINARY_OP(float, float, add_f32, x + y);

@@ -23,14 +23,14 @@ impl Tensor {
         let rhs = promote_tensor(rhs, target_dtype)?;
 
         let (lhs, rhs) = unify_matmul_shapes(&lhs, &rhs)?;
-        let (dims_and_strides, final_out_shape) = prepare_dims_and_strides(&lhs, &rhs);
+        let (metadata, final_out_shape) = prepare_metadata(&lhs, &rhs);
 
         let mut result = Self::empty_with_spec(&final_out_shape, lhs.device(), lhs.dtype())?;
 
         unsafe {
             let num_els = final_out_shape.iter().product();
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::be::ops::matmul::matmul(out_buf, lhs.buffer(), rhs.buffer(), num_els, Some(&dims_and_strides))?;
+                maidenx_core::be::ops::matmul::matmul(out_buf, lhs.buffer(), rhs.buffer(), num_els, Some(&metadata))?;
 
                 Ok(())
             })?;
@@ -56,7 +56,7 @@ impl Tensor {
             let backward_fn = Box::new(move |inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> {
                 let lhs = &inputs[0];
                 let rhs = &inputs[1];
-                let (dims_and_strides, _) = prepare_dims_and_strides(lhs, rhs);
+                let (metadata, _) = prepare_metadata(lhs, rhs);
 
                 let mut grad_lhs = Self::zeros_like(lhs)?;
                 let mut grad_rhs = Self::zeros_like(rhs)?;
@@ -74,7 +74,7 @@ impl Tensor {
                                 rhs.buffer(),
                                 grad_lhs_size,
                                 grad_rhs_size,
-                                Some(&dims_and_strides),
+                                Some(&metadata),
                             )?;
 
                             Ok(())
@@ -173,7 +173,7 @@ fn expand_to_batch_shape(a_exp: &Tensor, leading_bc_shape: &[usize], last0: usiz
     a_exp.broadcast(&new_shape)
 }
 
-fn prepare_dims_and_strides(a: &Tensor, b: &Tensor) -> (Vec<usize>, Vec<usize>) {
+fn prepare_metadata(a: &Tensor, b: &Tensor) -> (Vec<usize>, Vec<usize>) {
     let out_ndim = a.ndim();
     let a_shape = a.shape();
     let b_shape = b.shape();
@@ -182,14 +182,16 @@ fn prepare_dims_and_strides(a: &Tensor, b: &Tensor) -> (Vec<usize>, Vec<usize>) 
     let mut out_shape = a_shape[..out_ndim - 2].to_vec();
     out_shape.push(a_shape[out_ndim - 2]);
     out_shape.push(b_shape[out_ndim - 1]);
-    let mut dims_and_strides = Vec::new();
-    dims_and_strides.push(out_ndim);
-    dims_and_strides.push(a.ndim());
-    dims_and_strides.push(b.ndim());
-    dims_and_strides.extend_from_slice(&out_shape);
-    dims_and_strides.extend_from_slice(a_shape);
-    dims_and_strides.extend_from_slice(b_shape);
-    dims_and_strides.extend_from_slice(a_strides);
-    dims_and_strides.extend_from_slice(b_strides);
-    (dims_and_strides, out_shape)
+    let mut metadata = Vec::new();
+    metadata.push(out_ndim);
+    metadata.push(a.ndim());
+    metadata.push(b.ndim());
+    metadata.extend_from_slice(&out_shape);
+    metadata.extend_from_slice(a_shape);
+    metadata.extend_from_slice(b_shape);
+    metadata.extend_from_slice(a_strides);
+    metadata.extend_from_slice(b_strides);
+    metadata.push(a.offset());
+    metadata.push(b.offset());
+    (metadata, out_shape)
 }

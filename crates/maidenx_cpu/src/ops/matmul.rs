@@ -6,7 +6,7 @@ macro_rules! matmul_op {
         #[no_mangle]
         /// # Safety
         ///
-        /// * `dims_and_strides` must be a valid pointer to array containing:
+        /// * `metadata` must be a valid pointer to array containing:
         ///   - out_ndim, a_ndim, b_ndim
         ///   - out_shape[out_ndim]
         ///   - a_shape[a_ndim]
@@ -15,20 +15,23 @@ macro_rules! matmul_op {
         ///   - b_strides[b_ndim]
         /// * `A`, `B`, and `C` must be valid pointers to arrays of appropriate sizes
         /// * The matrix dimensions must be compatible for multiplication
-        pub unsafe fn $name(num_els: usize, dims_and_strides: *const usize, a: *const $type, b: *const $type, c: *mut $type) {
-            if dims_and_strides.is_null() || a.is_null() || b.is_null() || c.is_null() {
+        pub unsafe fn $name(num_els: usize, metadata: *const usize, a: *const $type, b: *const $type, c: *mut $type) {
+            if metadata.is_null() || a.is_null() || b.is_null() || c.is_null() {
                 return;
             }
 
-            let out_ndim = *dims_and_strides;
-            let a_ndim = *dims_and_strides.add(1);
-            let b_ndim = *dims_and_strides.add(2);
+            let out_ndim = *metadata;
+            let a_ndim = *metadata.add(1);
+            let b_ndim = *metadata.add(2);
 
-            let out_shape = std::slice::from_raw_parts(dims_and_strides.add(3), out_ndim);
-            let a_shape = std::slice::from_raw_parts(dims_and_strides.add(3 + out_ndim), a_ndim);
-            let b_shape = std::slice::from_raw_parts(dims_and_strides.add(3 + out_ndim + a_ndim), b_ndim);
-            let a_strides = std::slice::from_raw_parts(dims_and_strides.add(3 + out_ndim + a_ndim + b_ndim), a_ndim);
-            let b_strides = std::slice::from_raw_parts(dims_and_strides.add(3 + out_ndim + a_ndim + b_ndim + a_ndim), b_ndim);
+            let out_shape = std::slice::from_raw_parts(metadata.add(3), out_ndim);
+            let a_shape = std::slice::from_raw_parts(metadata.add(3 + out_ndim), a_ndim);
+            let b_shape = std::slice::from_raw_parts(metadata.add(3 + out_ndim + a_ndim), b_ndim);
+            let a_strides = std::slice::from_raw_parts(metadata.add(3 + out_ndim + a_ndim + b_ndim), a_ndim);
+            let b_strides = std::slice::from_raw_parts(metadata.add(3 + out_ndim + a_ndim + b_ndim + a_ndim), b_ndim);
+
+            let a_offset = *metadata.add(3 + out_ndim + a_ndim + b_ndim + a_ndim + b_ndim);
+            let b_offset = *metadata.add(3 + out_ndim + a_ndim + b_ndim + a_ndim + b_ndim + 1);
 
             let m = if out_ndim > 0 { out_shape[out_ndim - 2] } else { 1 };
             let n = if out_ndim > 0 { out_shape[out_ndim - 1] } else { 1 };
@@ -48,8 +51,8 @@ macro_rules! matmul_op {
                 for n_idx in 0..n {
                     let mut acc = $zero;
                     if is_a_cont && is_b_cont {
-                        let a_base = batch_idx * (m * k) + m_idx * k;
-                        let b_base = batch_idx * (k * n);
+                        let a_base = a_offset + batch_idx * (m * k) + m_idx * k;
+                        let b_base = b_offset + batch_idx * (k * n);
 
                         for k_idx in 0..k {
                             acc += a_slice[a_base + k_idx] * b_slice[b_base + k_idx * n + n_idx];
@@ -57,15 +60,15 @@ macro_rules! matmul_op {
                     } else {
                         for k_idx in 0..k {
                             let a_idx = if a_ndim > 0 {
-                                batch_idx * a_strides[0] + m_idx * a_strides[a_ndim - 2] + k_idx * a_strides[a_ndim - 1]
+                                a_offset + batch_idx * a_strides[0] + m_idx * a_strides[a_ndim - 2] + k_idx * a_strides[a_ndim - 1]
                             } else {
-                                k_idx
+                                a_offset + k_idx
                             };
 
                             let b_idx = if b_ndim > 0 {
-                                batch_idx * b_strides[0] + k_idx * b_strides[b_ndim - 2] + n_idx * b_strides[b_ndim - 1]
+                                b_offset + batch_idx * b_strides[0] + k_idx * b_strides[b_ndim - 2] + n_idx * b_strides[b_ndim - 1]
                             } else {
-                                n_idx
+                                b_offset + n_idx
                             };
 
                             acc += a_slice[a_idx] * b_slice[b_idx];
@@ -83,29 +86,34 @@ macro_rules! matmul_backward_op {
         #[no_mangle]
         /// # Safety
         ///
-        /// * `dims_and_strides` must be a valid pointer to array containing dimension info
+        /// * `metadata` must be a valid pointer to array containing dimension info
         /// * All input pointers must be valid and point to arrays of appropriate sizes
         /// * Either grad_a or grad_b can be null, in which case that gradient is not computed
         #[allow(clippy::too_many_arguments)]
         pub unsafe fn $name(
             num_els_a: usize,
             num_els_b: usize,
-            dims_and_strides: *const usize,
+            metadata: *const usize,
             grad_output: *const $type,
             a: *const $type,
             b: *const $type,
             grad_a: *mut $type,
             grad_b: *mut $type,
         ) {
-            if dims_and_strides.is_null() || grad_output.is_null() || a.is_null() || b.is_null() {
+            if metadata.is_null() || grad_output.is_null() || a.is_null() || b.is_null() {
                 return;
             }
 
-            let out_ndim = *dims_and_strides;
-            let b_ndim = *dims_and_strides.add(2);
+            let out_ndim = *metadata;
+            let a_ndim = *metadata.add(1);
+            let b_ndim = *metadata.add(2);
 
-            let out_shape = std::slice::from_raw_parts(dims_and_strides.add(3), out_ndim);
-            let b_shape = std::slice::from_raw_parts(dims_and_strides.add(3 + out_ndim * 2), b_ndim);
+            let out_shape = std::slice::from_raw_parts(metadata.add(3), out_ndim);
+            // let a_shape = std::slice::from_raw_parts(metadata.add(3 + out_ndim), a_ndim);
+            let b_shape = std::slice::from_raw_parts(metadata.add(3 + out_ndim + a_ndim), b_ndim);
+
+            let a_offset = *metadata.add(3 + out_ndim + a_ndim + b_ndim + a_ndim + b_ndim);
+            let b_offset = *metadata.add(3 + out_ndim + a_ndim + b_ndim + a_ndim + b_ndim + 1);
 
             let m = if out_ndim > 0 { out_shape[out_ndim - 2] } else { 1 };
             let n = if out_ndim > 0 { out_shape[out_ndim - 1] } else { 1 };
@@ -134,10 +142,10 @@ macro_rules! matmul_backward_op {
                     for k_idx in 0..k {
                         let mut acc = $zero;
                         if out_ndim == 0 {
-                            acc = grad_output[0] * b_slice[k_idx];
+                            acc = grad_output[0] * b_slice[b_offset + k_idx];
                         } else {
                             let grad_base = batch_idx * (m * n) + m_idx * n;
-                            let b_base = batch_idx * (k * n);
+                            let b_base = b_offset + batch_idx * (k * n);
                             for n_idx in 0..n {
                                 acc += grad_output[grad_base + n_idx] * b_slice[b_base + k_idx * n + n_idx];
                             }
@@ -159,9 +167,9 @@ macro_rules! matmul_backward_op {
                     for n_idx in 0..n {
                         let mut acc = $zero;
                         if out_ndim == 0 {
-                            acc = grad_output[0] * a_slice[k_idx];
+                            acc = grad_output[0] * a_slice[a_offset + k_idx];
                         } else {
-                            let grad_base = batch_idx * (m * n);
+                            let grad_base = a_offset + batch_idx * (m * n);
                             let a_base = batch_idx * (m * k);
                             for m_idx in 0..m {
                                 acc += a_slice[a_base + m_idx * k + k_idx] * grad_output[grad_base + m_idx * n + n_idx];

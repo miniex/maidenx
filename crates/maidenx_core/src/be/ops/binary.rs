@@ -62,7 +62,7 @@ macro_rules! declare_binary_op {
                 rhs: &dyn Buffer,
                 size: usize,
                 num_dims: usize,
-                dims_and_strides: Option<&[usize]>,
+                metadata: Option<&[usize]>,
             ) -> Result<()> {
                 assert_eq!(lhs.dtype(), rhs.dtype(), concat!("DType mismatch in ", stringify!($name)));
 
@@ -72,9 +72,9 @@ macro_rules! declare_binary_op {
                     assert_eq!(output.dtype(), lhs.dtype(), "Output dtype must match input dtype");
                 }
 
-                let (dims_and_strides, cleanup_fn): (*const usize, CleanupFn) = match output.device() {
+                let (metadata, cleanup_fn): (*const usize, CleanupFn) = match output.device() {
                     Device::CPU => (
-                        dims_and_strides.map_or(std::ptr::null(), |d| d.as_ptr()),
+                        metadata.map_or(std::ptr::null(), |d| d.as_ptr()),
                         None
                     ),
                     #[cfg(feature = "cuda")]
@@ -82,7 +82,7 @@ macro_rules! declare_binary_op {
                         if cuda_set_device(device_id as i32) != 0 {
                             return Err(Error::CudaError("Failed to set CUDA device".to_string()));
                         }
-                        let (ptr, _) = dims_and_strides
+                        let (ptr, _) = metadata
                             .map_or((std::ptr::null(), None), |dims| {
                                 let (p, _) = cuda_alloc_and_copy_dims(dims);
                                 (p as *const usize, Some(dims.len()))
@@ -100,7 +100,7 @@ macro_rules! declare_binary_op {
 
                 match lhs.dtype() {
                     $(
-                        DType::$dtype => impl_for_type!($name, size, num_dims, dims_and_strides, lhs, rhs, output, [<$dtype:lower>], $compare, output.device()),
+                        DType::$dtype => impl_for_type!($name, size, num_dims, metadata, lhs, rhs, output, [<$dtype:lower>], $compare, output.device()),
                     )*
                     _ => return Err(Error::UnsupportedDType)
                 };

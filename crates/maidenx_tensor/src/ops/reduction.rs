@@ -25,10 +25,10 @@ impl Tensor {
 
         let mut result = Self::zeros_with_spec(&shape, self.device(), self.dtype())?;
 
-        let dims_and_strides = prepare_dims_and_strides(self, dim);
+        let metadata = prepare_metadata(self, dim);
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::be::ops::reduction::sum(out_buf, self.buffer(), self.size(), self.ndim(), 1, Some(&dims_and_strides))?;
+                maidenx_core::be::ops::reduction::sum(out_buf, self.buffer(), self.size(), self.ndim(), 1, Some(&metadata))?;
 
                 Ok(())
             })?;
@@ -90,10 +90,10 @@ impl Tensor {
 
         let mut result = Self::zeros_with_spec(shape, self.device(), self.dtype())?;
 
-        let dims_and_strides = prepare_dims_and_strides_for_shape(self, shape);
+        let metadata = prepare_metadata_for_shape(self, shape);
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::be::ops::reduction::sum_to_shape(out_buf, self.buffer(), self.size(), self.ndim(), Some(&dims_and_strides))?;
+                maidenx_core::be::ops::reduction::sum_to_shape(out_buf, self.buffer(), self.size(), self.ndim(), Some(&metadata))?;
 
                 Ok(())
             })?;
@@ -135,10 +135,10 @@ impl Tensor {
 
         let mut result = Self::zeros_with_spec(&shape, input.device(), input.dtype())?;
 
-        let dims_and_strides = prepare_dims_and_strides(self, dim);
+        let metadata = prepare_metadata(self, dim);
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::be::ops::reduction::mean(out_buf, input.buffer(), input.size(), input.ndim(), 1, Some(&dims_and_strides))?;
+                maidenx_core::be::ops::reduction::mean(out_buf, input.buffer(), input.size(), input.ndim(), 1, Some(&metadata))?;
 
                 Ok(())
             })?;
@@ -175,7 +175,7 @@ impl Tensor {
     }
 }
 
-fn prepare_dims_and_strides(tensor: &Tensor, dim: usize) -> Vec<usize> {
+fn prepare_metadata(tensor: &Tensor, dim: usize) -> Vec<usize> {
     let mut info = Vec::new();
     let shape = tensor.shape();
     let strides = tensor.strides();
@@ -183,15 +183,17 @@ fn prepare_dims_and_strides(tensor: &Tensor, dim: usize) -> Vec<usize> {
     info.extend_from_slice(strides);
     info.push(shape[dim]);
     info.push(strides[dim]);
+    info.push(tensor.offset());
     info
 }
 
-fn prepare_dims_and_strides_for_shape(tensor: &Tensor, target_shape: &[usize]) -> Vec<usize> {
+fn prepare_metadata_for_shape(tensor: &Tensor, target_shape: &[usize]) -> Vec<usize> {
     let mut info = Vec::new();
     let input_shape = tensor.shape();
     let input_strides = tensor.strides();
     info.extend_from_slice(input_shape);
     info.extend_from_slice(input_strides);
     info.extend_from_slice(target_shape);
+    info.push(tensor.offset());
     info
 }

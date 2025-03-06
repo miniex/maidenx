@@ -7,7 +7,7 @@ macro_rules! sum_op {
         #[no_mangle]
         /// # Safety
         ///
-        /// * `info` must be a valid pointer to an array containing:
+        /// * `metadata` must be a valid pointer to an array containing:
         ///   - dims[num_dims]: array dimensions
         ///   - strides[num_dims]: strides for input array
         ///   - sum_dims_l[num_sum_dims]: length of dimensions to sum over
@@ -16,11 +16,13 @@ macro_rules! sum_op {
         /// * `out` must be a valid pointer to an array of appropriate size for the output
         /// * The alignment requirements of the type must be respected
         /// * All array indices calculated must be in bounds
-        pub unsafe fn $name(num_els: usize, num_dims: usize, num_red_dims: usize, info: *const usize, inp: *const $type, out: *mut $type) {
-            let dims = std::slice::from_raw_parts(info, num_dims);
-            let strides = std::slice::from_raw_parts(info.add(num_dims), num_dims);
-            let sum_dims_l = std::slice::from_raw_parts(info.add(2 * num_dims), num_red_dims);
-            let sum_dims_s = std::slice::from_raw_parts(info.add(2 * num_dims + num_red_dims), num_red_dims);
+        pub unsafe fn $name(num_els: usize, num_dims: usize, num_red_dims: usize, metadata: *const usize, inp: *const $type, out: *mut $type) {
+            let dims = std::slice::from_raw_parts(metadata, num_dims);
+            let strides = std::slice::from_raw_parts(metadata.add(num_dims), num_dims);
+            let sum_dims_l = std::slice::from_raw_parts(metadata.add(2 * num_dims), num_red_dims);
+            let sum_dims_s = std::slice::from_raw_parts(metadata.add(2 * num_dims + num_red_dims), num_red_dims);
+
+            let offset = *metadata.add(2 * num_dims + 2 * num_red_dims);
 
             let input = std::slice::from_raw_parts(inp, num_els);
 
@@ -53,9 +55,9 @@ macro_rules! sum_op {
             // Process elements in parallel
             (0..num_els).into_par_iter().for_each(|i| {
                 let src_idx = if is_contiguous {
-                    i
+                    offset + i
                 } else {
-                    let mut idx = 0;
+                    let mut idx = offset;
                     let mut tmp_i = i;
                     for d in (0..num_dims).rev() {
                         let i_dim = tmp_i % dims[d];
@@ -96,7 +98,7 @@ macro_rules! sum_to_shape_op {
         #[no_mangle]
         /// # Safety
         ///
-        /// * `info` must be a valid pointer to an array containing:
+        /// * `metadata` must be a valid pointer to an array containing:
         ///   - dims[num_dims]: array dimensions for input
         ///   - strides[num_dims]: strides for input array
         ///   - output_dims[num_dims]: dimensions for output array
@@ -104,10 +106,12 @@ macro_rules! sum_to_shape_op {
         /// * `out` must be a valid pointer to an array of appropriate size for the output
         /// * The alignment requirements of the type must be respected
         /// * All array indices calculated must be in bounds
-        pub unsafe fn $name(num_els: usize, num_dims: usize, info: *const usize, inp: *const $type, out: *mut $type) {
-            let input_dims = std::slice::from_raw_parts(info, num_dims);
-            let input_strides = std::slice::from_raw_parts(info.add(num_dims), num_dims);
-            let output_dims = std::slice::from_raw_parts(info.add(2 * num_dims), num_dims);
+        pub unsafe fn $name(num_els: usize, num_dims: usize, metadata: *const usize, inp: *const $type, out: *mut $type) {
+            let input_dims = std::slice::from_raw_parts(metadata, num_dims);
+            let input_strides = std::slice::from_raw_parts(metadata.add(num_dims), num_dims);
+            let output_dims = std::slice::from_raw_parts(metadata.add(2 * num_dims), num_dims);
+
+            let offset = *metadata.add(3 * num_dims);
 
             let input = std::slice::from_raw_parts(inp, num_els);
             let out_size = output_dims.iter().product();
@@ -141,7 +145,7 @@ macro_rules! sum_to_shape_op {
                 }
 
                 // Calculate source index using input strides
-                let mut src_idx = 0;
+                let mut src_idx = offset;
                 for d in 0..num_dims {
                     src_idx += coords[d] * input_strides[d];
                 }
@@ -158,7 +162,7 @@ macro_rules! mean_op {
         #[no_mangle]
         /// # Safety
         ///
-        /// * `info` must be a valid pointer to an array containing:
+        /// * `metadata` must be a valid pointer to an array containing:
         ///   - dims[num_dims]: array dimensions
         ///   - strides[num_dims]: strides for input array
         ///   - mean_dims_l[num_mean_dims]: length of dimensions to average over
@@ -167,11 +171,20 @@ macro_rules! mean_op {
         /// * `out` must be a valid pointer to an array of appropriate size for the output
         /// * The alignment requirements of the type must be respected
         /// * All array indices calculated must be in bounds
-        pub unsafe extern "C" fn $name(num_els: usize, num_dims: usize, num_red_dims: usize, info: *const usize, inp: *const $type, out: *mut $type) {
-            let dims = std::slice::from_raw_parts(info, num_dims);
-            let strides = std::slice::from_raw_parts(info.add(num_dims), num_dims);
-            let mean_dims_l = std::slice::from_raw_parts(info.add(2 * num_dims), num_red_dims);
-            let mean_dims_s = std::slice::from_raw_parts(info.add(2 * num_dims + num_red_dims), num_red_dims);
+        pub unsafe extern "C" fn $name(
+            num_els: usize,
+            num_dims: usize,
+            num_red_dims: usize,
+            metadata: *const usize,
+            inp: *const $type,
+            out: *mut $type,
+        ) {
+            let dims = std::slice::from_raw_parts(metadata, num_dims);
+            let strides = std::slice::from_raw_parts(metadata.add(num_dims), num_dims);
+            let mean_dims_l = std::slice::from_raw_parts(metadata.add(2 * num_dims), num_red_dims);
+            let mean_dims_s = std::slice::from_raw_parts(metadata.add(2 * num_dims + num_red_dims), num_red_dims);
+
+            let offset = *metadata.add(2 * num_dims + 2 * num_red_dims);
 
             let input = std::slice::from_raw_parts(inp, num_els);
 
@@ -206,9 +219,9 @@ macro_rules! mean_op {
             // Process elements in parallel
             (0..num_els).into_par_iter().for_each(|i| {
                 let src_idx = if is_contiguous {
-                    i
+                    offset + i
                 } else {
-                    let mut idx = 0;
+                    let mut idx = offset;
                     let mut tmp_i = i;
                     for d in (0..num_dims).rev() {
                         let i_dim = tmp_i % dims[d];

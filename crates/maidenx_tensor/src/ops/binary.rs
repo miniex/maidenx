@@ -25,10 +25,10 @@ impl Tensor {
 
         let mut result = Self::empty_with_spec(lhs.shape(), lhs.device(), lhs.dtype())?;
 
-        let dims_and_strides = prepare_dims_and_strides(&lhs, &rhs);
+        let metadata = prepare_metadata(&lhs, &rhs);
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::be::ops::binary::add(out_buf, lhs.buffer(), rhs.buffer(), lhs.size(), lhs.ndim(), Some(&dims_and_strides))?;
+                maidenx_core::be::ops::binary::add(out_buf, lhs.buffer(), rhs.buffer(), lhs.size(), lhs.ndim(), Some(&metadata))?;
 
                 Ok(())
             })?;
@@ -68,10 +68,10 @@ impl Tensor {
 
         let mut result = Self::empty_with_spec(lhs.shape(), lhs.device(), lhs.dtype())?;
 
-        let dims_and_strides = prepare_dims_and_strides(&lhs, &rhs);
+        let metadata = prepare_metadata(&lhs, &rhs);
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::be::ops::binary::sub(out_buf, lhs.buffer(), rhs.buffer(), lhs.size(), lhs.ndim(), Some(&dims_and_strides))?;
+                maidenx_core::be::ops::binary::sub(out_buf, lhs.buffer(), rhs.buffer(), lhs.size(), lhs.ndim(), Some(&metadata))?;
 
                 Ok(())
             })?;
@@ -111,10 +111,10 @@ impl Tensor {
 
         let mut result = Self::empty_with_spec(lhs.shape(), lhs.device(), lhs.dtype())?;
 
-        let dims_and_strides = prepare_dims_and_strides(&lhs, &rhs);
+        let metadata = prepare_metadata(&lhs, &rhs);
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::be::ops::binary::mul(out_buf, lhs.buffer(), rhs.buffer(), lhs.size(), lhs.ndim(), Some(&dims_and_strides))?;
+                maidenx_core::be::ops::binary::mul(out_buf, lhs.buffer(), rhs.buffer(), lhs.size(), lhs.ndim(), Some(&metadata))?;
 
                 Ok(())
             })?;
@@ -158,10 +158,10 @@ impl Tensor {
 
         let mut result = Self::empty_with_spec(lhs.shape(), lhs.device(), lhs.dtype())?;
 
-        let dims_and_strides = prepare_dims_and_strides(&lhs, &rhs);
+        let metadata = prepare_metadata(&lhs, &rhs);
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::be::ops::binary::div(out_buf, lhs.buffer(), rhs.buffer(), lhs.size(), lhs.ndim(), Some(&dims_and_strides))?;
+                maidenx_core::be::ops::binary::div(out_buf, lhs.buffer(), rhs.buffer(), lhs.size(), lhs.ndim(), Some(&metadata))?;
 
                 Ok(())
             })?;
@@ -204,10 +204,10 @@ impl Tensor {
 
         let mut result = Self::empty_with_spec(lhs.shape(), lhs.device(), DType::BOOL)?;
 
-        let dims_and_strides = prepare_dims_and_strides(&lhs, &rhs);
+        let metadata = prepare_metadata(&lhs, &rhs);
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::be::ops::binary::logical_and(out_buf, lhs.buffer(), rhs.buffer(), lhs.size(), lhs.ndim(), Some(&dims_and_strides))?;
+                maidenx_core::be::ops::binary::logical_and(out_buf, lhs.buffer(), rhs.buffer(), lhs.size(), lhs.ndim(), Some(&metadata))?;
 
                 Ok(())
             })?;
@@ -230,10 +230,10 @@ impl Tensor {
 
         let mut result = Self::empty_with_spec(lhs.shape(), lhs.device(), DType::BOOL)?;
 
-        let dims_and_strides = prepare_dims_and_strides(&lhs, &rhs);
+        let metadata = prepare_metadata(&lhs, &rhs);
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::be::ops::binary::logical_or(out_buf, lhs.buffer(), rhs.buffer(), lhs.size(), lhs.ndim(), Some(&dims_and_strides))?;
+                maidenx_core::be::ops::binary::logical_or(out_buf, lhs.buffer(), rhs.buffer(), lhs.size(), lhs.ndim(), Some(&metadata))?;
 
                 Ok(())
             })?;
@@ -256,10 +256,10 @@ impl Tensor {
 
         let mut result = Self::empty_with_spec(lhs.shape(), lhs.device(), DType::BOOL)?;
 
-        let dims_and_strides = prepare_dims_and_strides(&lhs, &rhs);
+        let metadata = prepare_metadata(&lhs, &rhs);
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::be::ops::binary::logical_xor(out_buf, lhs.buffer(), rhs.buffer(), lhs.size(), lhs.ndim(), Some(&dims_and_strides))?;
+                maidenx_core::be::ops::binary::logical_xor(out_buf, lhs.buffer(), rhs.buffer(), lhs.size(), lhs.ndim(), Some(&metadata))?;
 
                 Ok(())
             })?;
@@ -282,10 +282,10 @@ impl Tensor {
 
         let mut result = Self::empty_with_spec(lhs.shape(), lhs.device(), DType::BOOL)?;
 
-        let dims_and_strides = prepare_dims_and_strides(&lhs, &rhs);
+        let metadata = prepare_metadata(&lhs, &rhs);
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::be::ops::binary::eq(out_buf, lhs.buffer(), rhs.buffer(), lhs.size(), lhs.ndim(), Some(&dims_and_strides))?;
+                maidenx_core::be::ops::binary::eq(out_buf, lhs.buffer(), rhs.buffer(), lhs.size(), lhs.ndim(), Some(&metadata))?;
 
                 Ok(())
             })?;
@@ -308,10 +308,10 @@ impl Tensor {
 
         let mut result = Self::empty_with_spec(lhs.shape(), lhs.device(), DType::BOOL)?;
 
-        let dims_and_strides = prepare_dims_and_strides(&lhs, &rhs);
+        let metadata = prepare_metadata(&lhs, &rhs);
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::be::ops::binary::ne(out_buf, lhs.buffer(), rhs.buffer(), lhs.size(), lhs.ndim(), Some(&dims_and_strides))?;
+                maidenx_core::be::ops::binary::ne(out_buf, lhs.buffer(), rhs.buffer(), lhs.size(), lhs.ndim(), Some(&metadata))?;
 
                 Ok(())
             })?;
@@ -334,10 +334,10 @@ impl Tensor {
 
         let mut result = Self::empty_with_spec(lhs.shape(), lhs.device(), DType::BOOL)?;
 
-        let dims_and_strides = prepare_dims_and_strides(&lhs, &rhs);
+        let metadata = prepare_metadata(&lhs, &rhs);
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::be::ops::binary::lt(out_buf, lhs.buffer(), rhs.buffer(), lhs.size(), lhs.ndim(), Some(&dims_and_strides))?;
+                maidenx_core::be::ops::binary::lt(out_buf, lhs.buffer(), rhs.buffer(), lhs.size(), lhs.ndim(), Some(&metadata))?;
 
                 Ok(())
             })?;
@@ -360,10 +360,10 @@ impl Tensor {
 
         let mut result = Self::empty_with_spec(lhs.shape(), lhs.device(), DType::BOOL)?;
 
-        let dims_and_strides = prepare_dims_and_strides(&lhs, &rhs);
+        let metadata = prepare_metadata(&lhs, &rhs);
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::be::ops::binary::le(out_buf, lhs.buffer(), rhs.buffer(), lhs.size(), lhs.ndim(), Some(&dims_and_strides))?;
+                maidenx_core::be::ops::binary::le(out_buf, lhs.buffer(), rhs.buffer(), lhs.size(), lhs.ndim(), Some(&metadata))?;
 
                 Ok(())
             })?;
@@ -386,10 +386,10 @@ impl Tensor {
 
         let mut result = Self::empty_with_spec(lhs.shape(), lhs.device(), DType::BOOL)?;
 
-        let dims_and_strides = prepare_dims_and_strides(&lhs, &rhs);
+        let metadata = prepare_metadata(&lhs, &rhs);
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::be::ops::binary::gt(out_buf, lhs.buffer(), rhs.buffer(), lhs.size(), lhs.ndim(), Some(&dims_and_strides))?;
+                maidenx_core::be::ops::binary::gt(out_buf, lhs.buffer(), rhs.buffer(), lhs.size(), lhs.ndim(), Some(&metadata))?;
 
                 Ok(())
             })?;
@@ -412,10 +412,10 @@ impl Tensor {
 
         let mut result = Self::empty_with_spec(lhs.shape(), lhs.device(), DType::BOOL)?;
 
-        let dims_and_strides = prepare_dims_and_strides(&lhs, &rhs);
+        let metadata = prepare_metadata(&lhs, &rhs);
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::be::ops::binary::ge(out_buf, lhs.buffer(), rhs.buffer(), lhs.size(), lhs.ndim(), Some(&dims_and_strides))?;
+                maidenx_core::be::ops::binary::ge(out_buf, lhs.buffer(), rhs.buffer(), lhs.size(), lhs.ndim(), Some(&metadata))?;
 
                 Ok(())
             })?;
@@ -433,7 +433,7 @@ impl Tensor {
             rhs.broadcast(self.shape())?
         };
 
-        let dims_and_strides = prepare_dims_and_strides(self, &rhs);
+        let metadata = prepare_metadata(self, &rhs);
         let size = self.size();
         let ndim = self.ndim();
 
@@ -441,7 +441,7 @@ impl Tensor {
             self.with_buffer_mut(|out_buf| {
                 let lhs_in = &*out_buf as *const dyn Buffer;
                 let lhs_out = &mut *out_buf as *mut dyn Buffer;
-                maidenx_core::be::ops::binary::add(&mut *lhs_out, &*lhs_in, rhs.buffer(), size, ndim, Some(&dims_and_strides))?;
+                maidenx_core::be::ops::binary::add(&mut *lhs_out, &*lhs_in, rhs.buffer(), size, ndim, Some(&metadata))?;
 
                 Ok(())
             })?;
@@ -457,7 +457,7 @@ impl Tensor {
             rhs.broadcast(self.shape())?
         };
 
-        let dims_and_strides = prepare_dims_and_strides(self, &rhs);
+        let metadata = prepare_metadata(self, &rhs);
         let size = self.size();
         let ndim = self.ndim();
 
@@ -465,7 +465,7 @@ impl Tensor {
             self.with_buffer_mut(|out_buf| {
                 let lhs_in = &*out_buf as *const dyn Buffer;
                 let lhs_out = &mut *out_buf as *mut dyn Buffer;
-                maidenx_core::be::ops::binary::sub(&mut *lhs_out, &*lhs_in, rhs.buffer(), size, ndim, Some(&dims_and_strides))?;
+                maidenx_core::be::ops::binary::sub(&mut *lhs_out, &*lhs_in, rhs.buffer(), size, ndim, Some(&metadata))?;
 
                 Ok(())
             })?;
@@ -481,7 +481,7 @@ impl Tensor {
             rhs.broadcast(self.shape())?
         };
 
-        let dims_and_strides = prepare_dims_and_strides(self, &rhs);
+        let metadata = prepare_metadata(self, &rhs);
         let size = self.size();
         let ndim = self.ndim();
 
@@ -489,7 +489,7 @@ impl Tensor {
             self.with_buffer_mut(|out_buf| {
                 let lhs_in = &*out_buf as *const dyn Buffer;
                 let lhs_out = &mut *out_buf as *mut dyn Buffer;
-                maidenx_core::be::ops::binary::mul(&mut *lhs_out, &*lhs_in, rhs.buffer(), size, ndim, Some(&dims_and_strides))?;
+                maidenx_core::be::ops::binary::mul(&mut *lhs_out, &*lhs_in, rhs.buffer(), size, ndim, Some(&metadata))?;
 
                 Ok(())
             })?;
@@ -505,7 +505,7 @@ impl Tensor {
             rhs.broadcast(self.shape())?
         };
 
-        let dims_and_strides = prepare_dims_and_strides(self, &rhs);
+        let metadata = prepare_metadata(self, &rhs);
         let size = self.size();
         let ndim = self.ndim();
 
@@ -513,7 +513,7 @@ impl Tensor {
             self.with_buffer_mut(|out_buf| {
                 let lhs_in = &*out_buf as *const dyn Buffer;
                 let lhs_out = &mut *out_buf as *mut dyn Buffer;
-                maidenx_core::be::ops::binary::div(&mut *lhs_out, &*lhs_in, rhs.buffer(), size, ndim, Some(&dims_and_strides))?;
+                maidenx_core::be::ops::binary::div(&mut *lhs_out, &*lhs_in, rhs.buffer(), size, ndim, Some(&metadata))?;
 
                 Ok(())
             })?;
@@ -523,15 +523,19 @@ impl Tensor {
     }
 }
 
-fn prepare_dims_and_strides(lhs: &Tensor, rhs: &Tensor) -> Vec<usize> {
-    let mut dims_and_strides = Vec::new();
+fn prepare_metadata(lhs: &Tensor, rhs: &Tensor) -> Vec<usize> {
+    let mut metadata = Vec::new();
 
     // Add dimensions
-    dims_and_strides.extend_from_slice(lhs.shape());
+    metadata.extend_from_slice(lhs.shape());
 
     // Add strides for both tensors
-    dims_and_strides.extend_from_slice(lhs.strides());
-    dims_and_strides.extend_from_slice(rhs.strides());
+    metadata.extend_from_slice(lhs.strides());
+    metadata.extend_from_slice(rhs.strides());
 
-    dims_and_strides
+    // Add offsets for both tensors
+    metadata.push(lhs.offset());
+    metadata.push(rhs.offset());
+
+    metadata
 }

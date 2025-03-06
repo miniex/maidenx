@@ -22,11 +22,11 @@ macro_rules! declare_reduction_op {
                 num_els: usize,
                 num_dims: usize,
                 num_red_dims: usize,
-                dims_and_strides: Option<&[usize]>,
+                metadata: Option<&[usize]>,
             ) -> Result<()> {
-                let (dims_and_strides, cleanup_fn): (*const usize, CleanupFn) = match output.device() {
+                let (metadata, cleanup_fn): (*const usize, CleanupFn) = match output.device() {
                     Device::CPU => (
-                        dims_and_strides.map_or(std::ptr::null(), |d| d.as_ptr()),
+                        metadata.map_or(std::ptr::null(), |d| d.as_ptr()),
                         None
                     ),
                     #[cfg(feature = "cuda")]
@@ -34,7 +34,7 @@ macro_rules! declare_reduction_op {
                         if cuda_set_device(device_id as i32) != 0 {
                             return Err(Error::CudaError("Failed to set CUDA device".to_string()));
                         }
-                        let (ptr, _) = dims_and_strides
+                        let (ptr, _) = metadata
                             .map_or((std::ptr::null(), None), |dims| {
                                 let (p, _) = cuda_alloc_and_copy_dims(dims);
                                 (p as *const usize, Some(dims.len()))
@@ -59,7 +59,7 @@ macro_rules! declare_reduction_op {
                                         num_els,
                                         num_dims,
                                         num_red_dims,
-                                        dims_and_strides,
+                                        metadata,
                                         input.as_ptr() as *const [<$dtype:lower>],
                                         output.as_mut_ptr() as *mut [<$dtype:lower>],
                                     )
@@ -77,7 +77,7 @@ macro_rules! declare_reduction_op {
                                         num_els,
                                         num_dims,
                                         num_red_dims,
-                                        dims_and_strides,
+                                        metadata,
                                         input.as_ptr() as *const [<$dtype:lower>],
                                         output.as_mut_ptr() as *mut [<$dtype:lower>],
                                     )
@@ -105,11 +105,11 @@ macro_rules! declare_reduction_op {
                 input: &dyn Buffer,
                 num_els: usize,
                 num_dims: usize,
-                dims_and_strides: Option<&[usize]>,
+                metadata: Option<&[usize]>,
             ) -> Result<()> {
-                let (dims_and_strides, cleanup_fn): (*const usize, CleanupFn) = match output.device() {
+                let (metadata, cleanup_fn): (*const usize, CleanupFn) = match output.device() {
                     Device::CPU => (
-                        dims_and_strides.map_or(std::ptr::null(), |d| d.as_ptr()),
+                        metadata.map_or(std::ptr::null(), |d| d.as_ptr()),
                         None
                     ),
                     #[cfg(feature = "cuda")]
@@ -117,7 +117,7 @@ macro_rules! declare_reduction_op {
                         if cuda_set_device(device_id as i32) != 0 {
                             return Err(Error::CudaError("Failed to set CUDA device".to_string()));
                         }
-                        let (ptr, _) = dims_and_strides
+                        let (ptr, _) = metadata
                             .map_or((std::ptr::null(), None), |dims| {
                                 let (p, _) = cuda_alloc_and_copy_dims(dims);
                                 (p as *const usize, Some(dims.len()))
@@ -141,7 +141,7 @@ macro_rules! declare_reduction_op {
                                     [<$name _ $dtype:lower>](
                                         num_els,
                                         num_dims,
-                                        dims_and_strides,
+                                        metadata,
                                         input.as_ptr() as *const [<$dtype:lower>],
                                         output.as_mut_ptr() as *mut [<$dtype:lower>],
                                     )
@@ -158,7 +158,7 @@ macro_rules! declare_reduction_op {
                                     [<cuda_ $name _ $dtype:lower>](
                                         num_els,
                                         num_dims,
-                                        dims_and_strides,
+                                        metadata,
                                         input.as_ptr() as *const [<$dtype:lower>],
                                         output.as_mut_ptr() as *mut [<$dtype:lower>],
                                     )

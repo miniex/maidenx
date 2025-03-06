@@ -24,13 +24,13 @@ macro_rules! declare_matmul_op {
                 lhs: &dyn Buffer,
                 rhs: &dyn Buffer,
                 num_els: usize,
-                dims_and_strides: Option<&[usize]>,
+                metadata: Option<&[usize]>,
             ) -> Result<()> {
                 assert_eq!(lhs.dtype(), rhs.dtype(), concat!("DType mismatch in ", stringify!($name)));
 
-                let (dims_and_strides, cleanup_fn): (*const usize, CleanupFn) = match output.device() {
+                let (metadata, cleanup_fn): (*const usize, CleanupFn) = match output.device() {
                     Device::CPU => (
-                        dims_and_strides.map_or(std::ptr::null(), |d| d.as_ptr()),
+                        metadata.map_or(std::ptr::null(), |d| d.as_ptr()),
                         None
                     ),
                     #[cfg(feature = "cuda")]
@@ -38,7 +38,7 @@ macro_rules! declare_matmul_op {
                         if cuda_set_device(device_id as i32) != 0 {
                             return Err(Error::CudaError("Failed to set CUDA device".to_string()));
                         }
-                        let (ptr, _) = dims_and_strides
+                        let (ptr, _) = metadata
                             .map_or((std::ptr::null(), None), |dims| {
                                 let (p, _) = cuda_alloc_and_copy_dims(dims);
                                 (p as *const usize, Some(dims.len()))
@@ -61,7 +61,7 @@ macro_rules! declare_matmul_op {
                                 DType::$dtype => {
                                     [<matmul_ $dtype:lower>](
                                         num_els,
-                                        dims_and_strides,
+                                        metadata,
                                         lhs.as_ptr() as *const [<$dtype:lower>],
                                         rhs.as_ptr() as *const [<$dtype:lower>],
                                         output.as_mut_ptr() as *mut [<$dtype:lower>],
@@ -78,7 +78,7 @@ macro_rules! declare_matmul_op {
                                 DType::$dtype => {
                                     [<cuda_matmul_ $dtype:lower>](
                                         num_els,
-                                        dims_and_strides,
+                                        metadata,
                                         lhs.as_ptr() as *const [<$dtype:lower>],
                                         rhs.as_ptr() as *const [<$dtype:lower>],
                                         output.as_mut_ptr() as *mut [<$dtype:lower>],
@@ -108,14 +108,14 @@ macro_rules! declare_matmul_op {
                 rhs: &dyn Buffer,
                 num_els_a: usize,
                 num_els_b: usize,
-                dims_and_strides: Option<&[usize]>,
+                metadata: Option<&[usize]>,
 
             ) -> Result<()> {
                 assert_eq!(lhs.dtype(), rhs.dtype(), concat!("DType mismatch in ", stringify!($name)));
 
-                let (dims_and_strides, cleanup_fn): (*const usize, CleanupFn) = match grad_output.device() {
+                let (metadata, cleanup_fn): (*const usize, CleanupFn) = match grad_output.device() {
                     Device::CPU => (
-                        dims_and_strides.map_or(std::ptr::null(), |d| d.as_ptr()),
+                        metadata.map_or(std::ptr::null(), |d| d.as_ptr()),
                         None
                     ),
                     #[cfg(feature = "cuda")]
@@ -123,7 +123,7 @@ macro_rules! declare_matmul_op {
                         if cuda_set_device(device_id as i32) != 0 {
                             return Err(Error::CudaError("Failed to set CUDA device".to_string()));
                         }
-                        let (ptr, _) = dims_and_strides
+                        let (ptr, _) = metadata
                             .map_or((std::ptr::null(), None), |dims| {
                                 let (p, _) = cuda_alloc_and_copy_dims(dims);
                                 (p as *const usize, Some(dims.len()))
@@ -147,7 +147,7 @@ macro_rules! declare_matmul_op {
                                     [<matmul_backward_ $dtype:lower>](
                                         num_els_a,
                                         num_els_b,
-                                        dims_and_strides,
+                                        metadata,
                                         grad_output.as_ptr() as *const [<$dtype:lower>],
                                         lhs.as_ptr() as *const [<$dtype:lower>],
                                         rhs.as_ptr() as *const [<$dtype:lower>],
@@ -167,7 +167,7 @@ macro_rules! declare_matmul_op {
                                     [<cuda_matmul_backward_ $dtype:lower>](
                                         num_els_a,
                                         num_els_b,
-                                        dims_and_strides,
+                                        metadata,
                                         grad_output.as_ptr() as *const [<$dtype:lower>],
                                         lhs.as_ptr() as *const [<$dtype:lower>],
                                         rhs.as_ptr() as *const [<$dtype:lower>],

@@ -39,7 +39,7 @@ macro_rules! binary_op_with_output {
         /// # Safety
         ///
         /// Caller must guarantee that:
-        /// * `dims_and_strides` must be either:
+        /// * `metadata` must be either:
         ///   - null (indicating contiguous arrays) or
         ///   - a valid pointer to an array of `3 * num_dims` elements containing:
         ///     - dims[num_dims]: array dimensions
@@ -54,28 +54,31 @@ macro_rules! binary_op_with_output {
         pub unsafe fn $name(
             num_els: usize,
             num_dims: usize,
-            dims_and_strides: *const usize,
+            metadata: *const usize,
             lhs: *const $input_type,
             rhs: *const $input_type,
             out: *mut $output_type,
         ) {
-            let dims = if dims_and_strides.is_null() {
+            let dims = if metadata.is_null() {
                 None
             } else {
-                Some(std::slice::from_raw_parts(dims_and_strides, num_dims))
+                Some(std::slice::from_raw_parts(metadata, num_dims))
             };
 
-            let lhs_strides = if dims_and_strides.is_null() {
+            let lhs_strides = if metadata.is_null() {
                 None
             } else {
-                Some(std::slice::from_raw_parts(dims_and_strides.add(num_dims), num_dims))
+                Some(std::slice::from_raw_parts(metadata.add(num_dims), num_dims))
             };
 
-            let rhs_strides = if dims_and_strides.is_null() {
+            let rhs_strides = if metadata.is_null() {
                 None
             } else {
-                Some(std::slice::from_raw_parts(dims_and_strides.add(2 * num_dims), num_dims))
+                Some(std::slice::from_raw_parts(metadata.add(2 * num_dims), num_dims))
             };
+
+            let lhs_offset = if metadata.is_null() { 0 } else { *metadata.add(3 * num_dims) };
+            let rhs_offset = if metadata.is_null() { 0 } else { *metadata.add(3 * num_dims + 1) };
 
             let lhs = std::slice::from_raw_parts(lhs, num_els);
             let rhs = std::slice::from_raw_parts(rhs, num_els);
@@ -100,7 +103,6 @@ macro_rules! binary_op_with_output {
             let lhs_cont = is_contiguous(lhs_strides);
             let rhs_cont = is_contiguous(rhs_strides);
 
-            // 미리 factors를 계산 (비연속인 경우에만)
             let factors = if !lhs_cont || !rhs_cont {
                 dims.map(|d| compute_factors(num_dims, d))
             } else {
@@ -111,14 +113,14 @@ macro_rules! binary_op_with_output {
                 let (lhs_idx, rhs_idx) = if !lhs_cont || !rhs_cont {
                     if let (Some(dims), Some(lhs_str), Some(rhs_str), Some(ref fac)) = (dims, lhs_strides, rhs_strides, factors.as_ref()) {
                         (
-                            compute_offset(i, num_dims, dims, fac, lhs_str),
-                            compute_offset(i, num_dims, dims, fac, rhs_str),
+                            lhs_offset + compute_offset(i, num_dims, dims, fac, lhs_str),
+                            rhs_offset + compute_offset(i, num_dims, dims, fac, rhs_str),
                         )
                     } else {
-                        (i, i)
+                        (lhs_offset + i, rhs_offset + i)
                     }
                 } else {
-                    (i, i)
+                    (lhs_offset + i, rhs_offset + i)
                 };
 
                 *out_val = $op(lhs[lhs_idx], rhs[rhs_idx]) as $output_type;
@@ -133,7 +135,7 @@ macro_rules! logical_op {
         /// # Safety
         ///
         /// Caller must guarantee that:
-        /// * `dims_and_strides` must be either:
+        /// * `metadata` must be either:
         ///   - null (indicating contiguous arrays) or
         ///   - a valid pointer to an array of `3 * num_dims` elements containing:
         ///     - dims[num_dims]: array dimensions
@@ -145,22 +147,25 @@ macro_rules! logical_op {
         /// * The memory regions of `lhs`, `rhs`, and `out` must not overlap
         /// * The alignment requirements of the data type must be respected for all arrays
         /// * All array indices calculated from dims and strides must be in bounds
-        pub unsafe fn $name(num_els: usize, num_dims: usize, dims_and_strides: *const usize, lhs: *const $t, rhs: *const $t, out: *mut bool) {
-            let dims = if dims_and_strides.is_null() {
+        pub unsafe fn $name(num_els: usize, num_dims: usize, metadata: *const usize, lhs: *const $t, rhs: *const $t, out: *mut bool) {
+            let dims = if metadata.is_null() {
                 None
             } else {
-                Some(std::slice::from_raw_parts(dims_and_strides, num_dims))
+                Some(std::slice::from_raw_parts(metadata, num_dims))
             };
-            let lhs_strides = if dims_and_strides.is_null() {
+            let lhs_strides = if metadata.is_null() {
                 None
             } else {
-                Some(std::slice::from_raw_parts(dims_and_strides.add(num_dims), num_dims))
+                Some(std::slice::from_raw_parts(metadata.add(num_dims), num_dims))
             };
-            let rhs_strides = if dims_and_strides.is_null() {
+            let rhs_strides = if metadata.is_null() {
                 None
             } else {
-                Some(std::slice::from_raw_parts(dims_and_strides.add(2 * num_dims), num_dims))
+                Some(std::slice::from_raw_parts(metadata.add(2 * num_dims), num_dims))
             };
+
+            let lhs_offset = if metadata.is_null() { 0 } else { *metadata.add(3 * num_dims) };
+            let rhs_offset = if metadata.is_null() { 0 } else { *metadata.add(3 * num_dims + 1) };
 
             let lhs = std::slice::from_raw_parts(lhs, num_els);
             let rhs = std::slice::from_raw_parts(rhs, num_els);
@@ -185,7 +190,6 @@ macro_rules! logical_op {
             let lhs_cont = is_contiguous(dims, lhs_strides);
             let rhs_cont = is_contiguous(dims, rhs_strides);
 
-            // 미리 factors 계산 (비연속인 경우)
             let factors = if !lhs_cont || !rhs_cont {
                 dims.map(|d| compute_factors(num_dims, d))
             } else {
@@ -194,16 +198,16 @@ macro_rules! logical_op {
 
             out.par_iter_mut().enumerate().for_each(|(i, out_val)| {
                 let (lhs_idx, rhs_idx) = if !lhs_cont || !rhs_cont {
-                    if let (Some(dims), Some(lhs_s), Some(rhs_s), Some(ref fac)) = (dims, lhs_strides, rhs_strides, factors.as_ref()) {
+                    if let (Some(dims), Some(lhs_str), Some(rhs_str), Some(ref fac)) = (dims, lhs_strides, rhs_strides, factors.as_ref()) {
                         (
-                            compute_offset(i, num_dims, dims, fac, lhs_s),
-                            compute_offset(i, num_dims, dims, fac, rhs_s),
+                            lhs_offset + compute_offset(i, num_dims, dims, fac, lhs_str),
+                            rhs_offset + compute_offset(i, num_dims, dims, fac, rhs_str),
                         )
                     } else {
-                        (i, i)
+                        (lhs_offset + i, rhs_offset + i)
                     }
                 } else {
-                    (i, i)
+                    (lhs_offset + i, rhs_offset + i)
                 };
 
                 let lhs_bool = lhs[lhs_idx] != $zero;

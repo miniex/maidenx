@@ -4,34 +4,35 @@
 
 #define UNARY_OP_OUTPUT(IN_TYPENAME, OUT_TYPENAME, FN_NAME, FUNC)              \
   extern "C" __global__ void cuda_##FN_NAME##_kernel(                          \
-      const size_t num_els, const size_t num_dims,                             \
-      const size_t *dims_and_strides, const IN_TYPENAME *input,                \
-      OUT_TYPENAME *output) {                                                  \
-    const size_t *dims = dims_and_strides;                                     \
-    const size_t *strides = dims_and_strides + num_dims;                       \
-    if (dims_and_strides == nullptr ||                                         \
-        is_contiguous(num_dims, dims, strides)) {                              \
+      const size_t num_els, const size_t num_dims, const size_t *metadata,     \
+      const IN_TYPENAME *input, OUT_TYPENAME *output) {                        \
+    const size_t *dims = metadata;                                             \
+    const size_t *strides = metadata + num_dims;                               \
+    const size_t offset = metadata ? *(metadata + 2 * num_dims) : 0;           \
+                                                                               \
+    if (metadata == nullptr || is_contiguous(num_dims, dims, strides)) {       \
       for (unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;             \
            i < num_els; i += blockDim.x * gridDim.x) {                         \
-        IN_TYPENAME x = input ? input[i] : (IN_TYPENAME)output[i];             \
+        IN_TYPENAME x = input ? input[offset + i] : (IN_TYPENAME)output[i];    \
         output[i] = FUNC;                                                      \
       }                                                                        \
     } else {                                                                   \
       for (unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;             \
            i < num_els; i += blockDim.x * gridDim.x) {                         \
-        unsigned strided_i = get_strided_index(i, num_dims, dims, strides);    \
+        unsigned strided_i =                                                   \
+            offset + get_strided_index(i, num_dims, dims, strides);            \
         IN_TYPENAME x = input ? input[strided_i] : (IN_TYPENAME)output[i];     \
         output[i] = FUNC;                                                      \
       }                                                                        \
     }                                                                          \
   }                                                                            \
   extern "C" void cuda_##FN_NAME(                                              \
-      size_t num_els, size_t num_dims, const size_t *dims_and_strides,         \
+      size_t num_els, size_t num_dims, const size_t *metadata,                 \
       const IN_TYPENAME *input, OUT_TYPENAME *output) {                        \
     dim3 block_dim(256);                                                       \
     dim3 grid_dim((num_els + block_dim.x - 1) / block_dim.x);                  \
-    cuda_##FN_NAME##_kernel<<<grid_dim, block_dim>>>(                          \
-        num_els, num_dims, dims_and_strides, input, output);                   \
+    cuda_##FN_NAME##_kernel<<<grid_dim, block_dim>>>(num_els, num_dims,        \
+                                                     metadata, input, output); \
   }
 
 #define UNARY_OP(TYPENAME, FN_NAME, FUNC)                                      \
@@ -39,18 +40,19 @@
 
 #define UNARY_OP_WITH_CONSTANT(IN_TYPENAME, OUT_TYPENAME, FN_NAME, FUNC)       \
   extern "C" __global__ void cuda_##FN_NAME##_kernel(                          \
-      const size_t num_els, const size_t num_dims,                             \
-      const size_t *dims_and_strides, const IN_TYPENAME *input,                \
-      const IN_TYPENAME constant, OUT_TYPENAME *output) {                      \
-    const size_t *dims = dims_and_strides;                                     \
-    const size_t *strides = dims_and_strides + num_dims;                       \
-    if (dims_and_strides == nullptr ||                                         \
-        is_contiguous(num_dims, dims, strides)) {                              \
+      const size_t num_els, const size_t num_dims, const size_t *metadata,     \
+      const IN_TYPENAME *input, const IN_TYPENAME constant,                    \
+      OUT_TYPENAME *output) {                                                  \
+    const size_t *dims = metadata;                                             \
+    const size_t *strides = metadata + num_dims;                               \
+    const size_t offset = metadata ? *(metadata + 2 * num_dims) : 0;           \
+                                                                               \
+    if (metadata == nullptr || is_contiguous(num_dims, dims, strides)) {       \
       for (unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;             \
            i < num_els; i += blockDim.x * gridDim.x) {                         \
         IN_TYPENAME x;                                                         \
         if (input) {                                                           \
-          x = input[i];                                                        \
+          x = input[offset + i];                                               \
         } else {                                                               \
           x = output[i];                                                       \
         }                                                                      \
@@ -59,7 +61,8 @@
     } else {                                                                   \
       for (unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;             \
            i < num_els; i += blockDim.x * gridDim.x) {                         \
-        unsigned strided_i = get_strided_index(i, num_dims, dims, strides);    \
+        unsigned strided_i =                                                   \
+            offset + get_strided_index(i, num_dims, dims, strides);            \
         IN_TYPENAME x;                                                         \
         if (input) {                                                           \
           x = input[strided_i];                                                \
@@ -71,13 +74,13 @@
     }                                                                          \
   }                                                                            \
   extern "C" void cuda_##FN_NAME(                                              \
-      size_t num_els, size_t num_dims, const size_t *dims_and_strides,         \
+      size_t num_els, size_t num_dims, const size_t *metadata,                 \
       const IN_TYPENAME *input, const IN_TYPENAME constant,                    \
       OUT_TYPENAME *output) {                                                  \
     dim3 block_dim(256);                                                       \
     dim3 grid_dim((num_els + block_dim.x - 1) / block_dim.x);                  \
     cuda_##FN_NAME##_kernel<<<grid_dim, block_dim>>>(                          \
-        num_els, num_dims, dims_and_strides, input, constant, output);         \
+        num_els, num_dims, metadata, input, constant, output);                 \
   }
 
 UNARY_OP(float, neg_f32, -x);

@@ -15,7 +15,7 @@ macro_rules! unary_op_output {
         #[no_mangle]
         /// # Safety
         ///
-        /// * `dims_and_strides` must be either:
+        /// * `metadata` must be either:
         ///   - null, indicating contiguous arrays
         ///   - a valid pointer to an array of `2 * num_dims` elements containing:
         ///     * dims[num_dims]: array dimensions
@@ -27,23 +27,26 @@ macro_rules! unary_op_output {
         /// * The memory regions of input (if not null) and output must not overlap
         /// * The alignment requirements of the type must be respected
         /// * All array indices calculated from dims and strides must be in bounds
-        pub unsafe fn $name(num_els: usize, num_dims: usize, dims_and_strides: *const usize, input: *const $input_type, output: *mut $output_type) {
+        pub unsafe fn $name(num_els: usize, num_dims: usize, metadata: *const usize, input: *const $input_type, output: *mut $output_type) {
             // Safety: We trust that the caller has provided valid pointers and sizes
-            let dims = if dims_and_strides.is_null() {
+            let dims = if metadata.is_null() {
                 None
             } else {
-                let dims_slice = std::slice::from_raw_parts(dims_and_strides, num_dims);
+                let dims_slice = std::slice::from_raw_parts(metadata, num_dims);
                 Some(dims_slice)
             };
 
-            // Safety: If dims_and_strides is not null, we trust it points to
+            // Safety: If metadata is not null, we trust it points to
             // a contiguous array of 2 * num_dims elements
-            let strides = if dims_and_strides.is_null() {
+            let strides = if metadata.is_null() {
                 None
             } else {
-                let strides_slice = std::slice::from_raw_parts(dims_and_strides.add(num_dims), num_dims);
+                let strides_slice = std::slice::from_raw_parts(metadata.add(num_dims), num_dims);
                 Some(strides_slice)
             };
+
+            // Get offset from metadata
+            let offset = if metadata.is_null() { 0 } else { *metadata.add(2 * num_dims) };
 
             let is_contiguous = |strides: Option<&[usize]>| {
                 if let Some(dims) = dims {
@@ -62,9 +65,9 @@ macro_rules! unary_op_output {
 
             // Safety: We trust that the caller has provided valid input/output arrays
             let input_slice = if !input.is_null() {
-                std::slice::from_raw_parts(input, num_els)
+                std::slice::from_raw_parts(input, num_els + offset)
             } else {
-                std::slice::from_raw_parts(output as *const $input_type, num_els)
+                std::slice::from_raw_parts(output as *const $input_type, num_els + offset)
             };
             let output_slice = std::slice::from_raw_parts_mut(output, num_els);
 
@@ -75,7 +78,7 @@ macro_rules! unary_op_output {
             output_slice.par_iter_mut().enumerate().for_each(|(i, out_val)| {
                 let idx = if !is_cont {
                     let mut tmp_i = i;
-                    let mut strided_i = 0;
+                    let mut strided_i = offset;
 
                     if let Some(dims) = dims {
                         if let Some(strides) = strides {
@@ -87,7 +90,7 @@ macro_rules! unary_op_output {
                         }
                     }
 
-                    strided_i.min(num_els - 1)
+                    strided_i.min(num_els + offset - 1)
                 } else {
                     i
                 };
@@ -110,7 +113,7 @@ macro_rules! unary_op_with_constant_output {
         #[no_mangle]
         /// # Safety
         ///
-        /// * `dims_and_strides` must be either:
+        /// * `metadata` must be either:
         ///   - null, indicating contiguous arrays
         ///   - a valid pointer to an array of `2 * num_dims` elements containing:
         ///     * dims[num_dims]: array dimensions
@@ -126,24 +129,27 @@ macro_rules! unary_op_with_constant_output {
         pub unsafe fn $name(
             num_els: usize,
             num_dims: usize,
-            dims_and_strides: *const usize,
+            metadata: *const usize,
             input: *const $input_type,
             constant: $input_type,
             output: *mut $output_type,
         ) {
-            let dims = if dims_and_strides.is_null() {
+            let dims = if metadata.is_null() {
                 None
             } else {
-                let dims_slice = std::slice::from_raw_parts(dims_and_strides, num_dims);
+                let dims_slice = std::slice::from_raw_parts(metadata, num_dims);
                 Some(dims_slice)
             };
 
-            let strides = if dims_and_strides.is_null() {
+            let strides = if metadata.is_null() {
                 None
             } else {
-                let strides_slice = std::slice::from_raw_parts(dims_and_strides.add(num_dims), num_dims);
+                let strides_slice = std::slice::from_raw_parts(metadata.add(num_dims), num_dims);
                 Some(strides_slice)
             };
+
+            // Get offset from metadata
+            let offset = if metadata.is_null() { 0 } else { *metadata.add(2 * num_dims) };
 
             let is_contiguous = |strides: Option<&[usize]>| {
                 if let Some(dims) = dims {
@@ -161,9 +167,9 @@ macro_rules! unary_op_with_constant_output {
             };
 
             let input_slice = if !input.is_null() {
-                std::slice::from_raw_parts(input, num_els)
+                std::slice::from_raw_parts(input, num_els + offset)
             } else {
-                std::slice::from_raw_parts(output as *const $input_type, num_els)
+                std::slice::from_raw_parts(output as *const $input_type, num_els + offset)
             };
             let output_slice = std::slice::from_raw_parts_mut(output, num_els);
 
@@ -172,7 +178,7 @@ macro_rules! unary_op_with_constant_output {
             output_slice.par_iter_mut().enumerate().for_each(|(i, out_val)| {
                 let idx = if !is_cont {
                     let mut tmp_i = i;
-                    let mut strided_i = 0;
+                    let mut strided_i = offset;
 
                     if let Some(dims) = dims {
                         if let Some(strides) = strides {
@@ -184,9 +190,9 @@ macro_rules! unary_op_with_constant_output {
                         }
                     }
 
-                    strided_i.min(num_els - 1)
+                    strided_i.min(num_els + offset - 1)
                 } else {
-                    i
+                    offset + i
                 };
 
                 let x = input_slice[idx];

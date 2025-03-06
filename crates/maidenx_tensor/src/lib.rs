@@ -152,6 +152,10 @@ impl Tensor {
         self.metadata.layout.strides()
     }
 
+    pub fn offset(&self) -> usize {
+        self.metadata.layout.offset()
+    }
+
     pub fn size(&self) -> usize {
         self.metadata.layout.size()
     }

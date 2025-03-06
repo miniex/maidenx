@@ -7,11 +7,13 @@
 #define SUM_OP(TYPENAME, FN_NAME)                                              \
   extern "C" __global__ void cuda_##FN_NAME##_kernel(                          \
       const size_t num_els, const size_t num_dims, const size_t num_sum_dims,  \
-      const size_t *info, const TYPENAME *inp, TYPENAME *out) {                \
-    const size_t *dims = info;                                                 \
-    const size_t *strides = info + num_dims;                                   \
-    const size_t *sum_dims_l = info + 2 * num_dims;                            \
-    const size_t *sum_dims_s = info + 2 * num_dims + num_sum_dims;             \
+      const size_t *metadata, const TYPENAME *inp, TYPENAME *out) {            \
+    const size_t *dims = metadata;                                             \
+    const size_t *strides = metadata + num_dims;                               \
+    const size_t *sum_dims_l = metadata + 2 * num_dims;                        \
+    const size_t *sum_dims_s = metadata + 2 * num_dims + num_sum_dims;         \
+    const size_t offset = *(metadata + 2 * num_dims + 2 * num_sum_dims);       \
+                                                                               \
     if (is_contiguous(num_dims, dims, strides)) {                              \
       for (unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;             \
            i < num_els; i += blockDim.x * gridDim.x) {                         \
@@ -22,12 +24,13 @@
           size_t post = dst_index % stride;                                    \
           dst_index = (pre / sum_dims_l[nd]) * stride + post;                  \
         }                                                                      \
-        atomicAdd(out + dst_index, inp[i]);                                    \
+        atomicAdd(out + dst_index, inp[offset + i]);                           \
       }                                                                        \
     } else {                                                                   \
       for (unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;             \
            i < num_els; i += blockDim.x * gridDim.x) {                         \
-        unsigned strided_i = get_strided_index(i, num_dims, dims, strides);    \
+        unsigned strided_i =                                                   \
+            offset + get_strided_index(i, num_dims, dims, strides);            \
         size_t dst_index = i;                                                  \
         for (unsigned int nd = 0; nd < num_sum_dims; ++nd) {                   \
           size_t stride = sum_dims_s[nd];                                      \
@@ -40,21 +43,22 @@
     }                                                                          \
   }                                                                            \
   extern "C" void cuda_##FN_NAME(size_t num_els, size_t num_dims,              \
-                                 size_t num_red_dims, const size_t *info,      \
+                                 size_t num_red_dims, const size_t *metadata,  \
                                  const TYPENAME *inp, TYPENAME *out) {         \
     dim3 block_dim(256);                                                       \
     dim3 grid_dim((num_els + block_dim.x - 1) / block_dim.x);                  \
     cuda_##FN_NAME##_kernel<<<grid_dim, block_dim>>>(                          \
-        num_els, num_dims, num_red_dims, info, inp, out);                      \
+        num_els, num_dims, num_red_dims, metadata, inp, out);                  \
   }
 
 #define SUM_TO_SHAPE_OP(TYPENAME, FN_NAME)                                     \
   extern "C" __global__ void cuda_##FN_NAME##_kernel(                          \
-      const size_t num_els, const size_t num_dims, const size_t *info,         \
+      const size_t num_els, const size_t num_dims, const size_t *metadata,     \
       const TYPENAME *inp, TYPENAME *out) {                                    \
-    const size_t *input_dims = info;                                           \
-    const size_t *input_strides = info + num_dims;                             \
-    const size_t *output_dims = info + 2 * num_dims;                           \
+    const size_t *input_dims = metadata;                                       \
+    const size_t *input_strides = metadata + num_dims;                         \
+    const size_t *output_dims = metadata + 2 * num_dims;                       \
+    const size_t offset = *(metadata + 3 * num_dims);                          \
                                                                                \
     if (num_dims > MAX_DIMS)                                                   \
       return;                                                                  \
@@ -80,7 +84,7 @@
         dst_idx = dst_idx * output_dims[d] + out_coord;                        \
       }                                                                        \
                                                                                \
-      size_t src_idx = 0;                                                      \
+      size_t src_idx = offset;                                                 \
       for (size_t d = 0; d < num_dims; d++) {                                  \
         src_idx += coords[d] * input_strides[d];                               \
       }                                                                        \
@@ -89,22 +93,23 @@
     }                                                                          \
   }                                                                            \
   extern "C" void cuda_##FN_NAME(size_t num_els, size_t num_dims,              \
-                                 const size_t *info, const TYPENAME *inp,      \
+                                 const size_t *metadata, const TYPENAME *inp,  \
                                  TYPENAME *out) {                              \
     dim3 block_dim(256);                                                       \
     dim3 grid_dim((num_els + block_dim.x - 1) / block_dim.x);                  \
-    cuda_##FN_NAME##_kernel<<<grid_dim, block_dim>>>(num_els, num_dims, info,  \
-                                                     inp, out);                \
+    cuda_##FN_NAME##_kernel<<<grid_dim, block_dim>>>(num_els, num_dims,        \
+                                                     metadata, inp, out);      \
   }
 
 #define MEAN_OP(TYPENAME, FN_NAME)                                             \
   extern "C" __global__ void cuda_##FN_NAME##_kernel(                          \
       const size_t num_els, const size_t num_dims, const size_t num_mean_dims, \
-      const size_t *info, const TYPENAME *inp, TYPENAME *out) {                \
-    const size_t *dims = info;                                                 \
-    const size_t *strides = info + num_dims;                                   \
-    const size_t *mean_dims_l = info + 2 * num_dims;                           \
-    const size_t *mean_dims_s = info + 2 * num_dims + num_mean_dims;           \
+      const size_t *metadata, const TYPENAME *inp, TYPENAME *out) {            \
+    const size_t *dims = metadata;                                             \
+    const size_t *strides = metadata + num_dims;                               \
+    const size_t *mean_dims_l = metadata + 2 * num_dims;                       \
+    const size_t *mean_dims_s = metadata + 2 * num_dims + num_mean_dims;       \
+    const size_t offset = *(metadata + 2 * num_dims + 2 * num_mean_dims);      \
                                                                                \
     /* Calculate reduction factor */                                           \
     size_t reduction_factor = 1;                                               \
@@ -123,12 +128,13 @@
           size_t post = dst_index % stride;                                    \
           dst_index = (pre / mean_dims_l[nd]) * stride + post;                 \
         }                                                                      \
-        atomicAdd(out + dst_index, inp[i] / factor);                           \
+        atomicAdd(out + dst_index, inp[offset + i] / factor);                  \
       }                                                                        \
     } else {                                                                   \
       for (unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;             \
            i < num_els; i += blockDim.x * gridDim.x) {                         \
-        unsigned strided_i = get_strided_index(i, num_dims, dims, strides);    \
+        unsigned strided_i =                                                   \
+            offset + get_strided_index(i, num_dims, dims, strides);            \
         size_t dst_index = i;                                                  \
         for (unsigned int nd = 0; nd < num_mean_dims; ++nd) {                  \
           size_t stride = mean_dims_s[nd];                                     \
@@ -141,12 +147,12 @@
     }                                                                          \
   }                                                                            \
   extern "C" void cuda_##FN_NAME(size_t num_els, size_t num_dims,              \
-                                 size_t num_red_dims, const size_t *info,      \
+                                 size_t num_red_dims, const size_t *metadata,  \
                                  const TYPENAME *inp, TYPENAME *out) {         \
     dim3 block_dim(256);                                                       \
     dim3 grid_dim((num_els + block_dim.x - 1) / block_dim.x);                  \
     cuda_##FN_NAME##_kernel<<<grid_dim, block_dim>>>(                          \
-        num_els, num_dims, num_red_dims, info, inp, out);                      \
+        num_els, num_dims, num_red_dims, metadata, inp, out);                  \
   }
 
 SUM_OP(float, sum_f32);
