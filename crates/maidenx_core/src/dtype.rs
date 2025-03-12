@@ -2,6 +2,7 @@
 
 use crate::scalar::Scalar;
 
+pub use half::{bf16, f16};
 pub const bfloat16: DType = DType::BF16;
 pub const float16: DType = DType::F16;
 pub const half: DType = DType::F16;

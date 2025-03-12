@@ -6,6 +6,7 @@ use crate::{
     device::Device,
     dtype::DType,
     error::{Error, Result},
+    scalar::Scalar,
 };
 #[cfg(feature = "cuda")]
 use cpu::CpuBuffer;
@@ -345,6 +346,82 @@ pub trait Buffer: Send + Sync {
                 "Unsupported dtype conversion from {:?} to {:?}",
                 from_dtype, to_dtype
             ))),
+        }
+    }
+
+    /// Read a scalar value at the specified index
+    fn read_scalar(&self, index: usize) -> Result<Scalar> {
+        if index >= self.len() {
+            return Err(Error::InvalidArgument(format!("Index out of bounds: {} >= {}", index, self.len())));
+        }
+
+        match self.device() {
+            Device::CPU => {
+                // For CPU buffers, read directly from memory
+                let offset = index * self.dtype().size_in_bytes();
+                let ptr = unsafe { (self.as_ptr() as *const u8).add(offset) };
+
+                // Use DType's read_scalar method to safely read the value
+                Ok(unsafe { self.dtype().read_scalar(ptr) })
+            }
+            #[cfg(feature = "cuda")]
+            Device::CUDA(_) => {
+                // For CUDA buffers, we need to copy the data to host first
+                let dtype_size = self.dtype().size_in_bytes();
+                let mut temp_buffer = vec![0u8; dtype_size];
+
+                unsafe {
+                    // Create a temporary CPU buffer for the single value
+                    self.copy_to_host(temp_buffer.as_mut_ptr() as *mut c_void, dtype_size)?;
+
+                    // Read the scalar from the temporary buffer
+                    Ok(self.dtype().read_scalar(temp_buffer.as_ptr()))
+                }
+            }
+        }
+    }
+
+    /// Write a scalar value at the specified index
+    fn write_scalar(&mut self, index: usize, value: Scalar) -> Result<()> {
+        if index >= self.len() {
+            return Err(Error::InvalidArgument(format!("Index out of bounds: {} >= {}", index, self.len())));
+        }
+
+        match self.device() {
+            Device::CPU => {
+                // For CPU buffers, write directly to memory
+                let offset = index * self.dtype().size_in_bytes();
+                let ptr = unsafe { (self.as_mut_ptr() as *mut u8).add(offset) };
+
+                // Use DType's write_scalar method to safely write the value
+                unsafe { self.dtype().write_scalar(ptr, value) };
+                Ok(())
+            }
+            #[cfg(feature = "cuda")]
+            Device::CUDA(_) => {
+                // For CUDA buffers, we need to create a temporary CPU buffer
+                // that contains the entire data (or use a specialized API for single value updates)
+                // This implementation uses a CPU buffer to handle the operation
+
+                let dtype_size = self.dtype().size_in_bytes();
+                let total_size = self.len() * dtype_size;
+                let mut temp_buffer = vec![0u8; total_size];
+
+                unsafe {
+                    // First, copy the entire buffer from device to host
+                    self.copy_to_host(temp_buffer.as_mut_ptr() as *mut c_void, total_size)?;
+
+                    // Update the single value in the CPU buffer
+                    let offset = index * dtype_size;
+                    let update_ptr = temp_buffer.as_mut_ptr().add(offset);
+                    self.dtype().write_scalar(update_ptr, value);
+
+                    // Copy the entire buffer back to the device
+                    self.copy_from_host(temp_buffer.as_ptr() as *const c_void, total_size)?;
+
+                    Ok(())
+                }
+            }
         }
     }
 }

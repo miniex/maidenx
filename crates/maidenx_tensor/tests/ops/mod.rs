@@ -9,7 +9,7 @@ mod total {
     use maidenx_tensor::Tensor;
 
     #[test]
-    fn test() -> Result<()> {
+    fn basic() -> Result<()> {
         let mut x = Tensor::new(vec![2.0])?;
         let mut y = Tensor::new(vec![3.0])?;
         x.with_grad()?;
@@ -40,6 +40,11 @@ mod total {
             assert_eq!(g.to_flatten_vec::<f32>()?, vec![29.0]);
         }
 
+        Ok(())
+    }
+
+    #[test]
+    fn offset() -> Result<()> {
         Ok(())
     }
 }

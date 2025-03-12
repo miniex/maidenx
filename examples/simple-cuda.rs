@@ -4,7 +4,7 @@ use std::time::Instant;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     set_default_device(Device::CUDA(0));
-    set_default_dtype(float32);
+    // set_default_dtype(float32);
     // set_default_dtype(DType::F32);
 
     let input_data: Vec<Vec<f32>> = (0..10000)

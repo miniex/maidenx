@@ -86,6 +86,7 @@ Blank: Upcoming support
 |            | `sum_to_shape`     | ✓ | ✓ | ✓ |
 |            | `mean`             | ✓ | ✓ | ✓ |
 |            | `mean_all`         | ✓ | ✓ | ✓ |
+|            | `fold`             | ✓ | ✓ | ✓ |
 | **Transform Operations** |
 | view operations |
 |            | `view`             | ✓ | ✓ | ✓ |
@@ -93,10 +94,13 @@ Blank: Upcoming support
 |            | `squeeze_all`      | ✓ | ✓ | ✓ |
 |            | `unsqueeze`        | ✓ | ✓ | ✓ |
 |            | `transpose`        | ✓ | ✓ | ✓ |
+|            | `slice`            | ✓ | ✓ | ✓ |
+|            | `unfold`           | ✓ | ✓ | ✓ |
 | reshape operations |
 |            | `reshape`          | ✓ | ✓ | ✓ |
 |            | `broadcast`        | ✓ | ✓ | ✓ |
 |            | `broadcast_left`   | ✓ | ✓ | ✓ |
+
 
 <br/>
 
@@ -107,6 +111,10 @@ Blank: Upcoming support
 | **Util Functions** |
 |            | `is_contiguous`    | ✓ | ✓ |
 |            | `contiguous`       | ✓ | ✓ |
+|            | `to_flatten_vec`   | ✓ | ✓ |
+|            | `get`              | ✓ | ✓ |
+|            | `set`              | ✓ | ✓ |
+|            | `select`           | ✓ | ✓ |
 
 <br/>
 

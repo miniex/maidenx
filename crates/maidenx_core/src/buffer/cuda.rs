@@ -87,29 +87,32 @@ impl Buffer for CudaBuffer {
     unsafe fn copy_from_host(&mut self, src: *const c_void, size_in_bytes: usize) -> Result<()> {
         let expected = self.size * self.dtype.size_in_bytes();
         if size_in_bytes != expected {
-            return Err(Error::InvalidArgument("Size mismatch in copy_from_host\n".into()));
+            return Err(Error::InvalidArgument("Size mismatch in copy_from_host".into()));
         }
         if cuda_set_device(self.device_id as i32) != 0 {
-            return Err(Error::InvalidArgument("Failed to set CUDA device\n".into()));
+            return Err(Error::InvalidArgument("Failed to set CUDA device".into()));
         }
         let status = cuda_memcpy_h2d(self.ptr, src, size_in_bytes);
         if status != 0 {
-            return Err(Error::InvalidArgument(format!("CUDA H2D memcpy failed: {}\n", status)));
+            return Err(Error::InvalidArgument(format!("CUDA H2D memcpy failed: {}", status)));
         }
         Ok(())
     }
 
     unsafe fn copy_to_host(&self, dest: *mut c_void, size_in_bytes: usize) -> Result<()> {
-        let expected = self.size * self.dtype.size_in_bytes();
-        if size_in_bytes != expected {
-            return Err(Error::InvalidArgument("Size mismatch in copy_to_host\n".into()));
+        let available = self.size * self.dtype.size_in_bytes();
+        if size_in_bytes > available {
+            return Err(Error::InvalidArgument(format!(
+                "Size mismatch in copy_to_host: requested {}, available {}",
+                size_in_bytes, available
+            )));
         }
         if cuda_set_device(self.device_id as i32) != 0 {
-            return Err(Error::InvalidArgument("Failed to set CUDA device\n".into()));
+            return Err(Error::InvalidArgument("Failed to set CUDA device".into()));
         }
         let status = cuda_memcpy_d2h(dest, self.ptr, size_in_bytes);
         if status != 0 {
-            return Err(Error::InvalidArgument(format!("CUDA D2H memcpy failed: {}\n", status)));
+            return Err(Error::InvalidArgument(format!("CUDA D2H memcpy failed: {}", status)));
         }
         Ok(())
     }

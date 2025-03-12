@@ -2,9 +2,45 @@ use crate::dtype::DType;
 use half::{bf16, f16};
 use std::ops::{Add, Div, Mul, Sub};
 
+use std::fmt;
+
+impl fmt::Display for Scalar {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::BOOL(v) => write!(f, "{}", v),
+            Self::BF16(v) => write!(f, "{:.8}", f32::from(*v)),
+            Self::F16(v) => write!(f, "{:.8}", f32::from(*v)),
+            Self::F32(v) => write!(f, "{:.8}", v),
+            Self::F64(v) => write!(f, "{:.8}", v),
+            Self::U8(v) => write!(f, "{}", v),
+            Self::U32(v) => write!(f, "{}", v),
+            Self::I8(v) => write!(f, "{}", v),
+            Self::I32(v) => write!(f, "{}", v),
+            Self::I64(v) => write!(f, "{}", v),
+        }
+    }
+}
+
+impl fmt::Debug for Scalar {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::BOOL(v) => write!(f, "Scalar(dtype=BOOL, value={})", v),
+            Self::BF16(v) => write!(f, "Scalar(dtype=BF16, value={:.8})", f32::from(*v)),
+            Self::F16(v) => write!(f, "Scalar(dtype=F16, value={:.8})", f32::from(*v)),
+            Self::F32(v) => write!(f, "Scalar(dtype=F32, value={:.8})", v),
+            Self::F64(v) => write!(f, "Scalar(dtype=F64, value={:.8})", v),
+            Self::U8(v) => write!(f, "Scalar(dtype=U8, value={})", v),
+            Self::U32(v) => write!(f, "Scalar(dtype=U32, value={})", v),
+            Self::I8(v) => write!(f, "Scalar(dtype=I8, value={})", v),
+            Self::I32(v) => write!(f, "Scalar(dtype=I32, value={})", v),
+            Self::I64(v) => write!(f, "Scalar(dtype=I64, value={})", v),
+        }
+    }
+}
+
 macro_rules! numeric_variants {
     ($($variant:ident => $type:ty),* $(,)?) => {
-        #[derive(Debug, Clone, Copy, PartialEq)]
+        #[derive(Clone, Copy, PartialEq)]
         pub enum Scalar {
             BOOL(bool),
             $($variant($type),)*

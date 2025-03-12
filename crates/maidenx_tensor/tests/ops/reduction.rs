@@ -130,6 +130,48 @@ mod test_functions {
 
         Ok(())
     }
+
+    pub fn fold_test(device: Device, dtype: DType) -> Result<()> {
+        let data = vec![1.0, 2.0, 3.0, 4.0, 5.0];
+        let x = setup_grad_tensor(data, &[5], device, dtype)?;
+        let unfolded = x.unfold(0, 2, 1)?;
+
+        assert_eq!(unfolded.shape(), &[4, 2]);
+
+        let folded = unfolded.fold(0, 2, 1)?;
+
+        assert_eq!(folded.shape(), &[5]);
+        assert_eq!(folded.to_flatten_vec::<f32>()?, vec![1.0, 4.0, 6.0, 8.0, 5.0]);
+
+        let data_2d = TEST_DATA_F32_2D.iter().flatten().copied().collect();
+        let x_2d = setup_grad_tensor(data_2d, &[2, 3], device, dtype)?;
+
+        let unfolded_2d = x_2d.unfold(1, 2, 1)?;
+
+        assert_eq!(unfolded_2d.shape(), &[2, 2, 2]);
+
+        let folded_2d = unfolded_2d.fold(1, 2, 1)?;
+
+        assert_eq!(folded_2d.shape(), &[2, 3]);
+        assert_eq!(folded_2d.to_flatten_vec::<f32>()?, vec![1.0, 4.0, 3.0, 4.0, 10.0, 6.0]);
+
+        folded_2d.backward()?;
+
+        if let Some(g) = unfolded_2d.grad()? {
+            let grad_data = g.to_flatten_vec::<f32>()?;
+            assert!(
+                grad_data.iter().all(|&x| (x - 1.0).abs() < 1e-5),
+                "Expected all gradients to be 1.0, got {:?}",
+                grad_data
+            );
+        }
+
+        if let Some(g) = x_2d.grad()? {
+            assert_eq!(g.to_flatten_vec::<f32>()?, vec![1.0, 2.0, 1.0, 1.0, 2.0, 1.0]);
+        }
+
+        Ok(())
+    }
 }
 
 // sum operation tests
@@ -568,6 +610,94 @@ mod mean_all {
         #[test]
         fn i64() -> Result<()> {
             test_functions::mean_all_test(Device::CUDA(0), DType::I64)
+        }
+    }
+}
+
+// fold operation tests
+mod fold {
+    use super::*;
+
+    mod cpu {
+        use super::*;
+
+        #[test]
+        fn bf16() -> Result<()> {
+            test_functions::fold_test(Device::CPU, DType::BF16)
+        }
+        #[test]
+        fn f16() -> Result<()> {
+            test_functions::fold_test(Device::CPU, DType::F16)
+        }
+        #[test]
+        fn f32() -> Result<()> {
+            test_functions::fold_test(Device::CPU, DType::F32)
+        }
+        #[test]
+        fn f64() -> Result<()> {
+            test_functions::fold_test(Device::CPU, DType::F64)
+        }
+        #[test]
+        fn u8() -> Result<()> {
+            test_functions::fold_test(Device::CPU, DType::U8)
+        }
+        #[test]
+        fn u32() -> Result<()> {
+            test_functions::fold_test(Device::CPU, DType::U32)
+        }
+        #[test]
+        fn i8() -> Result<()> {
+            test_functions::fold_test(Device::CPU, DType::I8)
+        }
+        #[test]
+        fn i32() -> Result<()> {
+            test_functions::fold_test(Device::CPU, DType::I32)
+        }
+        #[test]
+        fn i64() -> Result<()> {
+            test_functions::fold_test(Device::CPU, DType::I64)
+        }
+    }
+
+    #[cfg(feature = "cuda")]
+    mod cuda {
+        use super::*;
+
+        #[test]
+        fn bf16() -> Result<()> {
+            test_functions::fold_test(Device::CUDA(0), DType::BF16)
+        }
+        #[test]
+        fn f16() -> Result<()> {
+            test_functions::fold_test(Device::CUDA(0), DType::F16)
+        }
+        #[test]
+        fn f32() -> Result<()> {
+            test_functions::fold_test(Device::CUDA(0), DType::F32)
+        }
+        #[test]
+        fn f64() -> Result<()> {
+            test_functions::fold_test(Device::CUDA(0), DType::F64)
+        }
+        #[test]
+        fn u8() -> Result<()> {
+            test_functions::fold_test(Device::CUDA(0), DType::U8)
+        }
+        #[test]
+        fn u32() -> Result<()> {
+            test_functions::fold_test(Device::CUDA(0), DType::U32)
+        }
+        #[test]
+        fn i8() -> Result<()> {
+            test_functions::fold_test(Device::CUDA(0), DType::I8)
+        }
+        #[test]
+        fn i32() -> Result<()> {
+            test_functions::fold_test(Device::CUDA(0), DType::I32)
+        }
+        #[test]
+        fn i64() -> Result<()> {
+            test_functions::fold_test(Device::CUDA(0), DType::I64)
         }
     }
 }

@@ -2,13 +2,11 @@ use crate::Tensor;
 use maidenx_core::{
     dtype::DType,
     error::{Error, Result},
-    scalar::Scalar,
 };
 
 impl Tensor {
     pub fn to_flatten_vec<T: Default + Clone + 'static>(&self) -> Result<Vec<T>> {
         let target_dtype = get_dtype_for_type::<T>().ok_or_else(|| Error::InvalidArgument("Unsupported type".into()))?;
-
         let tensor = if self.dtype() != target_dtype {
             self.to_dtype(target_dtype)?
         } else {
@@ -21,34 +19,40 @@ impl Tensor {
         let offset = tensor.offset();
         let elem_size = tensor.dtype().size_in_bytes();
 
-        // Get raw data from buffer
-        let mut raw_data = vec![0u8; (size + offset) * elem_size];
+        let max_offset = calculate_max_offset(shape, strides, offset);
+        let buffer_size = (max_offset + 1) * elem_size;
+
+        let mut raw_data = vec![0u8; buffer_size];
+
         unsafe {
-            tensor
-                .buffer()
-                .copy_to_host(raw_data.as_mut_ptr() as *mut std::ffi::c_void, raw_data.len())?;
+            let buffer = tensor.buffer();
+            let available_size = buffer.len() * elem_size;
+
+            let copy_size = std::cmp::min(buffer_size, available_size);
+
+            tensor.buffer().copy_to_host(raw_data.as_mut_ptr() as *mut std::ffi::c_void, copy_size)?;
         }
 
         let mut result = vec![T::default(); size];
         let mut indices = vec![0; shape.len()];
         let mut dst_idx = 0;
 
-        // Helper function to calculate source offset using strides
         let calc_src_offset = |indices: &[usize], strides: &[usize], offset: usize| -> usize {
             offset + indices.iter().zip(strides.iter()).map(|(&idx, &stride)| idx * stride).sum::<usize>()
         };
 
         loop {
-            // Calculate source offset using strides, including the base offset
             let src_offset = calc_src_offset(&indices, strides, offset);
 
-            // Copy element from source to destination
-            unsafe {
-                std::ptr::copy_nonoverlapping(
-                    raw_data.as_ptr().add(src_offset * elem_size),
-                    (result.as_mut_ptr() as *mut u8).add(dst_idx * elem_size),
-                    elem_size,
-                );
+            if src_offset * elem_size < raw_data.len() {
+                // Copy element from source to destination
+                unsafe {
+                    std::ptr::copy_nonoverlapping(
+                        raw_data.as_ptr().add(src_offset * elem_size),
+                        (result.as_mut_ptr() as *mut u8).add(dst_idx * elem_size),
+                        elem_size,
+                    );
+                }
             }
 
             dst_idx += 1;
@@ -69,87 +73,19 @@ impl Tensor {
             }
         }
     }
+}
 
-    pub fn item_at_flat_index(&self, index: usize) -> Result<Scalar> {
-        if index >= self.size() {
-            return Err(Error::IndexOutOfBounds { index, size: self.size() });
-        }
+fn calculate_max_offset(shape: &[usize], strides: &[usize], base_offset: usize) -> usize {
+    let mut max_offset = base_offset;
 
-        let indices = self.flat_index_to_indices(index)?;
-        let buffer_index = self.indices_to_buffer_index(&indices)?;
-
-        unsafe {
-            let buffer = self.buffer();
-            let ptr = (buffer.as_ptr() as *const u8).add(buffer_index * self.dtype().size_in_bytes());
-            Ok(self.dtype().read_scalar(ptr))
+    for (i, &dim_size) in shape.iter().enumerate() {
+        if dim_size > 0 {
+            let max_idx = dim_size - 1;
+            max_offset += max_idx * strides[i];
         }
     }
 
-    pub fn set_flat_index(&mut self, index: usize, value: impl Into<Scalar>) -> Result<()> {
-        if index >= self.size() {
-            return Err(Error::IndexOutOfBounds { index, size: self.size() });
-        }
-
-        let scalar_value = value.into();
-
-        let indices = self.flat_index_to_indices(index)?;
-        let buffer_index = self.indices_to_buffer_index(&indices)?;
-        let dtype = self.dtype();
-
-        unsafe {
-            self.with_buffer_mut(|buf| {
-                let ptr = (buf.as_mut_ptr() as *mut u8).add(buffer_index * dtype.size_in_bytes());
-                dtype.write_scalar(ptr, scalar_value);
-                Ok(())
-            })?
-        }
-
-        Ok(())
-    }
-
-    // helper
-
-    fn indices_to_buffer_index(&self, indices: &[usize]) -> Result<usize> {
-        if indices.len() != self.ndim() {
-            return Err(Error::InvalidShape {
-                message: format!("Expected {} indices, got {}", self.ndim(), indices.len()),
-            });
-        }
-
-        let mut buffer_idx = self.offset();
-
-        for (dim, &idx) in indices.iter().enumerate() {
-            if idx >= self.shape()[dim] {
-                return Err(Error::IndexOutOfBounds {
-                    index: idx,
-                    size: self.shape()[dim],
-                });
-            }
-            buffer_idx += idx * self.strides()[dim];
-        }
-
-        Ok(buffer_idx)
-    }
-
-    fn flat_index_to_indices(&self, flat_index: usize) -> Result<Vec<usize>> {
-        if flat_index >= self.size() {
-            return Err(Error::IndexOutOfBounds {
-                index: flat_index,
-                size: self.size(),
-            });
-        }
-
-        let mut indices = vec![0; self.ndim()];
-        let mut remaining = flat_index;
-
-        for i in (0..self.ndim()).rev() {
-            let dim_size = self.shape()[i];
-            indices[i] = remaining % dim_size;
-            remaining /= dim_size;
-        }
-
-        Ok(indices)
-    }
+    max_offset
 }
 
 fn get_dtype_for_type<T: 'static>() -> Option<DType> {
@@ -177,4 +113,3 @@ fn get_dtype_for_type<T: 'static>() -> Option<DType> {
         None
     }
 }
-

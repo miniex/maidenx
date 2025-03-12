@@ -80,12 +80,21 @@ impl Tensor {
     pub fn from_tensor(target: &Tensor) -> Result<Self> {
         let mut result = Self::empty_with_spec(target.shape(), target.device(), target.dtype())?;
 
-        unsafe {
-            result.with_buffer_mut(|buf| {
-                buf.copy_from(target.buffer())?;
-
-                Ok(())
-            })?;
+        if target.is_contiguous() {
+            unsafe {
+                result.with_buffer_mut(|buf| {
+                    buf.copy_from(target.buffer())?;
+                    Ok(())
+                })?;
+            }
+        } else {
+            let contiguous_target = target.contiguous()?;
+            unsafe {
+                result.with_buffer_mut(|buf| {
+                    buf.copy_from(contiguous_target.buffer())?;
+                    Ok(())
+                })?;
+            }
         }
 
         Ok(result)
@@ -96,6 +105,10 @@ impl Tensor {
         let dtype = get_default_dtype();
 
         Self::empty_with_spec(shape, device, dtype)
+    }
+
+    pub fn empty_like(src: &Tensor) -> Result<Self> {
+        Self::empty_with_spec(src.layout().shape(), src.device(), src.dtype())
     }
 
     pub fn empty_with_spec(shape: &[usize], device: Device, dtype: DType) -> Result<Self> {

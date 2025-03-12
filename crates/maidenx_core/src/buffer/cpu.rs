@@ -67,10 +67,14 @@ impl Buffer for CpuBuffer {
     }
 
     unsafe fn copy_to_host(&self, dest: *mut c_void, size_in_bytes: usize) -> Result<()> {
-        if size_in_bytes != self.data.len() {
-            return Err(Error::InvalidArgument("Size mismatch in copy_to_host".into()));
+        if size_in_bytes > self.data.len() {
+            return Err(Error::InvalidArgument(format!(
+                "Size mismatch in copy_to_host: requested {}, available {}",
+                size_in_bytes,
+                self.data.len()
+            )));
         }
-        ptr::copy_nonoverlapping(self.data.as_ptr(), dest as *mut u8, self.data.len());
+        ptr::copy_nonoverlapping(self.data.as_ptr(), dest as *mut u8, size_in_bytes);
         Ok(())
     }
 }

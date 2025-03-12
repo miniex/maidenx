@@ -150,6 +150,107 @@ impl Tensor {
         Ok(result)
     }
 
+    pub fn slice(&self, dim: impl Into<Scalar>, start: impl Into<Scalar>, end: Option<impl Into<Scalar>>, step: impl Into<Scalar>) -> Result<Self> {
+        let dim_i32 = dim.into().as_i32();
+        let start_i32 = start.into().as_i32();
+        let end_i32 = end.map(|e| e.into().as_i32());
+        let step_i32 = step.into().as_i32();
+
+        let dim: usize = if dim_i32 < 0 {
+            (self.ndim() as i32 + dim_i32) as usize
+        } else {
+            dim_i32 as usize
+        };
+
+        let new_layout = self
+            .layout()
+            .slice(dim, start_i32 as isize, end_i32.map(|e| e as isize), step_i32 as isize)?;
+        let mut result = Self::from_tensor(self)?;
+        *result.layout_mut() = new_layout;
+
+        if self.requires_grad() {
+            result.with_grad()?;
+
+            let orig_shape = self.shape().to_vec();
+            let orig_dim = dim;
+            let orig_start = start_i32;
+            let orig_end = end_i32;
+            let orig_step = step_i32;
+
+            let backward_fn = Box::new(move |inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> {
+                let input = &inputs[0];
+                let mut grad_input = Tensor::zeros_with_spec(&orig_shape, input.device(), input.dtype())?;
+
+                let actual_end = orig_end.unwrap_or(input.size_dim(orig_dim).unwrap_or(0) as i32);
+
+                let mut i = 0;
+                for idx in (orig_start..actual_end).step_by(orig_step as usize) {
+                    if idx < 0 || idx >= input.size_dim(orig_dim).unwrap_or(0) as i32 {
+                        continue;
+                    }
+
+                    let idx_usize = idx as usize;
+                    let grad_slice = grad_out.slice(orig_dim, i, Some(i + 1), 1)?;
+
+                    for idx_tuple in grad_slice.index_iter()? {
+                        let mut indices = idx_tuple.to_vec();
+                        indices[orig_dim] = idx_usize;
+
+                        let value = grad_slice.get(&idx_tuple)?;
+                        crate::utils::indexing::add_at_index(&mut grad_input, &indices, value)?;
+                    }
+
+                    i += 1;
+                }
+
+                Ok(vec![grad_input])
+            });
+
+            let node = TensorNode::new("slice".to_string(), vec![self.clone()], Some(backward_fn));
+            result.node = Some(node);
+        }
+        Ok(result)
+    }
+
+    pub fn unfold(&self, dim: impl Into<Scalar>, size: impl Into<Scalar>, step: impl Into<Scalar>) -> Result<Self> {
+        let dim_i32 = dim.into().as_i32();
+        let size_i32 = size.into().as_i32();
+        let step_i32 = step.into().as_i32();
+
+        let dim: usize = if dim_i32 < 0 {
+            (self.ndim() as i32 + dim_i32) as usize
+        } else {
+            dim_i32 as usize
+        };
+
+        let new_layout = self.layout().unfold(dim, size_i32 as usize, step_i32 as usize)?;
+        let mut result = Self::from_tensor(self)?;
+        *result.layout_mut() = new_layout;
+
+        if self.requires_grad() {
+            result.with_grad()?;
+
+            let orig_shape = self.shape().to_vec();
+            let orig_dim = dim;
+            let orig_size = size_i32 as usize;
+            let orig_step = step_i32 as usize;
+
+            let backward_fn = Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> {
+                let grad_input = grad_out.fold(orig_dim, orig_size, orig_step)?;
+
+                if grad_input.shape() != orig_shape {
+                    return Ok(vec![grad_input.view(&orig_shape)?]);
+                }
+
+                Ok(vec![grad_input])
+            });
+            let node = TensorNode::new("unfold".to_string(), vec![self.clone()], Some(backward_fn));
+            result.node = Some(node);
+        }
+
+        Ok(result)
+    }
+
     // ==== reshape ops ====
 
     pub fn reshape<T: Into<Scalar> + Clone>(&self, shape: &[T]) -> Result<Self> {

@@ -44,46 +44,46 @@ declare_extern_reduction_ops! {
     BF16 => {
         type: bf16,
         standard_ops: [sum, mean],
-        shape_ops: [sum_to_shape]
+        shape_ops: [sum_to_shape, fold]
     },
     F16 => {
         type: f16,
         standard_ops: [sum, mean],
-        shape_ops: [sum_to_shape]
+        shape_ops: [sum_to_shape, fold]
     },
     F32 => {
         type: f32,
         standard_ops: [sum, mean],
-        shape_ops: [sum_to_shape]
+        shape_ops: [sum_to_shape, fold]
     },
     F64 => {
         type: f64,
         standard_ops: [sum, mean],
-        shape_ops: [sum_to_shape]
+        shape_ops: [sum_to_shape, fold]
     },
     U8 => {
         type: u8,
         standard_ops: [sum],
-        shape_ops: [sum_to_shape]
+        shape_ops: [sum_to_shape, fold]
     },
     U32 => {
         type: u32,
         standard_ops: [sum],
-        shape_ops: [sum_to_shape]
+        shape_ops: [sum_to_shape, fold]
     },
     I8 => {
         type: i8,
         standard_ops: [sum],
-        shape_ops: [sum_to_shape]
+        shape_ops: [sum_to_shape, fold]
     },
     I32 => {
         type: i32,
         standard_ops: [sum],
-        shape_ops: [sum_to_shape]
+        shape_ops: [sum_to_shape, fold]
     },
     I64 => {
         type: i64,
         standard_ops: [sum],
-        shape_ops: [sum_to_shape]
+        shape_ops: [sum_to_shape, fold]
     }
 }

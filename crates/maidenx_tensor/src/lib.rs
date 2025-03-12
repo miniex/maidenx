@@ -2,11 +2,13 @@ pub mod adapter;
 mod creation;
 mod d;
 mod f;
+mod iterator;
 mod ops;
 pub mod utils;
 mod vec;
 mod wt;
 
+use iterator::TensorIterator;
 #[cfg(feature = "cuda")]
 use maidenx_core::buffer::cuda::CudaBuffer;
 use maidenx_core::{
@@ -15,6 +17,7 @@ use maidenx_core::{
     dtype::DType,
     error::{Error, Result},
     layout::Layout,
+    scalar::Scalar,
 };
 use std::sync::{Arc, Mutex};
 
@@ -225,6 +228,42 @@ impl Tensor {
         }
 
         Ok(())
+    }
+
+    // utils
+
+    pub fn get(&self, indices: &[usize]) -> Result<Scalar> {
+        utils::indexing::get_index(self, indices)
+    }
+
+    pub fn set(&mut self, indices: &[usize], data: impl Into<Scalar>) -> Result<()> {
+        utils::indexing::set_index(self, indices, data)
+    }
+
+    pub fn select(&self, dim: impl Into<Scalar>, index: impl Into<Scalar>) -> Result<Self> {
+        utils::indexing::select_dim(self, dim, index)
+    }
+
+    pub fn item(&self) -> Result<Scalar> {
+        if self.size() != 1 {
+            return Err(Error::InvalidArgument(format!(
+                "item() can only be called on a tensor with a single element, but got tensor with {} elements",
+                self.size()
+            )));
+        }
+
+        let indices = vec![0; self.ndim()];
+        crate::utils::indexing::get_index(self, &indices)
+    }
+
+    // iterator
+
+    pub fn index_iter(&self) -> Result<TensorIterator> {
+        Ok(TensorIterator {
+            shape: self.shape().to_vec(),
+            current: vec![0; self.ndim()],
+            done: self.ndim() == 0,
+        })
     }
 
     // etc

@@ -182,3 +182,4 @@ macro_rules! declare_reduction_op {
 declare_reduction_op!(sum: standard, [BF16, F16, F32, F64, U8, U32, I8, I32, I64]);
 declare_reduction_op!(sum_to_shape: shape, [BF16, F16, F32, F64, U8, U32, I8, I32, I64]);
 declare_reduction_op!(mean: standard, [BF16, F16, F32, F64]);
+declare_reduction_op!(fold: shape, [BF16, F16, F32, F64, U8, U32, I8, I32, I64]);

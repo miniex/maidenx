@@ -173,6 +173,90 @@ impl Tensor {
 
         Ok(result)
     }
+
+    pub fn fold(&self, dim: impl Into<Scalar>, size: impl Into<Scalar>, step: impl Into<Scalar>) -> Result<Tensor> {
+        let dim_i32 = dim.into().as_i32();
+        let size_i32 = size.into().as_i32();
+        let step_i32 = step.into().as_i32();
+
+        let dim: usize = if dim_i32 < 0 {
+            (self.ndim() as i32 + dim_i32) as usize
+        } else {
+            dim_i32 as usize
+        };
+
+        if dim >= self.ndim() - 1 {
+            return Err(Error::DimensionOutOfBounds {
+                dim: dim as i32,
+                ndim: self.ndim(),
+            });
+        }
+
+        let window_dim = dim + 1;
+        let window_size = self.shape()[window_dim];
+        if size_i32 as usize != 0 && size_i32 as usize != window_size {
+            return Err(Error::InvalidArgument(format!(
+                "Size mismatch: window size is {}, but requested size is {}",
+                window_size, size_i32
+            )));
+        }
+
+        let n_windows = self.shape()[dim];
+        let orig_dim_size = (n_windows - 1) * (step_i32 as usize) + window_size;
+
+        let mut output_shape = Vec::with_capacity(self.ndim() - 1);
+        for d in 0..self.ndim() {
+            if d == dim {
+                output_shape.push(orig_dim_size);
+            } else if d == window_dim {
+                continue;
+            } else {
+                output_shape.push(self.shape()[d]);
+            }
+        }
+
+        let mut result = Self::zeros_with_spec(&output_shape, self.device(), self.dtype())?;
+
+        let metadata = prepare_metadata_for_fold(self, dim, window_dim, orig_dim_size, step_i32 as usize, window_size);
+
+        unsafe {
+            result.with_buffer_mut(|out_buf| {
+                maidenx_core::be::ops::reduction::fold(out_buf, self.buffer(), self.size(), self.ndim(), Some(&metadata))?;
+                Ok(())
+            })?;
+        }
+
+        if self.requires_grad() {
+            result.with_grad()?;
+
+            let input_shape = self.shape().to_vec();
+            let orig_dim = dim;
+            let orig_size = size_i32 as usize;
+            let orig_step = step_i32 as usize;
+
+            let backward_fn = Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> {
+                let grad_in = grad_out.unfold(orig_dim, orig_size, orig_step)?;
+
+                if grad_in.shape() != input_shape {
+                    let mut adj_grad = Tensor::zeros_with_spec(&input_shape, grad_in.device(), grad_in.dtype())?;
+
+                    for indices in grad_in.index_iter()? {
+                        let value = grad_in.get(&indices)?;
+                        adj_grad.set(&indices, value)?;
+                    }
+
+                    Ok(vec![adj_grad])
+                } else {
+                    Ok(vec![grad_in])
+                }
+            });
+
+            let node = TensorNode::new("fold".to_string(), vec![self.clone()], Some(backward_fn));
+            result.node = Some(node);
+        }
+
+        Ok(result)
+    }
 }
 
 fn prepare_metadata(tensor: &Tensor, dim: usize) -> Vec<usize> {
@@ -195,5 +279,24 @@ fn prepare_metadata_for_shape(tensor: &Tensor, target_shape: &[usize]) -> Vec<us
     info.extend_from_slice(input_strides);
     info.extend_from_slice(target_shape);
     info.push(tensor.offset());
+    info
+}
+
+fn prepare_metadata_for_fold(tensor: &Tensor, fold_dim: usize, window_dim: usize, fold_size: usize, step: usize, window_size: usize) -> Vec<usize> {
+    let mut info = Vec::new();
+    let input_shape = tensor.shape();
+    let input_strides = tensor.strides();
+
+    info.extend_from_slice(input_shape);
+    info.extend_from_slice(input_strides);
+
+    info.push(fold_dim);
+    info.push(window_dim);
+    info.push(fold_size);
+    info.push(step);
+    info.push(window_size);
+
+    info.push(tensor.offset());
+
     info
 }

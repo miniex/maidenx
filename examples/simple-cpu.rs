@@ -3,8 +3,9 @@ use maidenx::prelude::*;
 use std::time::Instant;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    set_default_device(Device::CPU); // Default
-    set_default_dtype(float32); // Default
+    // set_default_device(Device::CPU);
+    // set_default_dtype(float32);
+    // set_default_dtype(DType::F32);
 
     let input_data: Vec<Vec<f32>> = (0..10000)
         .map(|i| vec![(i % 100) as f32 / 100.0, ((i % 100) + 1) as f32 / 100.0, ((i % 100) + 2) as f32 / 100.0])
