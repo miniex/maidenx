@@ -1,6 +1,6 @@
 [package]
 name = "maidenx_cpu"
-version = "0.1.1"
+version = "0.1.0-dev"
 description = "maidenx CPU backend"
 license = "BSD-3-Clause"
 authors = ["Han Damin <miniex@daminstudio.net>"]

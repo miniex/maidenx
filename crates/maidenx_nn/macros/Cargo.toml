@@ -1,6 +1,6 @@
 [package]
 name = "maidenx_nn_macros"
-version = "0.1.1"
+version = "0.1.0-dev"
 description = "maidenx nn macros"
 license = "BSD-3-Clause"
 authors = ["Han Damin <miniex@daminstudio.net>"]
@@ -12,7 +12,7 @@ repository = "https://github.com/miniex/maidenx"
 proc-macro = true
 
 [dependencies]
-maidenx_macro_utils = { path = "../../maidenx_macro_utils", version = "0.1.1" }
+maidenx_macro_utils = { path = "../../maidenx_macro_utils", version = "0.1.0-dev" }
 
 syn = { version = "2.0", features = ["full"] }
 quote = "1.0"

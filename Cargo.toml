@@ -3,7 +3,7 @@ members = ["crates/*", "benches"]
 
 [package]
 name = "maidenx"
-version = "0.1.1"
+version = "0.1.0-dev"
 description = "Rust ML Framework for Maiden Engine"
 license = "BSD-3-Clause"
 authors = ["Han Damin <miniex@daminstudio.net>"]
@@ -25,7 +25,7 @@ default = []
 cuda = ["maidenx_internal/cuda"]
 
 [dependencies]
-maidenx_internal = { path = "crates/maidenx_internal", version = "0.1.1" }
+maidenx_internal = { path = "crates/maidenx_internal", version = "0.1.0-dev" }
 
 [[example]]
 name = "simple-cpu"
