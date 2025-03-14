@@ -3,6 +3,7 @@ mod creation;
 mod d;
 mod f;
 mod iterator;
+mod operators;
 mod ops;
 pub mod utils;
 mod vec;
