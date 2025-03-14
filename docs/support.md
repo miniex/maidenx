@@ -100,6 +100,11 @@ Blank: Upcoming support
 |            | `reshape`          | ✓ | ✓ | ✓ |
 |            | `broadcast`        | ✓ | ✓ | ✓ |
 |            | `broadcast_left`   | ✓ | ✓ | ✓ |
+| **Padding Operations** |
+|            | `pad`                  | ✓ | ✓ | ✓ |
+|            | `pad_with_constant`    | ✓ | ✓ | ✓ |
+|            | `pad_with_reflection`  | ✓ | ✓ | ✓ |
+|            | `pad_with_replication` | ✓ | ✓ | ✓ |
 
 
 <br/>
