@@ -143,6 +143,15 @@ UNARY_OP(double, gelu_f64,
          0.5 * x *
              (1.0 + tanh(0.7978845608028654 * (x + 0.044715 * x * x * x))));
 
+UNARY_OP(float, sin_f32, sinf(x));
+UNARY_OP(double, sin_f64, sin(x));
+
+UNARY_OP(float, cos_f32, cosf(x));
+UNARY_OP(double, cos_f64, cos(x));
+
+UNARY_OP(float, tan_f32, tanf(x));
+UNARY_OP(double, tan_f64, tan(x));
+
 UNARY_OP_OUTPUT(float, bool, logical_not_f32, x == 0.0f);
 UNARY_OP_OUTPUT(double, bool, logical_not_f64, x == 0.0f);
 UNARY_OP_OUTPUT(bool, bool, logical_not_bool, !x);
@@ -171,6 +180,9 @@ UNARY_OP(__half, gelu_f16,
                                            0.044715f * __half2float(x) *
                                                __half2float(x) *
                                                __half2float(x)))))));
+UNARY_OP(__half, sin_f16, __float2half(sinf(__half2float(x))));
+UNARY_OP(__half, cos_f16, __float2half(cosf(__half2float(x))));
+UNARY_OP(__half, tan_f16, __float2half(tanf(__half2float(x))));
 
 UNARY_OP_OUTPUT(__half, bool, logical_not_f16, x == __half(0.0f));
 
@@ -197,6 +209,12 @@ UNARY_OP(__nv_bfloat16, gelu_bf16,
                                                0.044715f * __bfloat162float(x) *
                                                    __bfloat162float(x) *
                                                    __bfloat162float(x)))))));
+UNARY_OP(__nv_bfloat16, sin_bf16, __float2bfloat16(sinf(__bfloat162float(x))));
+UNARY_OP(__nv_bfloat16, cos_bf16, __float2bfloat16(cosf(__bfloat162float(x))));
+UNARY_OP(__nv_bfloat16, tan_bf16, __float2bfloat16(tanf(__bfloat162float(x))));
+
+UNARY_OP_OUTPUT(__nv_bfloat16, bool, logical_not_bf16,
+                x == __nv_bfloat16(0.0f));
 
 // ==== with constant ====
 
@@ -247,9 +265,6 @@ UNARY_OP_WITH_CONSTANT(float, float, elu_f32,
                        x > 0 ? x : constant * (expf(x) - 1.0f));
 UNARY_OP_WITH_CONSTANT(double, double, elu_f64,
                        x > 0 ? x : constant * (exp(x) - 1.0));
-
-UNARY_OP_OUTPUT(__nv_bfloat16, bool, logical_not_bf16,
-                x == __nv_bfloat16(0.0f));
 
 UNARY_OP_WITH_CONSTANT(float, bool, eq_scalar_f32, x == constant);
 UNARY_OP_WITH_CONSTANT(float, bool, ne_scalar_f32, x != constant);

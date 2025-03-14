@@ -63,6 +63,9 @@ Blank: Upcoming support
 |            | `sigmoid`          | ✓ | ✓ | ✓ |
 |            | `tanh`             | ✓ | ✓ | ✓ |
 |            | `gelu`             | ✓ | ✓ | ✓ |
+|            | `sin`              | ✓ | ✓ | ✓ |
+|            | `cos`              | ✓ | ✓ | ✓ |
+|            | `tan`              | ✓ | ✓ | ✓ |
 | logical operations |
 |            | `logical_not`      | ✗ | ✓ | ✓ |
 | with constant |

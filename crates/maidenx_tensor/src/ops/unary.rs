@@ -240,6 +240,87 @@ impl Tensor {
         Ok(result)
     }
 
+    pub fn sin(&self) -> Result<Tensor> {
+        let target_dtype = if self.dtype().is_int() { DType::F32 } else { self.dtype() };
+
+        let input = promote_tensor(self, target_dtype)?;
+        let mut result = Self::empty_with_spec(input.shape(), input.device(), input.dtype())?;
+
+        unsafe {
+            result.with_buffer_mut(|out_buf| {
+                maidenx_core::be::ops::unary::sin(out_buf, input.buffer(), input.size(), input.ndim(), Some(&prepare_metadata(&input)))?;
+                Ok(())
+            })?;
+        }
+
+        if self.requires_grad() {
+            result.with_grad()?;
+
+            let input = self.clone();
+            let backward_fn =
+                Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> { Ok(vec![grad_out.mul(&input.cos()?)?]) });
+            let node = TensorNode::new("sin".to_string(), vec![self.clone()], Some(backward_fn));
+            result.node = Some(node);
+        }
+
+        Ok(result)
+    }
+
+    pub fn cos(&self) -> Result<Tensor> {
+        let target_dtype = if self.dtype().is_int() { DType::F32 } else { self.dtype() };
+
+        let input = promote_tensor(self, target_dtype)?;
+        let mut result = Self::empty_with_spec(input.shape(), input.device(), input.dtype())?;
+
+        unsafe {
+            result.with_buffer_mut(|out_buf| {
+                maidenx_core::be::ops::unary::cos(out_buf, input.buffer(), input.size(), input.ndim(), Some(&prepare_metadata(&input)))?;
+                Ok(())
+            })?;
+        }
+
+        if self.requires_grad() {
+            result.with_grad()?;
+
+            let input = self.clone();
+            let backward_fn =
+                Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> { Ok(vec![grad_out.mul(&input.sin()?.neg()?)?]) });
+            let node = TensorNode::new("cos".to_string(), vec![self.clone()], Some(backward_fn));
+            result.node = Some(node);
+        }
+
+        Ok(result)
+    }
+
+    pub fn tan(&self) -> Result<Tensor> {
+        let target_dtype = if self.dtype().is_int() { DType::F32 } else { self.dtype() };
+
+        let input = promote_tensor(self, target_dtype)?;
+        let mut result = Self::empty_with_spec(input.shape(), input.device(), input.dtype())?;
+
+        unsafe {
+            result.with_buffer_mut(|out_buf| {
+                maidenx_core::be::ops::unary::tan(out_buf, input.buffer(), input.size(), input.ndim(), Some(&prepare_metadata(&input)))?;
+                Ok(())
+            })?;
+        }
+
+        if self.requires_grad() {
+            result.with_grad()?;
+
+            let input = self.clone();
+            let backward_fn = Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> {
+                let cos_x = input.cos()?;
+                let sec_squared = cos_x.mul(&cos_x)?.pow(-1.0)?;
+                Ok(vec![grad_out.mul(&sec_squared)?])
+            });
+            let node = TensorNode::new("tan".to_string(), vec![self.clone()], Some(backward_fn));
+            result.node = Some(node);
+        }
+
+        Ok(result)
+    }
+
     // Comparison
 
     pub fn logical_not(&self) -> Result<Tensor> {

@@ -279,6 +279,124 @@ mod test_functions {
         Ok(())
     }
 
+    pub fn sin_test(device: Device, dtype: DType) -> Result<()> {
+        let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), device, dtype)?;
+
+        let result = x.sin()?;
+        result.backward()?;
+
+        let expected_output = [(-1.0f32).sin(), 0.0f32.sin(), 2.0f32.sin(), (-3.0f32).sin()];
+
+        let result_vec = result.to_flatten_vec::<f32>()?;
+        for (a, b) in result_vec.iter().zip(expected_output.iter()) {
+            let tolerance = match dtype {
+                DType::BF16 | DType::F16 => 1e-2,
+                _ => 1e-5,
+            };
+            assert!((a - b).abs() < tolerance, "Values differ: {} vs {} (tolerance: {})", a, b, tolerance);
+        }
+
+        if let Some(g) = x.grad()? {
+            let grad_vec = g.to_flatten_vec::<f32>()?;
+            for (i, &x_val) in TEST_DATA_F32.iter().enumerate() {
+                let expected_grad = x_val.cos();
+                let tolerance = match dtype {
+                    DType::BF16 | DType::F16 => 1e-2,
+                    _ => 1e-5,
+                };
+                assert!(
+                    (grad_vec[i] - expected_grad).abs() < tolerance,
+                    "Gradients differ at index {}: {} vs {} (tolerance: {})",
+                    i,
+                    grad_vec[i],
+                    expected_grad,
+                    tolerance
+                );
+            }
+        }
+
+        Ok(())
+    }
+
+    pub fn cos_test(device: Device, dtype: DType) -> Result<()> {
+        let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), device, dtype)?;
+
+        let result = x.cos()?;
+        result.backward()?;
+
+        let expected_output = [(-1.0f32).cos(), 0.0f32.cos(), 2.0f32.cos(), (-3.0f32).cos()];
+
+        let result_vec = result.to_flatten_vec::<f32>()?;
+        for (a, b) in result_vec.iter().zip(expected_output.iter()) {
+            let tolerance = match dtype {
+                DType::BF16 | DType::F16 => 1e-2,
+                _ => 1e-5,
+            };
+            assert!((a - b).abs() < tolerance, "Values differ: {} vs {} (tolerance: {})", a, b, tolerance);
+        }
+
+        if let Some(g) = x.grad()? {
+            let grad_vec = g.to_flatten_vec::<f32>()?;
+            for (i, &x_val) in TEST_DATA_F32.iter().enumerate() {
+                let expected_grad = -x_val.sin();
+                let tolerance = match dtype {
+                    DType::BF16 | DType::F16 => 1e-2,
+                    _ => 1e-5,
+                };
+                assert!(
+                    (grad_vec[i] - expected_grad).abs() < tolerance,
+                    "Gradients differ at index {}: {} vs {} (tolerance: {})",
+                    i,
+                    grad_vec[i],
+                    expected_grad,
+                    tolerance
+                );
+            }
+        }
+
+        Ok(())
+    }
+
+    pub fn tan_test(device: Device, dtype: DType) -> Result<()> {
+        let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), device, dtype)?;
+
+        let result = x.tan()?;
+        result.backward()?;
+
+        let expected_output = [(-1.0f32).tan(), 0.0f32.tan(), 2.0f32.tan(), (-3.0f32).tan()];
+
+        let result_vec = result.to_flatten_vec::<f32>()?;
+        for (a, b) in result_vec.iter().zip(expected_output.iter()) {
+            let tolerance = match dtype {
+                DType::BF16 | DType::F16 => 1e-2,
+                _ => 1e-5,
+            };
+            assert!((a - b).abs() < tolerance, "Values differ: {} vs {} (tolerance: {})", a, b, tolerance);
+        }
+
+        if let Some(g) = x.grad()? {
+            let grad_vec = g.to_flatten_vec::<f32>()?;
+            for (i, &x_val) in TEST_DATA_F32.iter().enumerate() {
+                let cos_x = x_val.cos();
+                let expected_grad = 1.0 / (cos_x * cos_x);
+                let tolerance = match dtype {
+                    DType::BF16 | DType::F16 => 5e-2,
+                    _ => 1e-4,
+                };
+                assert!(
+                    (grad_vec[i] - expected_grad).abs() < tolerance || (grad_vec[i].is_infinite() && expected_grad.is_infinite()),
+                    "Gradients differ at index {}: {} vs {} (tolerance: {})",
+                    i,
+                    grad_vec[i],
+                    expected_grad,
+                    tolerance
+                );
+            }
+        }
+
+        Ok(())
+    }
+
     pub fn logical_not_test(device: Device, dtype: DType) -> Result<()> {
         let test_data = vec![1, 0, 1, 0];
         let x = setup_tensor(test_data, device, dtype)?;
@@ -1110,6 +1228,150 @@ mod gelu {
         #[test]
         fn f64() -> Result<()> {
             test_functions::gelu_test(Device::CUDA(0), DType::F64)
+        }
+    }
+}
+
+// sin operation tests
+mod sin {
+    use super::*;
+
+    mod cpu {
+        use super::*;
+
+        #[test]
+        fn bf16() -> Result<()> {
+            test_functions::sin_test(Device::CPU, DType::BF16)
+        }
+        #[test]
+        fn f16() -> Result<()> {
+            test_functions::sin_test(Device::CPU, DType::F16)
+        }
+        #[test]
+        fn f32() -> Result<()> {
+            test_functions::sin_test(Device::CPU, DType::F32)
+        }
+        #[test]
+        fn f64() -> Result<()> {
+            test_functions::sin_test(Device::CPU, DType::F64)
+        }
+    }
+
+    #[cfg(feature = "cuda")]
+    mod cuda {
+        use super::*;
+
+        #[test]
+        fn bf16() -> Result<()> {
+            test_functions::sin_test(Device::CUDA(0), DType::BF16)
+        }
+        #[test]
+        fn f16() -> Result<()> {
+            test_functions::sin_test(Device::CUDA(0), DType::F16)
+        }
+        #[test]
+        fn f32() -> Result<()> {
+            test_functions::sin_test(Device::CUDA(0), DType::F32)
+        }
+        #[test]
+        fn f64() -> Result<()> {
+            test_functions::sin_test(Device::CUDA(0), DType::F64)
+        }
+    }
+}
+
+// cos operation tests
+mod cos {
+    use super::*;
+
+    mod cpu {
+        use super::*;
+
+        #[test]
+        fn bf16() -> Result<()> {
+            test_functions::cos_test(Device::CPU, DType::BF16)
+        }
+        #[test]
+        fn f16() -> Result<()> {
+            test_functions::cos_test(Device::CPU, DType::F16)
+        }
+        #[test]
+        fn f32() -> Result<()> {
+            test_functions::cos_test(Device::CPU, DType::F32)
+        }
+        #[test]
+        fn f64() -> Result<()> {
+            test_functions::cos_test(Device::CPU, DType::F64)
+        }
+    }
+
+    #[cfg(feature = "cuda")]
+    mod cuda {
+        use super::*;
+
+        #[test]
+        fn bf16() -> Result<()> {
+            test_functions::cos_test(Device::CUDA(0), DType::BF16)
+        }
+        #[test]
+        fn f16() -> Result<()> {
+            test_functions::cos_test(Device::CUDA(0), DType::F16)
+        }
+        #[test]
+        fn f32() -> Result<()> {
+            test_functions::cos_test(Device::CUDA(0), DType::F32)
+        }
+        #[test]
+        fn f64() -> Result<()> {
+            test_functions::cos_test(Device::CUDA(0), DType::F64)
+        }
+    }
+}
+
+// tan operation tests
+mod tan {
+    use super::*;
+
+    mod cpu {
+        use super::*;
+
+        #[test]
+        fn bf16() -> Result<()> {
+            test_functions::tan_test(Device::CPU, DType::BF16)
+        }
+        #[test]
+        fn f16() -> Result<()> {
+            test_functions::tan_test(Device::CPU, DType::F16)
+        }
+        #[test]
+        fn f32() -> Result<()> {
+            test_functions::tan_test(Device::CPU, DType::F32)
+        }
+        #[test]
+        fn f64() -> Result<()> {
+            test_functions::tan_test(Device::CPU, DType::F64)
+        }
+    }
+
+    #[cfg(feature = "cuda")]
+    mod cuda {
+        use super::*;
+
+        #[test]
+        fn bf16() -> Result<()> {
+            test_functions::tan_test(Device::CUDA(0), DType::BF16)
+        }
+        #[test]
+        fn f16() -> Result<()> {
+            test_functions::tan_test(Device::CUDA(0), DType::F16)
+        }
+        #[test]
+        fn f32() -> Result<()> {
+            test_functions::tan_test(Device::CUDA(0), DType::F32)
+        }
+        #[test]
+        fn f64() -> Result<()> {
+            test_functions::tan_test(Device::CUDA(0), DType::F64)
         }
     }
 }

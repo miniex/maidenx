@@ -353,6 +353,24 @@ unary_op!(gelu_bf16, bf16, |x: bf16| {
     bf16::from_f32(0.5 * x_f32 * (1.0 + tanh_arg.tanh()))
 });
 
+unary_op!(sin_f32, f32, |x: f32| x.sin());
+unary_op!(sin_f64, f64, |x: f64| x.sin());
+unary_op!(sin_bool, bool, |x: bool| x);
+unary_op!(sin_f16, f16, |x: f16| f16::from_f32(x.to_f32().sin()));
+unary_op!(sin_bf16, bf16, |x: bf16| bf16::from_f32(x.to_f32().sin()));
+
+unary_op!(cos_f32, f32, |x: f32| x.cos());
+unary_op!(cos_f64, f64, |x: f64| x.cos());
+unary_op!(cos_bool, bool, |x: bool| x);
+unary_op!(cos_f16, f16, |x: f16| f16::from_f32(x.to_f32().cos()));
+unary_op!(cos_bf16, bf16, |x: bf16| bf16::from_f32(x.to_f32().cos()));
+
+unary_op!(tan_f32, f32, |x: f32| x.tan());
+unary_op!(tan_f64, f64, |x: f64| x.tan());
+unary_op!(tan_bool, bool, |x: bool| x);
+unary_op!(tan_f16, f16, |x: f16| f16::from_f32(x.to_f32().tan()));
+unary_op!(tan_bf16, bf16, |x: bf16| bf16::from_f32(x.to_f32().tan()));
+
 unary_op_output!(logical_not_f32, f32, bool, |x: f32| x == 0.0);
 unary_op_output!(logical_not_f64, f64, bool, |x: f64| x == 0.0);
 unary_op_output!(logical_not_bool, bool, bool, |x: bool| !x);
