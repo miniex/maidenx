@@ -360,6 +360,13 @@ declare_unary_op!(gelu: standard, [BF16, F16, F32, F64]);
 declare_unary_op!(sin: standard, [BF16, F16, F32, F64]);
 declare_unary_op!(cos: standard, [BF16, F16, F32, F64]);
 declare_unary_op!(tan: standard, [BF16, F16, F32, F64]);
+declare_unary_op!(ln: standard, [BF16, F16, F32, F64]);
+declare_unary_op!(log10: standard, [BF16, F16, F32, F64]);
+declare_unary_op!(log2: standard, [BF16, F16, F32, F64]);
+declare_unary_op!(exp: standard, [BF16, F16, F32, F64]);
+declare_unary_op!(exp10: standard, [BF16, F16, F32, F64]);
+declare_unary_op!(exp2: standard, [BF16, F16, F32, F64]);
+declare_unary_op!(softplus: standard, [BF16, F16, F32, F64]);
 declare_unary_op!(logical_not: to_bool, [BF16, F16, F32, F64, BOOL, U8, U32, I8, I32, I64]);
 
 // Operations with constant

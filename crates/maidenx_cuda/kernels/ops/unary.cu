@@ -152,6 +152,27 @@ UNARY_OP(double, cos_f64, cos(x));
 UNARY_OP(float, tan_f32, tanf(x));
 UNARY_OP(double, tan_f64, tan(x));
 
+UNARY_OP(float, ln_f32, logf(x));
+UNARY_OP(double, ln_f64, log(x));
+
+UNARY_OP(float, log10_f32, log10f(x));
+UNARY_OP(double, log10_f64, log10(x));
+
+UNARY_OP(float, log2_f32, log2f(x));
+UNARY_OP(double, log2_f64, log2(x));
+
+UNARY_OP(float, exp_f32, expf(x));
+UNARY_OP(double, exp_f64, exp(x));
+
+UNARY_OP(float, exp10_f32, exp10f(x));
+UNARY_OP(double, exp10_f64, exp10(x));
+
+UNARY_OP(float, exp2_f32, exp2f(x));
+UNARY_OP(double, exp2_f64, exp2(x));
+
+UNARY_OP(float, softplus_f32, logf(1.0f + expf(x)));
+UNARY_OP(double, softplus_f64, log(1.0 + exp(x)));
+
 UNARY_OP_OUTPUT(float, bool, logical_not_f32, x == 0.0f);
 UNARY_OP_OUTPUT(double, bool, logical_not_f64, x == 0.0f);
 UNARY_OP_OUTPUT(bool, bool, logical_not_bool, !x);
@@ -183,6 +204,14 @@ UNARY_OP(__half, gelu_f16,
 UNARY_OP(__half, sin_f16, __float2half(sinf(__half2float(x))));
 UNARY_OP(__half, cos_f16, __float2half(cosf(__half2float(x))));
 UNARY_OP(__half, tan_f16, __float2half(tanf(__half2float(x))));
+UNARY_OP(__half, ln_f16, __float2half(logf(__half2float(x))));
+UNARY_OP(__half, log10_f16, __float2half(log10f(__half2float(x))));
+UNARY_OP(__half, log2_f16, __float2half(log2f(__half2float(x))));
+UNARY_OP(__half, exp_f16, __float2half(expf(__half2float(x))));
+UNARY_OP(__half, exp10_f16, __float2half(exp10f(__half2float(x))));
+UNARY_OP(__half, exp2_f16, __float2half(exp2f(__half2float(x))));
+UNARY_OP(__half, softplus_f16,
+         __float2half(logf(1.0f + expf(__half2float(x)))));
 
 UNARY_OP_OUTPUT(__half, bool, logical_not_f16, x == __half(0.0f));
 
@@ -212,6 +241,18 @@ UNARY_OP(__nv_bfloat16, gelu_bf16,
 UNARY_OP(__nv_bfloat16, sin_bf16, __float2bfloat16(sinf(__bfloat162float(x))));
 UNARY_OP(__nv_bfloat16, cos_bf16, __float2bfloat16(cosf(__bfloat162float(x))));
 UNARY_OP(__nv_bfloat16, tan_bf16, __float2bfloat16(tanf(__bfloat162float(x))));
+UNARY_OP(__nv_bfloat16, ln_bf16, __float2bfloat16(logf(__bfloat162float(x))));
+UNARY_OP(__nv_bfloat16, log10_bf16,
+         __float2bfloat16(log10f(__bfloat162float(x))));
+UNARY_OP(__nv_bfloat16, log2_bf16,
+         __float2bfloat16(log2f(__bfloat162float(x))));
+UNARY_OP(__nv_bfloat16, exp_bf16, __float2bfloat16(expf(__bfloat162float(x))));
+UNARY_OP(__nv_bfloat16, exp10_bf16,
+         __float2bfloat16(exp10f(__bfloat162float(x))));
+UNARY_OP(__nv_bfloat16, exp2_bf16,
+         __float2bfloat16(exp2f(__bfloat162float(x))));
+UNARY_OP(__nv_bfloat16, softplus_bf16,
+         __float2bfloat16(logf(1.0f + expf(__bfloat162float(x)))));
 
 UNARY_OP_OUTPUT(__nv_bfloat16, bool, logical_not_bf16,
                 x == __nv_bfloat16(0.0f));

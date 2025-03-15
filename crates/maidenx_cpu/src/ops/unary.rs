@@ -371,6 +371,47 @@ unary_op!(tan_bool, bool, |x: bool| x);
 unary_op!(tan_f16, f16, |x: f16| f16::from_f32(x.to_f32().tan()));
 unary_op!(tan_bf16, bf16, |x: bf16| bf16::from_f32(x.to_f32().tan()));
 
+unary_op!(ln_f32, f32, |x: f32| x.ln());
+unary_op!(ln_f64, f64, |x: f64| x.ln());
+unary_op!(ln_f16, f16, |x: f16| f16::from_f32(x.to_f32().ln()));
+unary_op!(ln_bf16, bf16, |x: bf16| bf16::from_f32(x.to_f32().ln()));
+
+unary_op!(log10_f32, f32, |x: f32| x.log10());
+unary_op!(log10_f64, f64, |x: f64| x.log10());
+unary_op!(log10_f16, f16, |x: f16| f16::from_f32(x.to_f32().log10()));
+unary_op!(log10_bf16, bf16, |x: bf16| bf16::from_f32(x.to_f32().log10()));
+
+unary_op!(log2_f32, f32, |x: f32| x.log2());
+unary_op!(log2_f64, f64, |x: f64| x.log2());
+unary_op!(log2_f16, f16, |x: f16| f16::from_f32(x.to_f32().log2()));
+unary_op!(log2_bf16, bf16, |x: bf16| bf16::from_f32(x.to_f32().log2()));
+
+unary_op!(exp_f32, f32, |x: f32| x.exp());
+unary_op!(exp_f64, f64, |x: f64| x.exp());
+unary_op!(exp_f16, f16, |x: f16| f16::from_f32(x.to_f32().exp()));
+unary_op!(exp_bf16, bf16, |x: bf16| bf16::from_f32(x.to_f32().exp()));
+
+unary_op!(exp10_f32, f32, |x: f32| 10.0f32.powf(x));
+unary_op!(exp10_f64, f64, |x: f64| 10.0f64.powf(x));
+unary_op!(exp10_f16, f16, |x: f16| f16::from_f32(10.0f32.powf(x.to_f32())));
+unary_op!(exp10_bf16, bf16, |x: bf16| bf16::from_f32(10.0f32.powf(x.to_f32())));
+
+unary_op!(exp2_f32, f32, |x: f32| x.exp2());
+unary_op!(exp2_f64, f64, |x: f64| x.exp2());
+unary_op!(exp2_f16, f16, |x: f16| f16::from_f32(x.to_f32().exp2()));
+unary_op!(exp2_bf16, bf16, |x: bf16| bf16::from_f32(x.to_f32().exp2()));
+
+unary_op!(softplus_f32, f32, |x: f32| (1.0 + x.exp()).ln());
+unary_op!(softplus_f64, f64, |x: f64| (1.0 + x.exp()).ln());
+unary_op!(softplus_f16, f16, |x: f16| {
+    let val = x.to_f32();
+    f16::from_f32((1.0 + val.exp()).ln())
+});
+unary_op!(softplus_bf16, bf16, |x: bf16| {
+    let val = x.to_f32();
+    bf16::from_f32((1.0 + val.exp()).ln())
+});
+
 unary_op_output!(logical_not_f32, f32, bool, |x: f32| x == 0.0);
 unary_op_output!(logical_not_f64, f64, bool, |x: f64| x == 0.0);
 unary_op_output!(logical_not_bool, bool, bool, |x: bool| !x);

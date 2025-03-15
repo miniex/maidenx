@@ -84,19 +84,19 @@ macro_rules! declare_extern_unary_ops_with_constant {
 declare_extern_unary_ops! {
     BF16 => {
         type: bf16,
-        ops: [neg, abs, sign, square, sqrt, relu, sigmoid, tanh, gelu, sin, cos, tan; logical_not]
+        ops: [neg, abs, sign, square, sqrt, relu, sigmoid, tanh, gelu, sin, cos, tan, ln, log10, log2, exp, exp10, exp2, softplus; logical_not]
     },
     F16 => {
         type: f16,
-        ops: [neg, abs, sign, square, sqrt, relu, sigmoid, tanh, gelu, sin, cos, tan; logical_not]
+        ops: [neg, abs, sign, square, sqrt, relu, sigmoid, tanh, gelu, sin, cos, tan, ln, log10, log2, exp, exp10, exp2, softplus; logical_not]
     },
     F32 => {
         type: f32,
-        ops: [neg, abs, sign, square, sqrt, relu, sigmoid, tanh, gelu, sin, cos, tan; logical_not]
+        ops: [neg, abs, sign, square, sqrt, relu, sigmoid, tanh, gelu, sin, cos, tan, ln, log10, log2, exp, exp10, exp2, softplus; logical_not]
     },
     F64 => {
         type: f64,
-        ops: [neg, abs, sign, square, sqrt, relu, sigmoid, tanh, gelu, sin, cos, tan; logical_not]
+        ops: [neg, abs, sign, square, sqrt, relu, sigmoid, tanh, gelu, sin, cos, tan, ln, log10, log2, exp, exp10, exp2, softplus; logical_not]
     },
     BOOL => {
         type: bool,

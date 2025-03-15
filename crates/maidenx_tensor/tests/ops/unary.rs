@@ -397,6 +397,338 @@ mod test_functions {
         Ok(())
     }
 
+    pub fn ln_test(device: Device, dtype: DType) -> Result<()> {
+        let x = setup_grad_tensor(TEST_DATA_U32.to_vec(), device, dtype)?;
+
+        let result = x.ln()?;
+        result.backward()?;
+
+        let expected_output = [0.0, std::f32::consts::LN_2, f32::NEG_INFINITY];
+
+        let result_vec = result.to_flatten_vec::<f32>()?;
+        for (a, b) in result_vec.iter().zip(expected_output.iter()) {
+            let tolerance = match dtype {
+                DType::BF16 | DType::F16 => 1e-2,
+                _ => 1e-5,
+            };
+            assert!(
+                (a - b).abs() < tolerance || (a.is_infinite() && b.is_infinite()),
+                "Values differ: {} vs {} (tolerance: {})",
+                a,
+                b,
+                tolerance
+            );
+        }
+
+        if let Some(g) = x.grad()? {
+            let grad_vec = g.to_flatten_vec::<f32>()?;
+            for (i, &x_val) in TEST_DATA_U32.iter().enumerate() {
+                if x_val == 0 {
+                    assert!(
+                        grad_vec[i].is_infinite(),
+                        "Gradient at index {} for zero value should be negative infinity, got: {}",
+                        i,
+                        grad_vec[i]
+                    );
+                } else {
+                    let expected_grad = 1.0 / x_val as f32;
+                    let tolerance = match dtype {
+                        DType::BF16 | DType::F16 => 1e-2,
+                        _ => 1e-5,
+                    };
+                    assert!(
+                        (grad_vec[i] - expected_grad).abs() < tolerance,
+                        "Gradients differ at index {}: {} vs {} (tolerance: {})",
+                        i,
+                        grad_vec[i],
+                        expected_grad,
+                        tolerance
+                    );
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    pub fn log10_test(device: Device, dtype: DType) -> Result<()> {
+        let x = setup_grad_tensor(TEST_DATA_U32.to_vec(), device, dtype)?;
+
+        let result = x.log10()?;
+        result.backward()?;
+
+        let expected_output = [0.0, std::f32::consts::LOG10_2, f32::NEG_INFINITY];
+
+        let result_vec = result.to_flatten_vec::<f32>()?;
+        for (a, b) in result_vec.iter().zip(expected_output.iter()) {
+            let tolerance = match dtype {
+                DType::BF16 | DType::F16 => 1e-2,
+                _ => 1e-5,
+            };
+            assert!(
+                (a - b).abs() < tolerance || (a.is_infinite() && b.is_infinite()),
+                "Values differ: {} vs {} (tolerance: {})",
+                a,
+                b,
+                tolerance
+            );
+        }
+
+        if let Some(g) = x.grad()? {
+            let grad_vec = g.to_flatten_vec::<f32>()?;
+            for (i, &x_val) in TEST_DATA_U32.iter().enumerate() {
+                if x_val == 0 {
+                    assert!(
+                        grad_vec[i].is_infinite(),
+                        "Gradient at index {} for zero value should be negative infinity, got: {}",
+                        i,
+                        grad_vec[i]
+                    );
+                } else {
+                    let ln10 = std::f32::consts::LN_10; // ln(10)
+                    let expected_grad = 1.0 / (x_val as f32 * ln10);
+                    let tolerance = match dtype {
+                        DType::BF16 | DType::F16 => 1e-2,
+                        _ => 1e-5,
+                    };
+                    assert!(
+                        (grad_vec[i] - expected_grad).abs() < tolerance,
+                        "Gradients differ at index {}: {} vs {} (tolerance: {})",
+                        i,
+                        grad_vec[i],
+                        expected_grad,
+                        tolerance
+                    );
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    pub fn log2_test(device: Device, dtype: DType) -> Result<()> {
+        let x = setup_grad_tensor(TEST_DATA_U32.to_vec(), device, dtype)?;
+
+        let result = x.log2()?;
+        result.backward()?;
+
+        let expected_output = [0.0, 1.0, f32::NEG_INFINITY];
+
+        let result_vec = result.to_flatten_vec::<f32>()?;
+        for (a, b) in result_vec.iter().zip(expected_output.iter()) {
+            let tolerance = match dtype {
+                DType::BF16 | DType::F16 => 1e-2,
+                _ => 1e-5,
+            };
+            assert!(
+                (a - b).abs() < tolerance || (a.is_infinite() && b.is_infinite()),
+                "Values differ: {} vs {} (tolerance: {})",
+                a,
+                b,
+                tolerance
+            );
+        }
+
+        if let Some(g) = x.grad()? {
+            let grad_vec = g.to_flatten_vec::<f32>()?;
+            for (i, &x_val) in TEST_DATA_U32.iter().enumerate() {
+                if x_val == 0 {
+                    assert!(
+                        grad_vec[i].is_infinite(),
+                        "Gradient at index {} for zero value should be negative infinity, got: {}",
+                        i,
+                        grad_vec[i]
+                    );
+                } else {
+                    let ln2 = std::f32::consts::LN_2; // ln(2)
+                    let expected_grad = 1.0 / (x_val as f32 * ln2);
+                    let tolerance = match dtype {
+                        DType::BF16 | DType::F16 => 1e-2,
+                        _ => 1e-5,
+                    };
+                    assert!(
+                        (grad_vec[i] - expected_grad).abs() < tolerance,
+                        "Gradients differ at index {}: {} vs {} (tolerance: {})",
+                        i,
+                        grad_vec[i],
+                        expected_grad,
+                        tolerance
+                    );
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    pub fn exp_test(device: Device, dtype: DType) -> Result<()> {
+        let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), device, dtype)?;
+
+        let result = x.exp()?;
+        result.backward()?;
+
+        let expected_output = [(-1.0f32).exp(), 1.0, 2.0f32.exp(), (-3.0f32).exp()];
+
+        let result_vec = result.to_flatten_vec::<f32>()?;
+        for (a, b) in result_vec.iter().zip(expected_output.iter()) {
+            let tolerance = match dtype {
+                DType::BF16 => 0.05, // bf16는 정밀도가 낮아 더 큰 오차 허용
+                DType::F16 => 0.03,
+                _ => 1e-5,
+            };
+            assert!((a - b).abs() < tolerance, "Values differ: {} vs {} (tolerance: {})", a, b, tolerance);
+        }
+
+        if let Some(g) = x.grad()? {
+            let grad_vec = g.to_flatten_vec::<f32>()?;
+            for (i, &x_val) in TEST_DATA_F32.iter().enumerate() {
+                let expected_grad = x_val.exp();
+                let tolerance = match dtype {
+                    DType::BF16 => 0.5, // bf16는 정밀도가 매우 낮아 더 큰 오차 허용
+                    DType::F16 => 0.05,
+                    _ => 1e-5,
+                };
+                assert!(
+                    (grad_vec[i] - expected_grad).abs() < tolerance,
+                    "Gradients differ at index {}: {} vs {} (tolerance: {})",
+                    i,
+                    grad_vec[i],
+                    expected_grad,
+                    tolerance
+                );
+            }
+        }
+
+        Ok(())
+    }
+
+    pub fn exp10_test(device: Device, dtype: DType) -> Result<()> {
+        let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), device, dtype)?;
+
+        let result = x.exp10()?;
+        result.backward()?;
+
+        let expected_output = [10.0f32.powf(-1.0), 1.0, 10.0f32.powf(2.0), 10.0f32.powf(-3.0)];
+
+        let result_vec = result.to_flatten_vec::<f32>()?;
+        for (a, b) in result_vec.iter().zip(expected_output.iter()) {
+            let tolerance = match dtype {
+                DType::BF16 => 0.1, // bf16 타입은 정밀도가 낮아 더 큰 오차 허용
+                DType::F16 => 0.05,
+                _ => 1e-4,
+            };
+            assert!((a - b).abs() < tolerance, "Values differ: {} vs {} (tolerance: {})", a, b, tolerance);
+        }
+
+        if let Some(g) = x.grad()? {
+            let grad_vec = g.to_flatten_vec::<f32>()?;
+            for (i, &x_val) in TEST_DATA_F32.iter().enumerate() {
+                let ln10 = std::f32::consts::LN_10; // ln(10)
+                let expected_grad = ln10 * 10.0f32.powf(x_val);
+                let tolerance = match dtype {
+                    DType::BF16 => 5.0, // 지수 함수의 그래디언트는 값이 매우 커지므로 오차도 크게 허용
+                    DType::F16 => 1.0,
+                    _ => 1e-4,
+                };
+                assert!(
+                    (grad_vec[i] - expected_grad).abs() < tolerance,
+                    "Gradients differ at index {}: {} vs {} (tolerance: {})",
+                    i,
+                    grad_vec[i],
+                    expected_grad,
+                    tolerance
+                );
+            }
+        }
+
+        Ok(())
+    }
+
+    pub fn exp2_test(device: Device, dtype: DType) -> Result<()> {
+        let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), device, dtype)?;
+
+        let result = x.exp2()?;
+        result.backward()?;
+
+        let expected_output = [2.0f32.powf(-1.0), 1.0, 2.0f32.powf(2.0), 2.0f32.powf(-3.0)];
+
+        let result_vec = result.to_flatten_vec::<f32>()?;
+        for (a, b) in result_vec.iter().zip(expected_output.iter()) {
+            let tolerance = match dtype {
+                DType::BF16 | DType::F16 => 1e-2,
+                _ => 1e-5,
+            };
+            assert!((a - b).abs() < tolerance, "Values differ: {} vs {} (tolerance: {})", a, b, tolerance);
+        }
+
+        if let Some(g) = x.grad()? {
+            let grad_vec = g.to_flatten_vec::<f32>()?;
+            for (i, &x_val) in TEST_DATA_F32.iter().enumerate() {
+                let ln2 = std::f32::consts::LN_2; // ln(2)
+                let expected_grad = ln2 * 2.0f32.powf(x_val);
+                let tolerance = match dtype {
+                    DType::BF16 | DType::F16 => 1e-2,
+                    _ => 1e-5,
+                };
+                assert!(
+                    (grad_vec[i] - expected_grad).abs() < tolerance,
+                    "Gradients differ at index {}: {} vs {} (tolerance: {})",
+                    i,
+                    grad_vec[i],
+                    expected_grad,
+                    tolerance
+                );
+            }
+        }
+
+        Ok(())
+    }
+
+    pub fn softplus_test(device: Device, dtype: DType) -> Result<()> {
+        let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), device, dtype)?;
+
+        let result = x.softplus()?;
+        result.backward()?;
+
+        let expected_output = [
+            (1.0 + (-1.0f32).exp()).ln(),
+            (1.0 + 0.0f32.exp()).ln(),
+            (1.0 + 2.0f32.exp()).ln(),
+            (1.0 + (-3.0f32).exp()).ln(),
+        ];
+
+        let result_vec = result.to_flatten_vec::<f32>()?;
+        for (a, b) in result_vec.iter().zip(expected_output.iter()) {
+            let tolerance = match dtype {
+                DType::BF16 | DType::F16 => 1e-2,
+                _ => 1e-5,
+            };
+            assert!((a - b).abs() < tolerance, "Values differ: {} vs {} (tolerance: {})", a, b, tolerance);
+        }
+
+        if let Some(g) = x.grad()? {
+            let grad_vec = g.to_flatten_vec::<f32>()?;
+            for (i, &x_val) in TEST_DATA_F32.iter().enumerate() {
+                let sigmoid_x = 1.0 / (1.0 + (-x_val).exp());
+                let expected_grad = sigmoid_x;
+                let tolerance = match dtype {
+                    DType::BF16 | DType::F16 => 1e-2,
+                    _ => 1e-5,
+                };
+                assert!(
+                    (grad_vec[i] - expected_grad).abs() < tolerance,
+                    "Gradients differ at index {}: {} vs {} (tolerance: {})",
+                    i,
+                    grad_vec[i],
+                    expected_grad,
+                    tolerance
+                );
+            }
+        }
+
+        Ok(())
+    }
+
     pub fn logical_not_test(device: Device, dtype: DType) -> Result<()> {
         let test_data = vec![1, 0, 1, 0];
         let x = setup_tensor(test_data, device, dtype)?;
@@ -1372,6 +1704,342 @@ mod tan {
         #[test]
         fn f64() -> Result<()> {
             test_functions::tan_test(Device::CUDA(0), DType::F64)
+        }
+    }
+}
+
+// ln operation tests
+mod ln {
+    use super::*;
+
+    mod cpu {
+        use super::*;
+
+        #[test]
+        fn bf16() -> Result<()> {
+            test_functions::ln_test(Device::CPU, DType::BF16)
+        }
+        #[test]
+        fn f16() -> Result<()> {
+            test_functions::ln_test(Device::CPU, DType::F16)
+        }
+        #[test]
+        fn f32() -> Result<()> {
+            test_functions::ln_test(Device::CPU, DType::F32)
+        }
+        #[test]
+        fn f64() -> Result<()> {
+            test_functions::ln_test(Device::CPU, DType::F64)
+        }
+    }
+
+    #[cfg(feature = "cuda")]
+    mod cuda {
+        use super::*;
+
+        #[test]
+        fn bf16() -> Result<()> {
+            test_functions::ln_test(Device::CUDA(0), DType::BF16)
+        }
+        #[test]
+        fn f16() -> Result<()> {
+            test_functions::ln_test(Device::CUDA(0), DType::F16)
+        }
+        #[test]
+        fn f32() -> Result<()> {
+            test_functions::ln_test(Device::CUDA(0), DType::F32)
+        }
+        #[test]
+        fn f64() -> Result<()> {
+            test_functions::ln_test(Device::CUDA(0), DType::F64)
+        }
+    }
+}
+
+// log10 operation tests
+mod log10 {
+    use super::*;
+
+    mod cpu {
+        use super::*;
+
+        #[test]
+        fn bf16() -> Result<()> {
+            test_functions::log10_test(Device::CPU, DType::BF16)
+        }
+        #[test]
+        fn f16() -> Result<()> {
+            test_functions::log10_test(Device::CPU, DType::F16)
+        }
+        #[test]
+        fn f32() -> Result<()> {
+            test_functions::log10_test(Device::CPU, DType::F32)
+        }
+        #[test]
+        fn f64() -> Result<()> {
+            test_functions::log10_test(Device::CPU, DType::F64)
+        }
+    }
+
+    #[cfg(feature = "cuda")]
+    mod cuda {
+        use super::*;
+
+        #[test]
+        fn bf16() -> Result<()> {
+            test_functions::log10_test(Device::CUDA(0), DType::BF16)
+        }
+        #[test]
+        fn f16() -> Result<()> {
+            test_functions::log10_test(Device::CUDA(0), DType::F16)
+        }
+        #[test]
+        fn f32() -> Result<()> {
+            test_functions::log10_test(Device::CUDA(0), DType::F32)
+        }
+        #[test]
+        fn f64() -> Result<()> {
+            test_functions::log10_test(Device::CUDA(0), DType::F64)
+        }
+    }
+}
+
+// log2 operation tests
+mod log2 {
+    use super::*;
+
+    mod cpu {
+        use super::*;
+
+        #[test]
+        fn bf16() -> Result<()> {
+            test_functions::log2_test(Device::CPU, DType::BF16)
+        }
+        #[test]
+        fn f16() -> Result<()> {
+            test_functions::log2_test(Device::CPU, DType::F16)
+        }
+        #[test]
+        fn f32() -> Result<()> {
+            test_functions::log2_test(Device::CPU, DType::F32)
+        }
+        #[test]
+        fn f64() -> Result<()> {
+            test_functions::log2_test(Device::CPU, DType::F64)
+        }
+    }
+
+    #[cfg(feature = "cuda")]
+    mod cuda {
+        use super::*;
+
+        #[test]
+        fn bf16() -> Result<()> {
+            test_functions::log2_test(Device::CUDA(0), DType::BF16)
+        }
+        #[test]
+        fn f16() -> Result<()> {
+            test_functions::log2_test(Device::CUDA(0), DType::F16)
+        }
+        #[test]
+        fn f32() -> Result<()> {
+            test_functions::log2_test(Device::CUDA(0), DType::F32)
+        }
+        #[test]
+        fn f64() -> Result<()> {
+            test_functions::log2_test(Device::CUDA(0), DType::F64)
+        }
+    }
+}
+
+// exp operation tests
+mod exp {
+    use super::*;
+
+    mod cpu {
+        use super::*;
+
+        #[test]
+        fn bf16() -> Result<()> {
+            test_functions::exp_test(Device::CPU, DType::BF16)
+        }
+        #[test]
+        fn f16() -> Result<()> {
+            test_functions::exp_test(Device::CPU, DType::F16)
+        }
+        #[test]
+        fn f32() -> Result<()> {
+            test_functions::exp_test(Device::CPU, DType::F32)
+        }
+        #[test]
+        fn f64() -> Result<()> {
+            test_functions::exp_test(Device::CPU, DType::F64)
+        }
+    }
+
+    #[cfg(feature = "cuda")]
+    mod cuda {
+        use super::*;
+
+        #[test]
+        fn bf16() -> Result<()> {
+            test_functions::exp_test(Device::CUDA(0), DType::BF16)
+        }
+        #[test]
+        fn f16() -> Result<()> {
+            test_functions::exp_test(Device::CUDA(0), DType::F16)
+        }
+        #[test]
+        fn f32() -> Result<()> {
+            test_functions::exp_test(Device::CUDA(0), DType::F32)
+        }
+        #[test]
+        fn f64() -> Result<()> {
+            test_functions::exp_test(Device::CUDA(0), DType::F64)
+        }
+    }
+}
+
+// exp10 operation tests
+mod exp10 {
+    use super::*;
+
+    mod cpu {
+        use super::*;
+
+        #[test]
+        fn bf16() -> Result<()> {
+            test_functions::exp10_test(Device::CPU, DType::BF16)
+        }
+        #[test]
+        fn f16() -> Result<()> {
+            test_functions::exp10_test(Device::CPU, DType::F16)
+        }
+        #[test]
+        fn f32() -> Result<()> {
+            test_functions::exp10_test(Device::CPU, DType::F32)
+        }
+        #[test]
+        fn f64() -> Result<()> {
+            test_functions::exp10_test(Device::CPU, DType::F64)
+        }
+    }
+
+    #[cfg(feature = "cuda")]
+    mod cuda {
+        use super::*;
+
+        #[test]
+        fn bf16() -> Result<()> {
+            test_functions::exp10_test(Device::CUDA(0), DType::BF16)
+        }
+        #[test]
+        fn f16() -> Result<()> {
+            test_functions::exp10_test(Device::CUDA(0), DType::F16)
+        }
+        #[test]
+        fn f32() -> Result<()> {
+            test_functions::exp10_test(Device::CUDA(0), DType::F32)
+        }
+        #[test]
+        fn f64() -> Result<()> {
+            test_functions::exp10_test(Device::CUDA(0), DType::F64)
+        }
+    }
+}
+
+// exp2 operation tests
+mod exp2 {
+    use super::*;
+
+    mod cpu {
+        use super::*;
+
+        #[test]
+        fn bf16() -> Result<()> {
+            test_functions::exp2_test(Device::CPU, DType::BF16)
+        }
+        #[test]
+        fn f16() -> Result<()> {
+            test_functions::exp2_test(Device::CPU, DType::F16)
+        }
+        #[test]
+        fn f32() -> Result<()> {
+            test_functions::exp2_test(Device::CPU, DType::F32)
+        }
+        #[test]
+        fn f64() -> Result<()> {
+            test_functions::exp2_test(Device::CPU, DType::F64)
+        }
+    }
+
+    #[cfg(feature = "cuda")]
+    mod cuda {
+        use super::*;
+
+        #[test]
+        fn bf16() -> Result<()> {
+            test_functions::exp2_test(Device::CUDA(0), DType::BF16)
+        }
+        #[test]
+        fn f16() -> Result<()> {
+            test_functions::exp2_test(Device::CUDA(0), DType::F16)
+        }
+        #[test]
+        fn f32() -> Result<()> {
+            test_functions::exp2_test(Device::CUDA(0), DType::F32)
+        }
+        #[test]
+        fn f64() -> Result<()> {
+            test_functions::exp2_test(Device::CUDA(0), DType::F64)
+        }
+    }
+}
+
+// softplus operation tests
+mod softplus {
+    use super::*;
+
+    mod cpu {
+        use super::*;
+
+        #[test]
+        fn bf16() -> Result<()> {
+            test_functions::softplus_test(Device::CPU, DType::BF16)
+        }
+        #[test]
+        fn f16() -> Result<()> {
+            test_functions::softplus_test(Device::CPU, DType::F16)
+        }
+        #[test]
+        fn f32() -> Result<()> {
+            test_functions::softplus_test(Device::CPU, DType::F32)
+        }
+        #[test]
+        fn f64() -> Result<()> {
+            test_functions::softplus_test(Device::CPU, DType::F64)
+        }
+    }
+
+    #[cfg(feature = "cuda")]
+    mod cuda {
+        use super::*;
+
+        #[test]
+        fn bf16() -> Result<()> {
+            test_functions::softplus_test(Device::CUDA(0), DType::BF16)
+        }
+        #[test]
+        fn f16() -> Result<()> {
+            test_functions::softplus_test(Device::CUDA(0), DType::F16)
+        }
+        #[test]
+        fn f32() -> Result<()> {
+            test_functions::softplus_test(Device::CUDA(0), DType::F32)
+        }
+        #[test]
+        fn f64() -> Result<()> {
+            test_functions::softplus_test(Device::CUDA(0), DType::F64)
         }
     }
 }

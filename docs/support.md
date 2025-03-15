@@ -66,6 +66,13 @@ Blank: Upcoming support
 |            | `sin`              | ✓ | ✓ | ✓ |
 |            | `cos`              | ✓ | ✓ | ✓ |
 |            | `tan`              | ✓ | ✓ | ✓ |
+|            | `ln`               | ✓ | ✓ | ✓ |
+|            | `log10`            | ✓ | ✓ | ✓ |
+|            | `log2`             | ✓ | ✓ | ✓ |
+|            | `exp`              | ✓ | ✓ | ✓ |
+|            | `exp10`            | ✓ | ✓ | ✓ |
+|            | `exp2`             | ✓ | ✓ | ✓ |
+|            | `softplus`         | ✓ | ✓ | ✓ |
 | logical operations |
 |            | `logical_not`      | ✗ | ✓ | ✓ |
 | with constant |
