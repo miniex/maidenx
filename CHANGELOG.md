@@ -4,31 +4,29 @@
 
 ### Tensor Operations
 - **Scalar Operations**:
-  - Added `read_scalar` and `write_scalar` for both CPU and CUDA devices. [[#1](https://github.com/miniex/maidenx/pull/1), [bd3d4b5](https://github.com/miniex/maidenx/commit/bd3d4b5)]
+  - Added `read_scalar` and `write_scalar` for both CPU and CUDA devices. [[bd3d4b5](https://github.com/miniex/maidenx/commit/bd3d4b5)]
 - **Memory Management**:
-  - Implemented tensor offset support for memory-efficient views. [[#3](https://github.com/miniex/maidenx/pull/3), [82a2e30](https://github.com/miniex/maidenx/commit/82a2e30)]
+  - Implemented tensor offset support for memory-efficient views. [[82a2e30](https://github.com/miniex/maidenx/commit/82a2e30)]
 - **Padding Operations**:
-  - Introduced new padding operations for flexible tensor dimension management. [[#4](https://github.com/miniex/maidenx/pull/4), [5531e67](https://github.com/miniex/maidenx/commit/5531e67)]
+  - Introduced new padding operations for flexible tensor dimension management. [[5531e67](https://github.com/miniex/maidenx/commit/5531e67)]
 - **Operator Overriding**:
-  - Added operator overriding capabilities for customized tensor operations. [[#5](https://github.com/miniex/maidenx/pull/5), [f1c957b](https://github.com/miniex/maidenx/commit/f1c957b)]
+  - Added operator overriding capabilities for customized tensor operations. [[f1c957b](https://github.com/miniex/maidenx/commit/f1c957b)]
 - **Metadata Support**:
-  - Added metadata support in tensors for storing additional information. [[#6](https://github.com/miniex/maidenx/pull/6), [030b9f8](https://github.com/miniex/maidenx/commit/030b9f8)]
+  - Added metadata support in tensors for storing additional information. [[030b9f8](https://github.com/miniex/maidenx/commit/030b9f8)]
 
 ### Neural Network Components
 - **Activations**:
-  - Added `LeakyReLU`, `GELU`, and `ELU` activation functions. [[#2](https://github.com/miniex/maidenx/pull/2), [06ff9d2](https://github.com/miniex/maidenx/commit/06ff9d2)]
+  - Added `LeakyReLU`, `GELU`, and `ELU` activation functions. [[06ff9d2](https://github.com/miniex/maidenx/commit/06ff9d2)]
 
 ## Enhancements
 - **Buffer Management**:
-  - Improved performance by replacing RwLock with Arc for buffer management in tensors. [[#7](https://github.com/miniex/maidenx/pull/7), [af8b5d5](https://github.com/miniex/maidenx/commit/af8b5d5)]
+  - Improved performance by replacing RwLock with Arc for buffer management in tensors. [[af8b5d5](https://github.com/miniex/maidenx/commit/af8b5d5)]
 - **Tensor Indexing**:
-  - Updated tensor indexing methods to support offsets. [[#8](https://github.com/miniex/maidenx/pull/8), [89a382b](https://github.com/miniex/maidenx/commit/89a382b)]
+  - Updated tensor indexing methods to support offsets. [[89a382b](https://github.com/miniex/maidenx/commit/89a382b)]
 
 ## Fixed Issues
-- Fixed borrowing issues in inplace operations (`_add`, `_sub`). [[#9](https://github.com/miniex/maidenx/pull/9), [af8b5d5](https://github.com/miniex/maidenx/commit/af8b5d5)]
+- Fixed borrowing issues in inplace operations (`_add`, `_sub`). [[af8b5d5](https://github.com/miniex/maidenx/commit/af8b5d5)]
 
-## Other Changes
-- Corrected a minor typo in the codebase. [[#10](https://github.com/miniex/maidenx/pull/10), [c33c95d](https://github.com/miniex/maidenx/commit/c33c95d)]
 
 ---
 
