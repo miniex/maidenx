@@ -86,9 +86,19 @@ impl Linear {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use maidenx_core::device::set_default_device;
+
+    fn setup_device() {
+        #[cfg(feature = "cuda")]
+        set_default_device(Device::CUDA(0));
+        #[cfg(not(any(feature = "cuda")))]
+        set_default_device(Device::CPU);
+    }
 
     #[test]
     fn linear_forward() -> Result<()> {
+        setup_device();
+
         let linear = Linear::new(2, 3, true)?;
 
         let input = Tensor::new(vec![vec![1.0f32, 2.0], vec![3.0, 4.0]])?;
@@ -104,6 +114,8 @@ mod tests {
 
     #[test]
     fn linear_backward() -> Result<()> {
+        setup_device();
+
         let linear = Linear::new(2, 3, true)?;
 
         let mut input = Tensor::new(vec![vec![1.0f32, 2.0], vec![3.0, 4.0]])?;

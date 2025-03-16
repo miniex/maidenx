@@ -1,4 +1,8 @@
-use maidenx_core::{device::Device, dtype::DType, error::Result};
+use maidenx_core::{
+    device::{set_default_device, Device},
+    dtype::DType,
+    error::Result,
+};
 use maidenx_tensor::{adapter::TensorAdapter, Tensor};
 
 // Constants for test data
@@ -6,23 +10,32 @@ const TEST_DATA_F32_1D: [f32; 4] = [1.0, 2.0, 3.0, 4.0];
 const TEST_DATA_F32_2D: [[f32; 3]; 2] = [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]];
 
 // Helper functions
-fn setup_tensor<T: Clone + 'static>(data: Vec<T>, shape: &[usize], device: Device, dtype: DType) -> Result<Tensor>
+fn setup_device() {
+    #[cfg(feature = "cuda")]
+    set_default_device(Device::CUDA(0));
+    #[cfg(not(any(feature = "cuda")))]
+    set_default_device(Device::CPU);
+}
+
+fn setup_tensor<T: Clone + 'static>(data: Vec<T>, shape: &[usize], dtype: DType) -> Result<Tensor>
 where
     Vec<T>: TensorAdapter,
 {
+    setup_device();
+
     let mut tensor = Tensor::new(data)?;
     tensor.with_shape(shape)?;
-    tensor.with_device(device)?;
     tensor.with_dtype(dtype)?;
     Ok(tensor)
 }
 
-fn setup_grad_tensor<T: Clone + 'static>(data: Vec<T>, shape: &[usize], device: Device, dtype: DType) -> Result<Tensor>
+fn setup_grad_tensor<T: Clone + 'static>(data: Vec<T>, shape: &[usize], dtype: DType) -> Result<Tensor>
 where
     Vec<T>: TensorAdapter,
 {
-    let mut tensor = setup_tensor(data, shape, device, dtype)?;
+    let mut tensor = setup_tensor(data, shape, dtype)?;
     tensor.with_grad().ok();
+
     Ok(tensor)
 }
 
@@ -46,8 +59,8 @@ fn assert_close_vectors(actual: &[f32], expected: &[f32], epsilon: f32, msg: &st
 mod test_functions {
     use super::*;
 
-    pub fn pad_with_constant_test(device: Device, dtype: DType) -> Result<()> {
-        let x = setup_grad_tensor(TEST_DATA_F32_1D.to_vec(), &[4], device, dtype)?;
+    pub fn pad_with_constant_test(dtype: DType) -> Result<()> {
+        let x = setup_grad_tensor(TEST_DATA_F32_1D.to_vec(), &[4], dtype)?;
         let padded = x.pad(&[(1, 2)], 0.0)?;
 
         assert_eq!(padded.shape(), &[7]);
@@ -79,7 +92,7 @@ mod test_functions {
             }
         }
 
-        let x = setup_grad_tensor(TEST_DATA_F32_2D.iter().flatten().copied().collect(), &[2, 3], device, dtype)?;
+        let x = setup_grad_tensor(TEST_DATA_F32_2D.iter().flatten().copied().collect(), &[2, 3], dtype)?;
         let padded = x.pad(&[(1, 1), (2, 1)], 3.0)?;
 
         assert_eq!(padded.shape(), &[4, 6]);
@@ -113,7 +126,7 @@ mod test_functions {
             }
         }
 
-        let x = setup_grad_tensor(TEST_DATA_F32_1D.to_vec(), &[4], device, dtype)?;
+        let x = setup_grad_tensor(TEST_DATA_F32_1D.to_vec(), &[4], dtype)?;
         let padded = x.pad(&[(0, 2)], 9.9)?;
 
         assert_eq!(padded.shape(), &[6]);
@@ -136,8 +149,8 @@ mod test_functions {
         Ok(())
     }
 
-    pub fn pad_with_reflection_test(device: Device, dtype: DType) -> Result<()> {
-        let x = setup_grad_tensor(TEST_DATA_F32_1D.to_vec(), &[4], device, dtype)?;
+    pub fn pad_with_reflection_test(dtype: DType) -> Result<()> {
+        let x = setup_grad_tensor(TEST_DATA_F32_1D.to_vec(), &[4], dtype)?;
         let padded = x.pad_with_reflection(&[(2, 2)])?;
 
         assert_eq!(padded.shape(), &[8]);
@@ -170,7 +183,7 @@ mod test_functions {
             }
         }
 
-        let x = setup_grad_tensor(TEST_DATA_F32_2D.iter().flatten().copied().collect(), &[2, 3], device, dtype)?;
+        let x = setup_grad_tensor(TEST_DATA_F32_2D.iter().flatten().copied().collect(), &[2, 3], dtype)?;
         let padded = x.pad_with_reflection(&[(1, 1), (2, 2)])?;
 
         assert_eq!(padded.shape(), &[4, 7]);
@@ -189,15 +202,15 @@ mod test_functions {
             }
         }
 
-        let x = setup_tensor(vec![1.0, 2.0], &[2], device, dtype)?;
+        let x = setup_tensor(vec![1.0, 2.0], &[2], dtype)?;
         let result = x.pad_with_reflection(&[(2, 1)]);
         assert!(result.is_err(), "Should error when pad width >= dimension size");
 
         Ok(())
     }
 
-    pub fn pad_with_replication_test(device: Device, dtype: DType) -> Result<()> {
-        let x = setup_grad_tensor(TEST_DATA_F32_1D.to_vec(), &[4], device, dtype)?;
+    pub fn pad_with_replication_test(dtype: DType) -> Result<()> {
+        let x = setup_grad_tensor(TEST_DATA_F32_1D.to_vec(), &[4], dtype)?;
         let padded = x.pad_with_replication(&[(2, 2)])?;
 
         assert_eq!(padded.shape(), &[8]);
@@ -230,7 +243,7 @@ mod test_functions {
             }
         }
 
-        let x = setup_grad_tensor(TEST_DATA_F32_2D.iter().flatten().copied().collect(), &[2, 3], device, dtype)?;
+        let x = setup_grad_tensor(TEST_DATA_F32_2D.iter().flatten().copied().collect(), &[2, 3], dtype)?;
         let padded = x.pad_with_replication(&[(1, 1), (2, 2)])?;
 
         assert_eq!(padded.shape(), &[4, 7]);
@@ -263,7 +276,7 @@ mod test_functions {
             }
         }
 
-        let x = setup_grad_tensor(vec![42.0], &[], device, dtype)?;
+        let x = setup_grad_tensor(vec![42.0], &[], dtype)?;
         let padded = x.pad_with_replication(&[])?;
 
         assert_eq!(padded.shape(), &[]);
@@ -287,87 +300,41 @@ mod test_functions {
 mod pad_with_constant {
     use super::*;
 
-    mod cpu {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::pad_with_constant_test(Device::CPU, DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::pad_with_constant_test(Device::CPU, DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::pad_with_constant_test(Device::CPU, DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::pad_with_constant_test(Device::CPU, DType::F64)
-        }
-        #[test]
-        fn u8() -> Result<()> {
-            test_functions::pad_with_constant_test(Device::CPU, DType::U8)
-        }
-        #[test]
-        fn u32() -> Result<()> {
-            test_functions::pad_with_constant_test(Device::CPU, DType::U32)
-        }
-        #[test]
-        fn i8() -> Result<()> {
-            test_functions::pad_with_constant_test(Device::CPU, DType::I8)
-        }
-        #[test]
-        fn i32() -> Result<()> {
-            test_functions::pad_with_constant_test(Device::CPU, DType::I32)
-        }
-        #[test]
-        fn i64() -> Result<()> {
-            test_functions::pad_with_constant_test(Device::CPU, DType::I64)
-        }
+    #[test]
+    fn bf16() -> Result<()> {
+        test_functions::pad_with_constant_test(DType::BF16)
     }
-
-    #[cfg(feature = "cuda")]
-    mod cuda {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::pad_with_constant_test(Device::CUDA(0), DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::pad_with_constant_test(Device::CUDA(0), DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::pad_with_constant_test(Device::CUDA(0), DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::pad_with_constant_test(Device::CUDA(0), DType::F64)
-        }
-        #[test]
-        fn u8() -> Result<()> {
-            test_functions::pad_with_constant_test(Device::CUDA(0), DType::U8)
-        }
-        #[test]
-        fn u32() -> Result<()> {
-            test_functions::pad_with_constant_test(Device::CUDA(0), DType::U32)
-        }
-        #[test]
-        fn i8() -> Result<()> {
-            test_functions::pad_with_constant_test(Device::CUDA(0), DType::I8)
-        }
-        #[test]
-        fn i32() -> Result<()> {
-            test_functions::pad_with_constant_test(Device::CUDA(0), DType::I32)
-        }
-        #[test]
-        fn i64() -> Result<()> {
-            test_functions::pad_with_constant_test(Device::CUDA(0), DType::I64)
-        }
+    #[test]
+    fn f16() -> Result<()> {
+        test_functions::pad_with_constant_test(DType::F16)
+    }
+    #[test]
+    fn f32() -> Result<()> {
+        test_functions::pad_with_constant_test(DType::F32)
+    }
+    #[test]
+    fn f64() -> Result<()> {
+        test_functions::pad_with_constant_test(DType::F64)
+    }
+    #[test]
+    fn u8() -> Result<()> {
+        test_functions::pad_with_constant_test(DType::U8)
+    }
+    #[test]
+    fn u32() -> Result<()> {
+        test_functions::pad_with_constant_test(DType::U32)
+    }
+    #[test]
+    fn i8() -> Result<()> {
+        test_functions::pad_with_constant_test(DType::I8)
+    }
+    #[test]
+    fn i32() -> Result<()> {
+        test_functions::pad_with_constant_test(DType::I32)
+    }
+    #[test]
+    fn i64() -> Result<()> {
+        test_functions::pad_with_constant_test(DType::I64)
     }
 }
 
@@ -375,87 +342,41 @@ mod pad_with_constant {
 mod pad_with_reflection {
     use super::*;
 
-    mod cpu {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::pad_with_reflection_test(Device::CPU, DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::pad_with_reflection_test(Device::CPU, DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::pad_with_reflection_test(Device::CPU, DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::pad_with_reflection_test(Device::CPU, DType::F64)
-        }
-        #[test]
-        fn u8() -> Result<()> {
-            test_functions::pad_with_reflection_test(Device::CPU, DType::U8)
-        }
-        #[test]
-        fn u32() -> Result<()> {
-            test_functions::pad_with_reflection_test(Device::CPU, DType::U32)
-        }
-        #[test]
-        fn i8() -> Result<()> {
-            test_functions::pad_with_reflection_test(Device::CPU, DType::I8)
-        }
-        #[test]
-        fn i32() -> Result<()> {
-            test_functions::pad_with_reflection_test(Device::CPU, DType::I32)
-        }
-        #[test]
-        fn i64() -> Result<()> {
-            test_functions::pad_with_reflection_test(Device::CPU, DType::I64)
-        }
+    #[test]
+    fn bf16() -> Result<()> {
+        test_functions::pad_with_reflection_test(DType::BF16)
     }
-
-    #[cfg(feature = "cuda")]
-    mod cuda {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::pad_with_reflection_test(Device::CUDA(0), DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::pad_with_reflection_test(Device::CUDA(0), DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::pad_with_reflection_test(Device::CUDA(0), DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::pad_with_reflection_test(Device::CUDA(0), DType::F64)
-        }
-        #[test]
-        fn u8() -> Result<()> {
-            test_functions::pad_with_reflection_test(Device::CUDA(0), DType::U8)
-        }
-        #[test]
-        fn u32() -> Result<()> {
-            test_functions::pad_with_reflection_test(Device::CUDA(0), DType::U32)
-        }
-        #[test]
-        fn i8() -> Result<()> {
-            test_functions::pad_with_reflection_test(Device::CUDA(0), DType::I8)
-        }
-        #[test]
-        fn i32() -> Result<()> {
-            test_functions::pad_with_reflection_test(Device::CUDA(0), DType::I32)
-        }
-        #[test]
-        fn i64() -> Result<()> {
-            test_functions::pad_with_reflection_test(Device::CUDA(0), DType::I64)
-        }
+    #[test]
+    fn f16() -> Result<()> {
+        test_functions::pad_with_reflection_test(DType::F16)
+    }
+    #[test]
+    fn f32() -> Result<()> {
+        test_functions::pad_with_reflection_test(DType::F32)
+    }
+    #[test]
+    fn f64() -> Result<()> {
+        test_functions::pad_with_reflection_test(DType::F64)
+    }
+    #[test]
+    fn u8() -> Result<()> {
+        test_functions::pad_with_reflection_test(DType::U8)
+    }
+    #[test]
+    fn u32() -> Result<()> {
+        test_functions::pad_with_reflection_test(DType::U32)
+    }
+    #[test]
+    fn i8() -> Result<()> {
+        test_functions::pad_with_reflection_test(DType::I8)
+    }
+    #[test]
+    fn i32() -> Result<()> {
+        test_functions::pad_with_reflection_test(DType::I32)
+    }
+    #[test]
+    fn i64() -> Result<()> {
+        test_functions::pad_with_reflection_test(DType::I64)
     }
 }
 
@@ -463,86 +384,40 @@ mod pad_with_reflection {
 mod pad_with_replication {
     use super::*;
 
-    mod cpu {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::pad_with_replication_test(Device::CPU, DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::pad_with_replication_test(Device::CPU, DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::pad_with_replication_test(Device::CPU, DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::pad_with_replication_test(Device::CPU, DType::F64)
-        }
-        #[test]
-        fn u8() -> Result<()> {
-            test_functions::pad_with_replication_test(Device::CPU, DType::U8)
-        }
-        #[test]
-        fn u32() -> Result<()> {
-            test_functions::pad_with_replication_test(Device::CPU, DType::U32)
-        }
-        #[test]
-        fn i8() -> Result<()> {
-            test_functions::pad_with_replication_test(Device::CPU, DType::I8)
-        }
-        #[test]
-        fn i32() -> Result<()> {
-            test_functions::pad_with_replication_test(Device::CPU, DType::I32)
-        }
-        #[test]
-        fn i64() -> Result<()> {
-            test_functions::pad_with_replication_test(Device::CPU, DType::I64)
-        }
+    #[test]
+    fn bf16() -> Result<()> {
+        test_functions::pad_with_replication_test(DType::BF16)
     }
-
-    #[cfg(feature = "cuda")]
-    mod cuda {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::pad_with_replication_test(Device::CUDA(0), DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::pad_with_replication_test(Device::CUDA(0), DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::pad_with_replication_test(Device::CUDA(0), DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::pad_with_replication_test(Device::CUDA(0), DType::F64)
-        }
-        #[test]
-        fn u8() -> Result<()> {
-            test_functions::pad_with_replication_test(Device::CUDA(0), DType::U8)
-        }
-        #[test]
-        fn u32() -> Result<()> {
-            test_functions::pad_with_replication_test(Device::CUDA(0), DType::U32)
-        }
-        #[test]
-        fn i8() -> Result<()> {
-            test_functions::pad_with_replication_test(Device::CUDA(0), DType::I8)
-        }
-        #[test]
-        fn i32() -> Result<()> {
-            test_functions::pad_with_replication_test(Device::CUDA(0), DType::I32)
-        }
-        #[test]
-        fn i64() -> Result<()> {
-            test_functions::pad_with_replication_test(Device::CUDA(0), DType::I64)
-        }
+    #[test]
+    fn f16() -> Result<()> {
+        test_functions::pad_with_replication_test(DType::F16)
+    }
+    #[test]
+    fn f32() -> Result<()> {
+        test_functions::pad_with_replication_test(DType::F32)
+    }
+    #[test]
+    fn f64() -> Result<()> {
+        test_functions::pad_with_replication_test(DType::F64)
+    }
+    #[test]
+    fn u8() -> Result<()> {
+        test_functions::pad_with_replication_test(DType::U8)
+    }
+    #[test]
+    fn u32() -> Result<()> {
+        test_functions::pad_with_replication_test(DType::U32)
+    }
+    #[test]
+    fn i8() -> Result<()> {
+        test_functions::pad_with_replication_test(DType::I8)
+    }
+    #[test]
+    fn i32() -> Result<()> {
+        test_functions::pad_with_replication_test(DType::I32)
+    }
+    #[test]
+    fn i64() -> Result<()> {
+        test_functions::pad_with_replication_test(DType::I64)
     }
 }

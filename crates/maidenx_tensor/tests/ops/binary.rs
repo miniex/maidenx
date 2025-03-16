@@ -1,4 +1,8 @@
-use maidenx_core::{device::Device, dtype::DType, error::Result};
+use maidenx_core::{
+    device::{set_default_device, Device},
+    dtype::DType,
+    error::Result,
+};
 use maidenx_tensor::{adapter::TensorAdapter, Tensor};
 
 // Constants for test data
@@ -6,21 +10,29 @@ const TEST_DATA_F32: [f32; 2] = [1.0, 2.0];
 const TEST_DATA_U32: [u32; 3] = [1, 2, 0];
 
 // Helper functions
-fn setup_tensor<T: Clone + 'static>(data: Vec<T>, device: Device, dtype: DType) -> Result<Tensor>
+fn setup_device() {
+    #[cfg(feature = "cuda")]
+    set_default_device(Device::CUDA(0));
+    #[cfg(not(any(feature = "cuda")))]
+    set_default_device(Device::CPU);
+}
+
+fn setup_tensor<T: Clone + 'static>(data: Vec<T>, dtype: DType) -> Result<Tensor>
 where
     Vec<T>: TensorAdapter,
 {
+    setup_device();
+
     let mut tensor = Tensor::new(data)?;
-    tensor.with_device(device)?;
     tensor.with_dtype(dtype)?;
     Ok(tensor)
 }
 
-fn setup_grad_tensor<T: Clone + 'static>(data: Vec<T>, device: Device, dtype: DType) -> Result<Tensor>
+fn setup_grad_tensor<T: Clone + 'static>(data: Vec<T>, dtype: DType) -> Result<Tensor>
 where
     Vec<T>: TensorAdapter,
 {
-    let mut tensor = setup_tensor(data, device, dtype)?;
+    let mut tensor = setup_tensor(data, dtype)?;
     tensor.with_grad().ok();
 
     Ok(tensor)
@@ -30,9 +42,9 @@ where
 mod test_functions {
     use super::*;
 
-    pub fn add_test(device: Device, dtype: DType) -> Result<()> {
-        let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), device, dtype)?;
-        let y = setup_grad_tensor(vec![3.0f32, 4.0], device, dtype)?;
+    pub fn add_test(dtype: DType) -> Result<()> {
+        let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
+        let y = setup_grad_tensor(vec![3.0f32, 4.0], dtype)?;
 
         let result = x.add(&y)?;
         result.backward()?;
@@ -49,19 +61,19 @@ mod test_functions {
         Ok(())
     }
 
-    pub fn sub_test(device: Device, dtype: DType) -> Result<()> {
+    pub fn sub_test(dtype: DType) -> Result<()> {
         match dtype {
             DType::U8 | DType::U32 => {
-                let x = setup_tensor(TEST_DATA_U32.to_vec(), device, dtype)?;
-                let y = setup_tensor(vec![3u32, 1, 5], device, dtype)?;
+                let x = setup_tensor(TEST_DATA_U32.to_vec(), dtype)?;
+                let y = setup_tensor(vec![3u32, 1, 5], dtype)?;
 
                 let result = x.sub(&y)?;
 
                 assert_eq!(result.to_flatten_vec::<u32>()?, vec![0, 1, 0]);
             }
             _ => {
-                let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), device, dtype)?;
-                let y = setup_grad_tensor(vec![3.0f32, 4.0], device, dtype)?;
+                let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
+                let y = setup_grad_tensor(vec![3.0f32, 4.0], dtype)?;
 
                 let result = x.sub(&y)?;
                 result.backward()?;
@@ -79,9 +91,9 @@ mod test_functions {
         Ok(())
     }
 
-    pub fn mul_test(device: Device, dtype: DType) -> Result<()> {
-        let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), device, dtype)?;
-        let y = setup_grad_tensor(vec![3.0f32, 4.0], device, dtype)?;
+    pub fn mul_test(dtype: DType) -> Result<()> {
+        let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
+        let y = setup_grad_tensor(vec![3.0f32, 4.0], dtype)?;
 
         let result = x.mul(&y)?;
         result.backward()?;
@@ -98,9 +110,9 @@ mod test_functions {
         Ok(())
     }
 
-    pub fn div_test(device: Device, dtype: DType) -> Result<()> {
-        let x = setup_grad_tensor(vec![6.0f32, 10.0], device, dtype)?;
-        let y = setup_grad_tensor(vec![2.0f32, 4.0], device, dtype)?;
+    pub fn div_test(dtype: DType) -> Result<()> {
+        let x = setup_grad_tensor(vec![6.0f32, 10.0], dtype)?;
+        let y = setup_grad_tensor(vec![2.0f32, 4.0], dtype)?;
 
         let result = x.div(&y)?;
         result.backward()?;
@@ -117,9 +129,9 @@ mod test_functions {
         Ok(())
     }
 
-    pub fn logical_and_test(device: Device, dtype: DType) -> Result<()> {
-        let x = setup_tensor(vec![true, false, true, false], device, dtype)?;
-        let y = setup_tensor(vec![true, true, false, false], device, dtype)?;
+    pub fn logical_and_test(dtype: DType) -> Result<()> {
+        let x = setup_tensor(vec![true, false, true, false], dtype)?;
+        let y = setup_tensor(vec![true, true, false, false], dtype)?;
 
         let result = x.logical_and(&y)?;
 
@@ -127,9 +139,9 @@ mod test_functions {
         Ok(())
     }
 
-    pub fn logical_or_test(device: Device, dtype: DType) -> Result<()> {
-        let x = setup_tensor(vec![true, false, true, false], device, dtype)?;
-        let y = setup_tensor(vec![true, true, false, false], device, dtype)?;
+    pub fn logical_or_test(dtype: DType) -> Result<()> {
+        let x = setup_tensor(vec![true, false, true, false], dtype)?;
+        let y = setup_tensor(vec![true, true, false, false], dtype)?;
 
         let result = x.logical_or(&y)?;
 
@@ -137,9 +149,9 @@ mod test_functions {
         Ok(())
     }
 
-    pub fn logical_xor_test(device: Device, dtype: DType) -> Result<()> {
-        let x = setup_tensor(vec![true, false, true, false], device, dtype)?;
-        let y = setup_tensor(vec![true, true, false, false], device, dtype)?;
+    pub fn logical_xor_test(dtype: DType) -> Result<()> {
+        let x = setup_tensor(vec![true, false, true, false], dtype)?;
+        let y = setup_tensor(vec![true, true, false, false], dtype)?;
 
         let result = x.logical_xor(&y)?;
 
@@ -147,9 +159,9 @@ mod test_functions {
         Ok(())
     }
 
-    pub fn eq_test(device: Device, dtype: DType) -> Result<()> {
-        let x = setup_tensor(TEST_DATA_F32.to_vec(), device, dtype)?;
-        let y = setup_tensor(vec![1.0f32, 3.0], device, dtype)?;
+    pub fn eq_test(dtype: DType) -> Result<()> {
+        let x = setup_tensor(TEST_DATA_F32.to_vec(), dtype)?;
+        let y = setup_tensor(vec![1.0f32, 3.0], dtype)?;
 
         let result = x.eq(&y)?;
 
@@ -157,9 +169,9 @@ mod test_functions {
         Ok(())
     }
 
-    pub fn ne_test(device: Device, dtype: DType) -> Result<()> {
-        let x = setup_tensor(TEST_DATA_F32.to_vec(), device, dtype)?;
-        let y = setup_tensor(vec![1.0f32, 3.0], device, dtype)?;
+    pub fn ne_test(dtype: DType) -> Result<()> {
+        let x = setup_tensor(TEST_DATA_F32.to_vec(), dtype)?;
+        let y = setup_tensor(vec![1.0f32, 3.0], dtype)?;
 
         let result = x.ne(&y)?;
 
@@ -167,9 +179,9 @@ mod test_functions {
         Ok(())
     }
 
-    pub fn lt_test(device: Device, dtype: DType) -> Result<()> {
-        let x = setup_tensor(TEST_DATA_F32.to_vec(), device, dtype)?;
-        let y = setup_tensor(vec![1.5f32, 1.5], device, dtype)?;
+    pub fn lt_test(dtype: DType) -> Result<()> {
+        let x = setup_tensor(TEST_DATA_F32.to_vec(), dtype)?;
+        let y = setup_tensor(vec![1.5f32, 1.5], dtype)?;
 
         let result = x.lt(&y)?;
 
@@ -177,9 +189,9 @@ mod test_functions {
         Ok(())
     }
 
-    pub fn le_test(device: Device, dtype: DType) -> Result<()> {
-        let x = setup_tensor(TEST_DATA_F32.to_vec(), device, dtype)?;
-        let y = setup_tensor(vec![1.0f32, 1.5], device, dtype)?;
+    pub fn le_test(dtype: DType) -> Result<()> {
+        let x = setup_tensor(TEST_DATA_F32.to_vec(), dtype)?;
+        let y = setup_tensor(vec![1.0f32, 1.5], dtype)?;
 
         let result = x.le(&y)?;
 
@@ -187,9 +199,9 @@ mod test_functions {
         Ok(())
     }
 
-    pub fn gt_test(device: Device, dtype: DType) -> Result<()> {
-        let x = setup_tensor(TEST_DATA_F32.to_vec(), device, dtype)?;
-        let y = setup_tensor(vec![0.5f32, 2.0], device, dtype)?;
+    pub fn gt_test(dtype: DType) -> Result<()> {
+        let x = setup_tensor(TEST_DATA_F32.to_vec(), dtype)?;
+        let y = setup_tensor(vec![0.5f32, 2.0], dtype)?;
 
         let result = x.gt(&y)?;
 
@@ -197,9 +209,9 @@ mod test_functions {
         Ok(())
     }
 
-    pub fn ge_test(device: Device, dtype: DType) -> Result<()> {
-        let x = setup_tensor(TEST_DATA_F32.to_vec(), device, dtype)?;
-        let y = setup_tensor(vec![1.0f32, 2.5], device, dtype)?;
+    pub fn ge_test(dtype: DType) -> Result<()> {
+        let x = setup_tensor(TEST_DATA_F32.to_vec(), dtype)?;
+        let y = setup_tensor(vec![1.0f32, 2.5], dtype)?;
 
         let result = x.ge(&y)?;
 
@@ -207,9 +219,9 @@ mod test_functions {
         Ok(())
     }
 
-    pub fn add_inplace_test(device: Device, dtype: DType) -> Result<()> {
-        let mut x = setup_tensor(TEST_DATA_F32.to_vec(), device, dtype)?;
-        let y = setup_tensor(vec![3.0f32, 4.0], device, dtype)?;
+    pub fn add_inplace_test(dtype: DType) -> Result<()> {
+        let mut x = setup_tensor(TEST_DATA_F32.to_vec(), dtype)?;
+        let y = setup_tensor(vec![3.0f32, 4.0], dtype)?;
 
         x.add_(&y)?;
 
@@ -217,19 +229,19 @@ mod test_functions {
         Ok(())
     }
 
-    pub fn sub_inplace_test(device: Device, dtype: DType) -> Result<()> {
+    pub fn sub_inplace_test(dtype: DType) -> Result<()> {
         match dtype {
             DType::U8 | DType::U32 => {
-                let mut x = setup_tensor(TEST_DATA_U32.to_vec(), device, dtype)?;
-                let y = setup_tensor(vec![1u32, 1, 0], device, dtype)?;
+                let mut x = setup_tensor(TEST_DATA_U32.to_vec(), dtype)?;
+                let y = setup_tensor(vec![1u32, 1, 0], dtype)?;
 
                 x.sub_(&y)?;
 
                 assert_eq!(x.to_flatten_vec::<u32>()?, vec![0, 1, 0]);
             }
             _ => {
-                let mut x = setup_tensor(TEST_DATA_F32.to_vec(), device, dtype)?;
-                let y = setup_tensor(vec![3.0f32, 4.0], device, dtype)?;
+                let mut x = setup_tensor(TEST_DATA_F32.to_vec(), dtype)?;
+                let y = setup_tensor(vec![3.0f32, 4.0], dtype)?;
 
                 x.sub_(&y)?;
 
@@ -239,9 +251,9 @@ mod test_functions {
         Ok(())
     }
 
-    pub fn mul_inplace_test(device: Device, dtype: DType) -> Result<()> {
-        let mut x = setup_tensor(TEST_DATA_F32.to_vec(), device, dtype)?;
-        let y = setup_tensor(vec![3.0f32, 4.0], device, dtype)?;
+    pub fn mul_inplace_test(dtype: DType) -> Result<()> {
+        let mut x = setup_tensor(TEST_DATA_F32.to_vec(), dtype)?;
+        let y = setup_tensor(vec![3.0f32, 4.0], dtype)?;
 
         x.mul_(&y)?;
 
@@ -249,9 +261,9 @@ mod test_functions {
         Ok(())
     }
 
-    pub fn div_inplace_test(device: Device, dtype: DType) -> Result<()> {
-        let mut x = setup_tensor(vec![6.0f32, 8.0], device, dtype)?;
-        let y = setup_tensor(vec![2.0f32, 4.0], device, dtype)?;
+    pub fn div_inplace_test(dtype: DType) -> Result<()> {
+        let mut x = setup_tensor(vec![6.0f32, 8.0], dtype)?;
+        let y = setup_tensor(vec![2.0f32, 4.0], dtype)?;
 
         x.div_(&y)?;
 
@@ -264,87 +276,41 @@ mod test_functions {
 mod add {
     use super::*;
 
-    mod cpu {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::add_test(Device::CPU, DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::add_test(Device::CPU, DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::add_test(Device::CPU, DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::add_test(Device::CPU, DType::F64)
-        }
-        #[test]
-        fn u8() -> Result<()> {
-            test_functions::add_test(Device::CPU, DType::U8)
-        }
-        #[test]
-        fn u32() -> Result<()> {
-            test_functions::add_test(Device::CPU, DType::U32)
-        }
-        #[test]
-        fn i8() -> Result<()> {
-            test_functions::add_test(Device::CPU, DType::I8)
-        }
-        #[test]
-        fn i32() -> Result<()> {
-            test_functions::add_test(Device::CPU, DType::I32)
-        }
-        #[test]
-        fn i64() -> Result<()> {
-            test_functions::add_test(Device::CPU, DType::I64)
-        }
+    #[test]
+    fn bf16() -> Result<()> {
+        test_functions::add_test(DType::BF16)
     }
-
-    #[cfg(feature = "cuda")]
-    mod cuda {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::add_test(Device::CUDA(0), DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::add_test(Device::CUDA(0), DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::add_test(Device::CUDA(0), DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::add_test(Device::CUDA(0), DType::F64)
-        }
-        #[test]
-        fn u8() -> Result<()> {
-            test_functions::add_test(Device::CUDA(0), DType::U8)
-        }
-        #[test]
-        fn u32() -> Result<()> {
-            test_functions::add_test(Device::CUDA(0), DType::U32)
-        }
-        #[test]
-        fn i8() -> Result<()> {
-            test_functions::add_test(Device::CUDA(0), DType::I8)
-        }
-        #[test]
-        fn i32() -> Result<()> {
-            test_functions::add_test(Device::CUDA(0), DType::I32)
-        }
-        #[test]
-        fn i64() -> Result<()> {
-            test_functions::add_test(Device::CUDA(0), DType::I64)
-        }
+    #[test]
+    fn f16() -> Result<()> {
+        test_functions::add_test(DType::F16)
+    }
+    #[test]
+    fn f32() -> Result<()> {
+        test_functions::add_test(DType::F32)
+    }
+    #[test]
+    fn f64() -> Result<()> {
+        test_functions::add_test(DType::F64)
+    }
+    #[test]
+    fn u8() -> Result<()> {
+        test_functions::add_test(DType::U8)
+    }
+    #[test]
+    fn u32() -> Result<()> {
+        test_functions::add_test(DType::U32)
+    }
+    #[test]
+    fn i8() -> Result<()> {
+        test_functions::add_test(DType::I8)
+    }
+    #[test]
+    fn i32() -> Result<()> {
+        test_functions::add_test(DType::I32)
+    }
+    #[test]
+    fn i64() -> Result<()> {
+        test_functions::add_test(DType::I64)
     }
 }
 
@@ -352,87 +318,41 @@ mod add {
 mod sub {
     use super::*;
 
-    mod cpu {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::sub_test(Device::CPU, DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::sub_test(Device::CPU, DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::sub_test(Device::CPU, DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::sub_test(Device::CPU, DType::F64)
-        }
-        #[test]
-        fn u8() -> Result<()> {
-            test_functions::sub_test(Device::CPU, DType::U8)
-        }
-        #[test]
-        fn u32() -> Result<()> {
-            test_functions::sub_test(Device::CPU, DType::U32)
-        }
-        #[test]
-        fn i8() -> Result<()> {
-            test_functions::sub_test(Device::CPU, DType::I8)
-        }
-        #[test]
-        fn i32() -> Result<()> {
-            test_functions::sub_test(Device::CPU, DType::I32)
-        }
-        #[test]
-        fn i64() -> Result<()> {
-            test_functions::sub_test(Device::CPU, DType::I64)
-        }
+    #[test]
+    fn bf16() -> Result<()> {
+        test_functions::sub_test(DType::BF16)
     }
-
-    #[cfg(feature = "cuda")]
-    mod cuda {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::sub_test(Device::CUDA(0), DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::sub_test(Device::CUDA(0), DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::sub_test(Device::CUDA(0), DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::sub_test(Device::CUDA(0), DType::F64)
-        }
-        #[test]
-        fn u8() -> Result<()> {
-            test_functions::sub_test(Device::CUDA(0), DType::U8)
-        }
-        #[test]
-        fn u32() -> Result<()> {
-            test_functions::sub_test(Device::CUDA(0), DType::U32)
-        }
-        #[test]
-        fn i8() -> Result<()> {
-            test_functions::sub_test(Device::CUDA(0), DType::I8)
-        }
-        #[test]
-        fn i32() -> Result<()> {
-            test_functions::sub_test(Device::CUDA(0), DType::I32)
-        }
-        #[test]
-        fn i64() -> Result<()> {
-            test_functions::sub_test(Device::CUDA(0), DType::I64)
-        }
+    #[test]
+    fn f16() -> Result<()> {
+        test_functions::sub_test(DType::F16)
+    }
+    #[test]
+    fn f32() -> Result<()> {
+        test_functions::sub_test(DType::F32)
+    }
+    #[test]
+    fn f64() -> Result<()> {
+        test_functions::sub_test(DType::F64)
+    }
+    #[test]
+    fn u8() -> Result<()> {
+        test_functions::sub_test(DType::U8)
+    }
+    #[test]
+    fn u32() -> Result<()> {
+        test_functions::sub_test(DType::U32)
+    }
+    #[test]
+    fn i8() -> Result<()> {
+        test_functions::sub_test(DType::I8)
+    }
+    #[test]
+    fn i32() -> Result<()> {
+        test_functions::sub_test(DType::I32)
+    }
+    #[test]
+    fn i64() -> Result<()> {
+        test_functions::sub_test(DType::I64)
     }
 }
 
@@ -440,87 +360,41 @@ mod sub {
 mod mul {
     use super::*;
 
-    mod cpu {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::mul_test(Device::CPU, DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::mul_test(Device::CPU, DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::mul_test(Device::CPU, DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::mul_test(Device::CPU, DType::F64)
-        }
-        #[test]
-        fn u8() -> Result<()> {
-            test_functions::mul_test(Device::CPU, DType::U8)
-        }
-        #[test]
-        fn u32() -> Result<()> {
-            test_functions::mul_test(Device::CPU, DType::U32)
-        }
-        #[test]
-        fn i8() -> Result<()> {
-            test_functions::mul_test(Device::CPU, DType::I8)
-        }
-        #[test]
-        fn i32() -> Result<()> {
-            test_functions::mul_test(Device::CPU, DType::I32)
-        }
-        #[test]
-        fn i64() -> Result<()> {
-            test_functions::mul_test(Device::CPU, DType::I64)
-        }
+    #[test]
+    fn bf16() -> Result<()> {
+        test_functions::mul_test(DType::BF16)
     }
-
-    #[cfg(feature = "cuda")]
-    mod cuda {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::mul_test(Device::CUDA(0), DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::mul_test(Device::CUDA(0), DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::mul_test(Device::CUDA(0), DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::mul_test(Device::CUDA(0), DType::F64)
-        }
-        #[test]
-        fn u8() -> Result<()> {
-            test_functions::mul_test(Device::CUDA(0), DType::U8)
-        }
-        #[test]
-        fn u32() -> Result<()> {
-            test_functions::mul_test(Device::CUDA(0), DType::U32)
-        }
-        #[test]
-        fn i8() -> Result<()> {
-            test_functions::mul_test(Device::CUDA(0), DType::I8)
-        }
-        #[test]
-        fn i32() -> Result<()> {
-            test_functions::mul_test(Device::CUDA(0), DType::I32)
-        }
-        #[test]
-        fn i64() -> Result<()> {
-            test_functions::mul_test(Device::CUDA(0), DType::I64)
-        }
+    #[test]
+    fn f16() -> Result<()> {
+        test_functions::mul_test(DType::F16)
+    }
+    #[test]
+    fn f32() -> Result<()> {
+        test_functions::mul_test(DType::F32)
+    }
+    #[test]
+    fn f64() -> Result<()> {
+        test_functions::mul_test(DType::F64)
+    }
+    #[test]
+    fn u8() -> Result<()> {
+        test_functions::mul_test(DType::U8)
+    }
+    #[test]
+    fn u32() -> Result<()> {
+        test_functions::mul_test(DType::U32)
+    }
+    #[test]
+    fn i8() -> Result<()> {
+        test_functions::mul_test(DType::I8)
+    }
+    #[test]
+    fn i32() -> Result<()> {
+        test_functions::mul_test(DType::I32)
+    }
+    #[test]
+    fn i64() -> Result<()> {
+        test_functions::mul_test(DType::I64)
     }
 }
 
@@ -528,87 +402,41 @@ mod mul {
 mod div {
     use super::*;
 
-    mod cpu {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::div_test(Device::CPU, DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::div_test(Device::CPU, DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::div_test(Device::CPU, DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::div_test(Device::CPU, DType::F64)
-        }
-        #[test]
-        fn u8() -> Result<()> {
-            test_functions::div_test(Device::CPU, DType::U8)
-        }
-        #[test]
-        fn u32() -> Result<()> {
-            test_functions::div_test(Device::CPU, DType::U32)
-        }
-        #[test]
-        fn i8() -> Result<()> {
-            test_functions::div_test(Device::CPU, DType::I8)
-        }
-        #[test]
-        fn i32() -> Result<()> {
-            test_functions::div_test(Device::CPU, DType::I32)
-        }
-        #[test]
-        fn i64() -> Result<()> {
-            test_functions::div_test(Device::CPU, DType::I64)
-        }
+    #[test]
+    fn bf16() -> Result<()> {
+        test_functions::div_test(DType::BF16)
     }
-
-    #[cfg(feature = "cuda")]
-    mod cuda {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::div_test(Device::CUDA(0), DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::div_test(Device::CUDA(0), DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::div_test(Device::CUDA(0), DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::div_test(Device::CUDA(0), DType::F64)
-        }
-        #[test]
-        fn u8() -> Result<()> {
-            test_functions::div_test(Device::CUDA(0), DType::U8)
-        }
-        #[test]
-        fn u32() -> Result<()> {
-            test_functions::div_test(Device::CUDA(0), DType::U32)
-        }
-        #[test]
-        fn i8() -> Result<()> {
-            test_functions::div_test(Device::CUDA(0), DType::I8)
-        }
-        #[test]
-        fn i32() -> Result<()> {
-            test_functions::div_test(Device::CUDA(0), DType::I32)
-        }
-        #[test]
-        fn i64() -> Result<()> {
-            test_functions::div_test(Device::CUDA(0), DType::I64)
-        }
+    #[test]
+    fn f16() -> Result<()> {
+        test_functions::div_test(DType::F16)
+    }
+    #[test]
+    fn f32() -> Result<()> {
+        test_functions::div_test(DType::F32)
+    }
+    #[test]
+    fn f64() -> Result<()> {
+        test_functions::div_test(DType::F64)
+    }
+    #[test]
+    fn u8() -> Result<()> {
+        test_functions::div_test(DType::U8)
+    }
+    #[test]
+    fn u32() -> Result<()> {
+        test_functions::div_test(DType::U32)
+    }
+    #[test]
+    fn i8() -> Result<()> {
+        test_functions::div_test(DType::I8)
+    }
+    #[test]
+    fn i32() -> Result<()> {
+        test_functions::div_test(DType::I32)
+    }
+    #[test]
+    fn i64() -> Result<()> {
+        test_functions::div_test(DType::I64)
     }
 }
 
@@ -616,39 +444,17 @@ mod div {
 mod logical_and {
     use super::*;
 
-    mod cpu {
-        use super::*;
-
-        #[test]
-        fn bool() -> Result<()> {
-            test_functions::logical_and_test(Device::CPU, DType::BOOL)
-        }
-        #[test]
-        fn u8() -> Result<()> {
-            test_functions::logical_and_test(Device::CPU, DType::U8)
-        }
-        #[test]
-        fn i32() -> Result<()> {
-            test_functions::logical_and_test(Device::CPU, DType::I32)
-        }
+    #[test]
+    fn bool() -> Result<()> {
+        test_functions::logical_and_test(DType::BOOL)
     }
-
-    #[cfg(feature = "cuda")]
-    mod cuda {
-        use super::*;
-
-        #[test]
-        fn bool() -> Result<()> {
-            test_functions::logical_and_test(Device::CUDA(0), DType::BOOL)
-        }
-        #[test]
-        fn u8() -> Result<()> {
-            test_functions::logical_and_test(Device::CUDA(0), DType::U8)
-        }
-        #[test]
-        fn i32() -> Result<()> {
-            test_functions::logical_and_test(Device::CUDA(0), DType::I32)
-        }
+    #[test]
+    fn u8() -> Result<()> {
+        test_functions::logical_and_test(DType::U8)
+    }
+    #[test]
+    fn i32() -> Result<()> {
+        test_functions::logical_and_test(DType::I32)
     }
 }
 
@@ -656,39 +462,17 @@ mod logical_and {
 mod logical_or {
     use super::*;
 
-    mod cpu {
-        use super::*;
-
-        #[test]
-        fn bool() -> Result<()> {
-            test_functions::logical_or_test(Device::CPU, DType::BOOL)
-        }
-        #[test]
-        fn u8() -> Result<()> {
-            test_functions::logical_or_test(Device::CPU, DType::U8)
-        }
-        #[test]
-        fn i32() -> Result<()> {
-            test_functions::logical_or_test(Device::CPU, DType::I32)
-        }
+    #[test]
+    fn bool() -> Result<()> {
+        test_functions::logical_or_test(DType::BOOL)
     }
-
-    #[cfg(feature = "cuda")]
-    mod cuda {
-        use super::*;
-
-        #[test]
-        fn bool() -> Result<()> {
-            test_functions::logical_or_test(Device::CUDA(0), DType::BOOL)
-        }
-        #[test]
-        fn u8() -> Result<()> {
-            test_functions::logical_or_test(Device::CUDA(0), DType::U8)
-        }
-        #[test]
-        fn i32() -> Result<()> {
-            test_functions::logical_or_test(Device::CUDA(0), DType::I32)
-        }
+    #[test]
+    fn u8() -> Result<()> {
+        test_functions::logical_or_test(DType::U8)
+    }
+    #[test]
+    fn i32() -> Result<()> {
+        test_functions::logical_or_test(DType::I32)
     }
 }
 
@@ -696,39 +480,17 @@ mod logical_or {
 mod logical_xor {
     use super::*;
 
-    mod cpu {
-        use super::*;
-
-        #[test]
-        fn bool() -> Result<()> {
-            test_functions::logical_xor_test(Device::CPU, DType::BOOL)
-        }
-        #[test]
-        fn u8() -> Result<()> {
-            test_functions::logical_xor_test(Device::CPU, DType::U8)
-        }
-        #[test]
-        fn i32() -> Result<()> {
-            test_functions::logical_xor_test(Device::CPU, DType::I32)
-        }
+    #[test]
+    fn bool() -> Result<()> {
+        test_functions::logical_xor_test(DType::BOOL)
     }
-
-    #[cfg(feature = "cuda")]
-    mod cuda {
-        use super::*;
-
-        #[test]
-        fn bool() -> Result<()> {
-            test_functions::logical_xor_test(Device::CUDA(0), DType::BOOL)
-        }
-        #[test]
-        fn u8() -> Result<()> {
-            test_functions::logical_xor_test(Device::CUDA(0), DType::U8)
-        }
-        #[test]
-        fn i32() -> Result<()> {
-            test_functions::logical_xor_test(Device::CUDA(0), DType::I32)
-        }
+    #[test]
+    fn u8() -> Result<()> {
+        test_functions::logical_xor_test(DType::U8)
+    }
+    #[test]
+    fn i32() -> Result<()> {
+        test_functions::logical_xor_test(DType::I32)
     }
 }
 
@@ -736,47 +498,21 @@ mod logical_xor {
 mod eq {
     use super::*;
 
-    mod cpu {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::eq_test(Device::CPU, DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::eq_test(Device::CPU, DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::eq_test(Device::CPU, DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::eq_test(Device::CPU, DType::F64)
-        }
+    #[test]
+    fn bf16() -> Result<()> {
+        test_functions::eq_test(DType::BF16)
     }
-
-    #[cfg(feature = "cuda")]
-    mod cuda {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::eq_test(Device::CUDA(0), DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::eq_test(Device::CUDA(0), DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::eq_test(Device::CUDA(0), DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::eq_test(Device::CUDA(0), DType::F64)
-        }
+    #[test]
+    fn f16() -> Result<()> {
+        test_functions::eq_test(DType::F16)
+    }
+    #[test]
+    fn f32() -> Result<()> {
+        test_functions::eq_test(DType::F32)
+    }
+    #[test]
+    fn f64() -> Result<()> {
+        test_functions::eq_test(DType::F64)
     }
 }
 
@@ -784,47 +520,21 @@ mod eq {
 mod ne {
     use super::*;
 
-    mod cpu {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::ne_test(Device::CPU, DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::ne_test(Device::CPU, DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::ne_test(Device::CPU, DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::ne_test(Device::CPU, DType::F64)
-        }
+    #[test]
+    fn bf16() -> Result<()> {
+        test_functions::ne_test(DType::BF16)
     }
-
-    #[cfg(feature = "cuda")]
-    mod cuda {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::ne_test(Device::CUDA(0), DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::ne_test(Device::CUDA(0), DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::ne_test(Device::CUDA(0), DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::ne_test(Device::CUDA(0), DType::F64)
-        }
+    #[test]
+    fn f16() -> Result<()> {
+        test_functions::ne_test(DType::F16)
+    }
+    #[test]
+    fn f32() -> Result<()> {
+        test_functions::ne_test(DType::F32)
+    }
+    #[test]
+    fn f64() -> Result<()> {
+        test_functions::ne_test(DType::F64)
     }
 }
 
@@ -832,47 +542,21 @@ mod ne {
 mod lt {
     use super::*;
 
-    mod cpu {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::lt_test(Device::CPU, DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::lt_test(Device::CPU, DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::lt_test(Device::CPU, DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::lt_test(Device::CPU, DType::F64)
-        }
+    #[test]
+    fn bf16() -> Result<()> {
+        test_functions::lt_test(DType::BF16)
     }
-
-    #[cfg(feature = "cuda")]
-    mod cuda {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::lt_test(Device::CUDA(0), DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::lt_test(Device::CUDA(0), DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::lt_test(Device::CUDA(0), DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::lt_test(Device::CUDA(0), DType::F64)
-        }
+    #[test]
+    fn f16() -> Result<()> {
+        test_functions::lt_test(DType::F16)
+    }
+    #[test]
+    fn f32() -> Result<()> {
+        test_functions::lt_test(DType::F32)
+    }
+    #[test]
+    fn f64() -> Result<()> {
+        test_functions::lt_test(DType::F64)
     }
 }
 
@@ -880,47 +564,21 @@ mod lt {
 mod le {
     use super::*;
 
-    mod cpu {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::le_test(Device::CPU, DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::le_test(Device::CPU, DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::le_test(Device::CPU, DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::le_test(Device::CPU, DType::F64)
-        }
+    #[test]
+    fn bf16() -> Result<()> {
+        test_functions::le_test(DType::BF16)
     }
-
-    #[cfg(feature = "cuda")]
-    mod cuda {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::le_test(Device::CUDA(0), DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::le_test(Device::CUDA(0), DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::le_test(Device::CUDA(0), DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::le_test(Device::CUDA(0), DType::F64)
-        }
+    #[test]
+    fn f16() -> Result<()> {
+        test_functions::le_test(DType::F16)
+    }
+    #[test]
+    fn f32() -> Result<()> {
+        test_functions::le_test(DType::F32)
+    }
+    #[test]
+    fn f64() -> Result<()> {
+        test_functions::le_test(DType::F64)
     }
 }
 
@@ -928,47 +586,21 @@ mod le {
 mod gt {
     use super::*;
 
-    mod cpu {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::gt_test(Device::CPU, DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::gt_test(Device::CPU, DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::gt_test(Device::CPU, DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::gt_test(Device::CPU, DType::F64)
-        }
+    #[test]
+    fn bf16() -> Result<()> {
+        test_functions::gt_test(DType::BF16)
     }
-
-    #[cfg(feature = "cuda")]
-    mod cuda {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::gt_test(Device::CUDA(0), DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::gt_test(Device::CUDA(0), DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::gt_test(Device::CUDA(0), DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::gt_test(Device::CUDA(0), DType::F64)
-        }
+    #[test]
+    fn f16() -> Result<()> {
+        test_functions::gt_test(DType::F16)
+    }
+    #[test]
+    fn f32() -> Result<()> {
+        test_functions::gt_test(DType::F32)
+    }
+    #[test]
+    fn f64() -> Result<()> {
+        test_functions::gt_test(DType::F64)
     }
 }
 
@@ -976,47 +608,21 @@ mod gt {
 mod ge {
     use super::*;
 
-    mod cpu {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::ge_test(Device::CPU, DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::ge_test(Device::CPU, DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::ge_test(Device::CPU, DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::ge_test(Device::CPU, DType::F64)
-        }
+    #[test]
+    fn bf16() -> Result<()> {
+        test_functions::ge_test(DType::BF16)
     }
-
-    #[cfg(feature = "cuda")]
-    mod cuda {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::ge_test(Device::CUDA(0), DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::ge_test(Device::CUDA(0), DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::ge_test(Device::CUDA(0), DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::ge_test(Device::CUDA(0), DType::F64)
-        }
+    #[test]
+    fn f16() -> Result<()> {
+        test_functions::ge_test(DType::F16)
+    }
+    #[test]
+    fn f32() -> Result<()> {
+        test_functions::ge_test(DType::F32)
+    }
+    #[test]
+    fn f64() -> Result<()> {
+        test_functions::ge_test(DType::F64)
     }
 }
 
@@ -1024,87 +630,41 @@ mod ge {
 mod add_ {
     use super::*;
 
-    mod cpu {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::add_inplace_test(Device::CPU, DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::add_inplace_test(Device::CPU, DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::add_inplace_test(Device::CPU, DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::add_inplace_test(Device::CPU, DType::F64)
-        }
-        #[test]
-        fn u8() -> Result<()> {
-            test_functions::add_inplace_test(Device::CPU, DType::U8)
-        }
-        #[test]
-        fn u32() -> Result<()> {
-            test_functions::add_inplace_test(Device::CPU, DType::U32)
-        }
-        #[test]
-        fn i8() -> Result<()> {
-            test_functions::add_inplace_test(Device::CPU, DType::I8)
-        }
-        #[test]
-        fn i32() -> Result<()> {
-            test_functions::add_inplace_test(Device::CPU, DType::I32)
-        }
-        #[test]
-        fn i64() -> Result<()> {
-            test_functions::add_inplace_test(Device::CPU, DType::I64)
-        }
+    #[test]
+    fn bf16() -> Result<()> {
+        test_functions::add_inplace_test(DType::BF16)
     }
-
-    #[cfg(feature = "cuda")]
-    mod cuda {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::add_inplace_test(Device::CUDA(0), DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::add_inplace_test(Device::CUDA(0), DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::add_inplace_test(Device::CUDA(0), DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::add_inplace_test(Device::CUDA(0), DType::F64)
-        }
-        #[test]
-        fn u8() -> Result<()> {
-            test_functions::add_inplace_test(Device::CUDA(0), DType::U8)
-        }
-        #[test]
-        fn u32() -> Result<()> {
-            test_functions::add_inplace_test(Device::CUDA(0), DType::U32)
-        }
-        #[test]
-        fn i8() -> Result<()> {
-            test_functions::add_inplace_test(Device::CUDA(0), DType::I8)
-        }
-        #[test]
-        fn i32() -> Result<()> {
-            test_functions::add_inplace_test(Device::CUDA(0), DType::I32)
-        }
-        #[test]
-        fn i64() -> Result<()> {
-            test_functions::add_inplace_test(Device::CUDA(0), DType::I64)
-        }
+    #[test]
+    fn f16() -> Result<()> {
+        test_functions::add_inplace_test(DType::F16)
+    }
+    #[test]
+    fn f32() -> Result<()> {
+        test_functions::add_inplace_test(DType::F32)
+    }
+    #[test]
+    fn f64() -> Result<()> {
+        test_functions::add_inplace_test(DType::F64)
+    }
+    #[test]
+    fn u8() -> Result<()> {
+        test_functions::add_inplace_test(DType::U8)
+    }
+    #[test]
+    fn u32() -> Result<()> {
+        test_functions::add_inplace_test(DType::U32)
+    }
+    #[test]
+    fn i8() -> Result<()> {
+        test_functions::add_inplace_test(DType::I8)
+    }
+    #[test]
+    fn i32() -> Result<()> {
+        test_functions::add_inplace_test(DType::I32)
+    }
+    #[test]
+    fn i64() -> Result<()> {
+        test_functions::add_inplace_test(DType::I64)
     }
 }
 
@@ -1112,87 +672,41 @@ mod add_ {
 mod sub_ {
     use super::*;
 
-    mod cpu {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::sub_inplace_test(Device::CPU, DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::sub_inplace_test(Device::CPU, DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::sub_inplace_test(Device::CPU, DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::sub_inplace_test(Device::CPU, DType::F64)
-        }
-        #[test]
-        fn u8() -> Result<()> {
-            test_functions::sub_inplace_test(Device::CPU, DType::U8)
-        }
-        #[test]
-        fn u32() -> Result<()> {
-            test_functions::sub_inplace_test(Device::CPU, DType::U32)
-        }
-        #[test]
-        fn i8() -> Result<()> {
-            test_functions::sub_inplace_test(Device::CPU, DType::I8)
-        }
-        #[test]
-        fn i32() -> Result<()> {
-            test_functions::sub_inplace_test(Device::CPU, DType::I32)
-        }
-        #[test]
-        fn i64() -> Result<()> {
-            test_functions::sub_inplace_test(Device::CPU, DType::I64)
-        }
+    #[test]
+    fn bf16() -> Result<()> {
+        test_functions::sub_inplace_test(DType::BF16)
     }
-
-    #[cfg(feature = "cuda")]
-    mod cuda {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::sub_inplace_test(Device::CUDA(0), DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::sub_inplace_test(Device::CUDA(0), DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::sub_inplace_test(Device::CUDA(0), DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::sub_inplace_test(Device::CUDA(0), DType::F64)
-        }
-        #[test]
-        fn u8() -> Result<()> {
-            test_functions::sub_inplace_test(Device::CUDA(0), DType::U8)
-        }
-        #[test]
-        fn u32() -> Result<()> {
-            test_functions::sub_inplace_test(Device::CUDA(0), DType::U32)
-        }
-        #[test]
-        fn i8() -> Result<()> {
-            test_functions::sub_inplace_test(Device::CUDA(0), DType::I8)
-        }
-        #[test]
-        fn i32() -> Result<()> {
-            test_functions::sub_inplace_test(Device::CUDA(0), DType::I32)
-        }
-        #[test]
-        fn i64() -> Result<()> {
-            test_functions::sub_inplace_test(Device::CUDA(0), DType::I64)
-        }
+    #[test]
+    fn f16() -> Result<()> {
+        test_functions::sub_inplace_test(DType::F16)
+    }
+    #[test]
+    fn f32() -> Result<()> {
+        test_functions::sub_inplace_test(DType::F32)
+    }
+    #[test]
+    fn f64() -> Result<()> {
+        test_functions::sub_inplace_test(DType::F64)
+    }
+    #[test]
+    fn u8() -> Result<()> {
+        test_functions::sub_inplace_test(DType::U8)
+    }
+    #[test]
+    fn u32() -> Result<()> {
+        test_functions::sub_inplace_test(DType::U32)
+    }
+    #[test]
+    fn i8() -> Result<()> {
+        test_functions::sub_inplace_test(DType::I8)
+    }
+    #[test]
+    fn i32() -> Result<()> {
+        test_functions::sub_inplace_test(DType::I32)
+    }
+    #[test]
+    fn i64() -> Result<()> {
+        test_functions::sub_inplace_test(DType::I64)
     }
 }
 
@@ -1200,87 +714,41 @@ mod sub_ {
 mod mul_ {
     use super::*;
 
-    mod cpu {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::mul_inplace_test(Device::CPU, DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::mul_inplace_test(Device::CPU, DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::mul_inplace_test(Device::CPU, DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::mul_inplace_test(Device::CPU, DType::F64)
-        }
-        #[test]
-        fn u8() -> Result<()> {
-            test_functions::mul_inplace_test(Device::CPU, DType::U8)
-        }
-        #[test]
-        fn u32() -> Result<()> {
-            test_functions::mul_inplace_test(Device::CPU, DType::U32)
-        }
-        #[test]
-        fn i8() -> Result<()> {
-            test_functions::mul_inplace_test(Device::CPU, DType::I8)
-        }
-        #[test]
-        fn i32() -> Result<()> {
-            test_functions::mul_inplace_test(Device::CPU, DType::I32)
-        }
-        #[test]
-        fn i64() -> Result<()> {
-            test_functions::mul_inplace_test(Device::CPU, DType::I64)
-        }
+    #[test]
+    fn bf16() -> Result<()> {
+        test_functions::mul_inplace_test(DType::BF16)
     }
-
-    #[cfg(feature = "cuda")]
-    mod cuda {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::mul_inplace_test(Device::CUDA(0), DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::mul_inplace_test(Device::CUDA(0), DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::mul_inplace_test(Device::CUDA(0), DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::mul_inplace_test(Device::CUDA(0), DType::F64)
-        }
-        #[test]
-        fn u8() -> Result<()> {
-            test_functions::mul_inplace_test(Device::CUDA(0), DType::U8)
-        }
-        #[test]
-        fn u32() -> Result<()> {
-            test_functions::mul_inplace_test(Device::CUDA(0), DType::U32)
-        }
-        #[test]
-        fn i8() -> Result<()> {
-            test_functions::mul_inplace_test(Device::CUDA(0), DType::I8)
-        }
-        #[test]
-        fn i32() -> Result<()> {
-            test_functions::mul_inplace_test(Device::CUDA(0), DType::I32)
-        }
-        #[test]
-        fn i64() -> Result<()> {
-            test_functions::mul_inplace_test(Device::CUDA(0), DType::I64)
-        }
+    #[test]
+    fn f16() -> Result<()> {
+        test_functions::mul_inplace_test(DType::F16)
+    }
+    #[test]
+    fn f32() -> Result<()> {
+        test_functions::mul_inplace_test(DType::F32)
+    }
+    #[test]
+    fn f64() -> Result<()> {
+        test_functions::mul_inplace_test(DType::F64)
+    }
+    #[test]
+    fn u8() -> Result<()> {
+        test_functions::mul_inplace_test(DType::U8)
+    }
+    #[test]
+    fn u32() -> Result<()> {
+        test_functions::mul_inplace_test(DType::U32)
+    }
+    #[test]
+    fn i8() -> Result<()> {
+        test_functions::mul_inplace_test(DType::I8)
+    }
+    #[test]
+    fn i32() -> Result<()> {
+        test_functions::mul_inplace_test(DType::I32)
+    }
+    #[test]
+    fn i64() -> Result<()> {
+        test_functions::mul_inplace_test(DType::I64)
     }
 }
 
@@ -1288,86 +756,40 @@ mod mul_ {
 mod div_ {
     use super::*;
 
-    mod cpu {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::div_inplace_test(Device::CPU, DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::div_inplace_test(Device::CPU, DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::div_inplace_test(Device::CPU, DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::div_inplace_test(Device::CPU, DType::F64)
-        }
-        #[test]
-        fn u8() -> Result<()> {
-            test_functions::div_inplace_test(Device::CPU, DType::U8)
-        }
-        #[test]
-        fn u32() -> Result<()> {
-            test_functions::div_inplace_test(Device::CPU, DType::U32)
-        }
-        #[test]
-        fn i8() -> Result<()> {
-            test_functions::div_inplace_test(Device::CPU, DType::I8)
-        }
-        #[test]
-        fn i32() -> Result<()> {
-            test_functions::div_inplace_test(Device::CPU, DType::I32)
-        }
-        #[test]
-        fn i64() -> Result<()> {
-            test_functions::div_inplace_test(Device::CPU, DType::I64)
-        }
+    #[test]
+    fn bf16() -> Result<()> {
+        test_functions::div_inplace_test(DType::BF16)
     }
-
-    #[cfg(feature = "cuda")]
-    mod cuda {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::div_inplace_test(Device::CUDA(0), DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::div_inplace_test(Device::CUDA(0), DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::div_inplace_test(Device::CUDA(0), DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::div_inplace_test(Device::CUDA(0), DType::F64)
-        }
-        #[test]
-        fn u8() -> Result<()> {
-            test_functions::div_inplace_test(Device::CUDA(0), DType::U8)
-        }
-        #[test]
-        fn u32() -> Result<()> {
-            test_functions::div_inplace_test(Device::CUDA(0), DType::U32)
-        }
-        #[test]
-        fn i8() -> Result<()> {
-            test_functions::div_inplace_test(Device::CUDA(0), DType::I8)
-        }
-        #[test]
-        fn i32() -> Result<()> {
-            test_functions::div_inplace_test(Device::CUDA(0), DType::I32)
-        }
-        #[test]
-        fn i64() -> Result<()> {
-            test_functions::div_inplace_test(Device::CUDA(0), DType::I64)
-        }
+    #[test]
+    fn f16() -> Result<()> {
+        test_functions::div_inplace_test(DType::F16)
+    }
+    #[test]
+    fn f32() -> Result<()> {
+        test_functions::div_inplace_test(DType::F32)
+    }
+    #[test]
+    fn f64() -> Result<()> {
+        test_functions::div_inplace_test(DType::F64)
+    }
+    #[test]
+    fn u8() -> Result<()> {
+        test_functions::div_inplace_test(DType::U8)
+    }
+    #[test]
+    fn u32() -> Result<()> {
+        test_functions::div_inplace_test(DType::U32)
+    }
+    #[test]
+    fn i8() -> Result<()> {
+        test_functions::div_inplace_test(DType::I8)
+    }
+    #[test]
+    fn i32() -> Result<()> {
+        test_functions::div_inplace_test(DType::I32)
+    }
+    #[test]
+    fn i64() -> Result<()> {
+        test_functions::div_inplace_test(DType::I64)
     }
 }

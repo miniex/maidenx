@@ -1,4 +1,8 @@
-use maidenx_core::{device::Device, dtype::DType, error::Result};
+use maidenx_core::{
+    device::{set_default_device, Device},
+    dtype::DType,
+    error::Result,
+};
 use maidenx_tensor::{adapter::TensorAdapter, Tensor};
 
 // Constants for test data
@@ -6,21 +10,29 @@ const TEST_DATA_F32: [f32; 4] = [1.0, 2.0, 3.0, 4.0];
 const TEST_DATA_BOOL: [bool; 4] = [true, false, false, true];
 
 // Helper functions
-fn setup_tensor<T: Clone + 'static>(data: Vec<T>, device: Device, dtype: DType) -> Result<Tensor>
+fn setup_device() {
+    #[cfg(feature = "cuda")]
+    set_default_device(Device::CUDA(0));
+    #[cfg(not(any(feature = "cuda")))]
+    set_default_device(Device::CPU);
+}
+
+fn setup_tensor<T: Clone + 'static>(data: Vec<T>, dtype: DType) -> Result<Tensor>
 where
     Vec<T>: TensorAdapter,
 {
+    setup_device();
+
     let mut tensor = Tensor::new(data)?;
-    tensor.with_device(device)?;
     tensor.with_dtype(dtype)?;
     Ok(tensor)
 }
 
-fn setup_grad_tensor<T: Clone + 'static>(data: Vec<T>, device: Device, dtype: DType) -> Result<Tensor>
+fn setup_grad_tensor<T: Clone + 'static>(data: Vec<T>, dtype: DType) -> Result<Tensor>
 where
     Vec<T>: TensorAdapter,
 {
-    let mut tensor = setup_tensor(data, device, dtype)?;
+    let mut tensor = setup_tensor(data, dtype)?;
     tensor.with_grad().ok();
 
     Ok(tensor)
@@ -35,24 +47,24 @@ fn verify_tensor<T: std::fmt::Debug + PartialEq + Default + Clone + 'static>(ten
 mod test_functions {
     use super::*;
 
-    pub fn view_test(device: Device, dtype: DType) -> Result<()> {
+    pub fn view_test(dtype: DType) -> Result<()> {
         match dtype {
             DType::U8 | DType::U32 => {
-                let x = setup_tensor(TEST_DATA_F32.to_vec(), device, dtype)?;
+                let x = setup_tensor(TEST_DATA_F32.to_vec(), dtype)?;
                 let viewed = x.view(&[1, 2, 1, 2])?;
 
                 assert_eq!(viewed.shape(), &[1, 2, 1, 2]);
                 verify_tensor(&viewed, TEST_DATA_F32.to_vec())?;
             }
             DType::BOOL => {
-                let x = setup_tensor(TEST_DATA_BOOL.to_vec(), device, dtype)?;
+                let x = setup_tensor(TEST_DATA_BOOL.to_vec(), dtype)?;
                 let viewed = x.view(&[1, 2, 1, 2])?;
 
                 assert_eq!(viewed.shape(), &[1, 2, 1, 2]);
                 verify_tensor(&viewed, TEST_DATA_BOOL.to_vec())?;
             }
             _ => {
-                let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), device, dtype)?;
+                let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
                 let viewed = x.view(&[1, 2, 1, 2])?;
                 let y = x.view(&[2, 2])?;
                 let z = y.sum_all()?;
@@ -69,24 +81,24 @@ mod test_functions {
         Ok(())
     }
 
-    pub fn squeeze_test(device: Device, dtype: DType) -> Result<()> {
+    pub fn squeeze_test(dtype: DType) -> Result<()> {
         match dtype {
             DType::U8 | DType::U32 => {
-                let x = setup_tensor(TEST_DATA_F32.to_vec(), device, dtype)?.view(&[1, 2, 1, 2])?;
+                let x = setup_tensor(TEST_DATA_F32.to_vec(), dtype)?.view(&[1, 2, 1, 2])?;
                 let squeezed = x.squeeze(2)?;
 
                 assert_eq!(squeezed.shape(), &[1, 2, 2]);
                 verify_tensor(&squeezed, TEST_DATA_F32.to_vec())?;
             }
             DType::BOOL => {
-                let x = setup_tensor(TEST_DATA_BOOL.to_vec(), device, dtype)?.view(&[1, 2, 1, 2])?;
+                let x = setup_tensor(TEST_DATA_BOOL.to_vec(), dtype)?.view(&[1, 2, 1, 2])?;
                 let squeezed = x.squeeze(2)?;
 
                 assert_eq!(squeezed.shape(), &[1, 2, 2]);
                 verify_tensor(&squeezed, TEST_DATA_BOOL.to_vec())?;
             }
             _ => {
-                let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), device, dtype)?.view(&[1, 2, 1, 2])?;
+                let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?.view(&[1, 2, 1, 2])?;
                 let squeezed = x.squeeze(2)?;
                 let y = x.squeeze(1)?;
                 let z = y.sum_all()?;
@@ -103,24 +115,24 @@ mod test_functions {
         Ok(())
     }
 
-    pub fn squeeze_all_test(device: Device, dtype: DType) -> Result<()> {
+    pub fn squeeze_all_test(dtype: DType) -> Result<()> {
         match dtype {
             DType::U8 | DType::U32 => {
-                let x = setup_tensor(TEST_DATA_F32.to_vec(), device, dtype)?.view(&[1, 2, 1, 2])?;
+                let x = setup_tensor(TEST_DATA_F32.to_vec(), dtype)?.view(&[1, 2, 1, 2])?;
                 let squeezed = x.squeeze_all()?;
 
                 assert_eq!(squeezed.shape(), &[2, 2]);
                 verify_tensor(&squeezed, TEST_DATA_F32.to_vec())?;
             }
             DType::BOOL => {
-                let x = setup_tensor(TEST_DATA_BOOL.to_vec(), device, dtype)?.view(&[1, 2, 1, 2])?;
+                let x = setup_tensor(TEST_DATA_BOOL.to_vec(), dtype)?.view(&[1, 2, 1, 2])?;
                 let squeezed = x.squeeze_all()?;
 
                 assert_eq!(squeezed.shape(), &[2, 2]);
                 verify_tensor(&squeezed, TEST_DATA_BOOL.to_vec())?;
             }
             _ => {
-                let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), device, dtype)?.view(&[1, 2, 1, 2])?;
+                let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?.view(&[1, 2, 1, 2])?;
                 let squeezed = x.squeeze_all()?;
                 let y = x.squeeze_all()?;
                 let z = y.sum_all()?;
@@ -137,24 +149,24 @@ mod test_functions {
         Ok(())
     }
 
-    pub fn unsqueeze_test(device: Device, dtype: DType) -> Result<()> {
+    pub fn unsqueeze_test(dtype: DType) -> Result<()> {
         match dtype {
             DType::U8 | DType::U32 => {
-                let x = setup_tensor(TEST_DATA_F32.to_vec(), device, dtype)?.view(&[2, 2])?;
+                let x = setup_tensor(TEST_DATA_F32.to_vec(), dtype)?.view(&[2, 2])?;
                 let unsqueezed = x.unsqueeze(1)?;
 
                 assert_eq!(unsqueezed.shape(), &[2, 1, 2]);
                 verify_tensor(&unsqueezed, TEST_DATA_F32.to_vec())?;
             }
             DType::BOOL => {
-                let x = setup_tensor(TEST_DATA_BOOL.to_vec(), device, dtype)?.view(&[2, 2])?;
+                let x = setup_tensor(TEST_DATA_BOOL.to_vec(), dtype)?.view(&[2, 2])?;
                 let unsqueezed = x.unsqueeze(1)?;
 
                 assert_eq!(unsqueezed.shape(), &[2, 1, 2]);
                 verify_tensor(&unsqueezed, TEST_DATA_BOOL.to_vec())?;
             }
             _ => {
-                let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), device, dtype)?.view(&[2, 2])?;
+                let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?.view(&[2, 2])?;
                 let unsqueezed = x.unsqueeze(1)?;
                 let y = x.unsqueeze(0)?;
                 let z = y.sum_all()?;
@@ -171,11 +183,11 @@ mod test_functions {
         Ok(())
     }
 
-    pub fn transpose_test(device: Device, dtype: DType) -> Result<()> {
+    pub fn transpose_test(dtype: DType) -> Result<()> {
         match dtype {
             DType::U8 | DType::U32 => {
                 let matrix_data = vec![vec![1.0, 2.0], vec![3.0, 4.0]];
-                let x = setup_tensor(matrix_data, device, dtype)?;
+                let x = setup_tensor(matrix_data, dtype)?;
                 let transposed = x.transpose(0, 1)?;
 
                 assert_eq!(transposed.shape(), &[2, 2]);
@@ -184,7 +196,7 @@ mod test_functions {
             }
             DType::BOOL => {
                 let matrix_data = vec![vec![true, false], vec![false, true]];
-                let x = setup_tensor(matrix_data, device, dtype)?;
+                let x = setup_tensor(matrix_data, dtype)?;
                 let transposed = x.transpose(0, 1)?;
 
                 assert_eq!(transposed.shape(), &[2, 2]);
@@ -193,7 +205,7 @@ mod test_functions {
             }
             _ => {
                 let matrix_data = vec![vec![1.0, 2.0], vec![3.0, 4.0]];
-                let x = setup_grad_tensor(matrix_data, device, dtype)?;
+                let x = setup_grad_tensor(matrix_data, dtype)?;
                 let transposed = x.transpose(0, 1)?;
                 let y = x.transpose(0, 1)?;
                 let z = y.sum_all()?;
@@ -211,11 +223,11 @@ mod test_functions {
         Ok(())
     }
 
-    pub fn slice_test(device: Device, dtype: DType) -> Result<()> {
+    pub fn slice_test(dtype: DType) -> Result<()> {
         match dtype {
             DType::U8 | DType::U32 => {
                 let data = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
-                let x = setup_tensor(data.clone(), device, dtype)?.view(&[2, 3])?;
+                let x = setup_tensor(data.clone(), dtype)?.view(&[2, 3])?;
 
                 let sliced1 = x.slice(0, 0, Some(1), 1)?;
                 let sliced2 = x.slice(1, 1, Some(3), 1)?;
@@ -231,7 +243,7 @@ mod test_functions {
             }
             DType::BOOL => {
                 let data = vec![true, false, true, false, true, false];
-                let x = setup_tensor(data.clone(), device, dtype)?.view(&[2, 3])?;
+                let x = setup_tensor(data.clone(), dtype)?.view(&[2, 3])?;
 
                 let sliced1 = x.slice(0, 0, Some(1), 1)?;
                 let sliced2 = x.slice(1, 1, Some(3), 1)?;
@@ -247,7 +259,7 @@ mod test_functions {
             }
             _ => {
                 let data = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
-                let x = setup_grad_tensor(data.clone(), device, dtype)?.view(&[2, 3])?;
+                let x = setup_grad_tensor(data.clone(), dtype)?.view(&[2, 3])?;
 
                 let sliced = x.slice(0, 1, Some(2), 1)?;
                 let z = sliced.sum_all()?;
@@ -268,11 +280,11 @@ mod test_functions {
         Ok(())
     }
 
-    pub fn unfold_test(device: Device, dtype: DType) -> Result<()> {
+    pub fn unfold_test(dtype: DType) -> Result<()> {
         match dtype {
             DType::U8 | DType::U32 => {
                 let data = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
-                let x = setup_tensor(data.clone(), device, dtype)?.view(&[2, 3])?;
+                let x = setup_tensor(data.clone(), dtype)?.view(&[2, 3])?;
 
                 let unfolded1 = x.unfold(1, 2, 1)?;
                 let unfolded2 = x.unfold(0, 1, 1)?;
@@ -285,7 +297,7 @@ mod test_functions {
             }
             DType::BOOL => {
                 let data = vec![true, false, true, false, true, false];
-                let x = setup_tensor(data.clone(), device, dtype)?.view(&[2, 3])?;
+                let x = setup_tensor(data.clone(), dtype)?.view(&[2, 3])?;
 
                 let unfolded1 = x.unfold(1, 2, 1)?;
                 let unfolded2 = x.unfold(0, 1, 1)?;
@@ -298,7 +310,7 @@ mod test_functions {
             }
             _ => {
                 let data = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
-                let x = setup_grad_tensor(data.clone(), device, dtype)?.view(&[2, 3])?;
+                let x = setup_grad_tensor(data.clone(), dtype)?.view(&[2, 3])?;
 
                 let unfolded = x.unfold(1, 2, 1)?;
                 let z = unfolded.sum_all()?;
@@ -319,24 +331,24 @@ mod test_functions {
         Ok(())
     }
 
-    pub fn reshape_test(device: Device, dtype: DType) -> Result<()> {
+    pub fn reshape_test(dtype: DType) -> Result<()> {
         match dtype {
             DType::U8 | DType::U32 => {
-                let x = setup_tensor(TEST_DATA_F32.to_vec(), device, dtype)?;
+                let x = setup_tensor(TEST_DATA_F32.to_vec(), dtype)?;
                 let reshaped = x.reshape(&[2, 2])?;
 
                 assert_eq!(reshaped.shape(), &[2, 2]);
                 verify_tensor(&reshaped, TEST_DATA_F32.to_vec())?;
             }
             DType::BOOL => {
-                let x = setup_tensor(TEST_DATA_BOOL.to_vec(), device, dtype)?;
+                let x = setup_tensor(TEST_DATA_BOOL.to_vec(), dtype)?;
                 let reshaped = x.reshape(&[2, 2])?;
 
                 assert_eq!(reshaped.shape(), &[2, 2]);
                 verify_tensor(&reshaped, TEST_DATA_BOOL.to_vec())?;
             }
             _ => {
-                let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), device, dtype)?;
+                let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
                 let reshaped = x.reshape(&[2, 2])?;
                 reshaped.backward()?;
 
@@ -354,24 +366,24 @@ mod test_functions {
         Ok(())
     }
 
-    pub fn broadcast_test(device: Device, dtype: DType) -> Result<()> {
+    pub fn broadcast_test(dtype: DType) -> Result<()> {
         match dtype {
             DType::U8 | DType::U32 => {
-                let x = setup_tensor(vec![1.0, 2.0], device, dtype)?;
+                let x = setup_tensor(vec![1.0, 2.0], dtype)?;
                 let broadcasted = x.broadcast(&[3, 2])?;
 
                 assert_eq!(broadcasted.shape(), &[3, 2]);
                 verify_tensor(&broadcasted, vec![1.0, 2.0, 1.0, 2.0, 1.0, 2.0])?;
             }
             DType::BOOL => {
-                let x = setup_tensor(vec![true, false], device, dtype)?;
+                let x = setup_tensor(vec![true, false], dtype)?;
                 let broadcasted = x.broadcast(&[3, 2])?;
 
                 assert_eq!(broadcasted.shape(), &[3, 2]);
                 verify_tensor(&broadcasted, vec![true, false, true, false, true, false])?;
             }
             _ => {
-                let x = setup_grad_tensor(vec![1.0, 2.0], device, dtype)?;
+                let x = setup_grad_tensor(vec![1.0, 2.0], dtype)?;
                 let broadcasted = x.broadcast(&[3, 2])?;
                 broadcasted.backward()?;
 
@@ -389,10 +401,10 @@ mod test_functions {
         Ok(())
     }
 
-    pub fn broadcast_left_test(device: Device, dtype: DType) -> Result<()> {
+    pub fn broadcast_left_test(dtype: DType) -> Result<()> {
         match dtype {
             DType::U8 | DType::U32 => {
-                let x = setup_tensor(vec![1.0, 2.0], device, dtype)?;
+                let x = setup_tensor(vec![1.0, 2.0], dtype)?;
                 let broadcasted = x.broadcast_left(&[3, 4])?;
 
                 assert_eq!(broadcasted.shape(), &[3, 4, 2]);
@@ -400,7 +412,7 @@ mod test_functions {
                 verify_tensor(&broadcasted, expected)?;
             }
             DType::BOOL => {
-                let x = setup_tensor(vec![true, false], device, dtype)?;
+                let x = setup_tensor(vec![true, false], dtype)?;
                 let broadcasted = x.broadcast_left(&[3, 4])?;
 
                 assert_eq!(broadcasted.shape(), &[3, 4, 2]);
@@ -408,7 +420,7 @@ mod test_functions {
                 verify_tensor(&broadcasted, expected)?;
             }
             _ => {
-                let x = setup_grad_tensor(vec![1.0, 2.0], device, dtype)?;
+                let x = setup_grad_tensor(vec![1.0, 2.0], dtype)?;
                 let broadcasted = x.broadcast_left(&[3, 4])?;
                 broadcasted.backward()?;
 
@@ -432,95 +444,45 @@ mod test_functions {
 mod view {
     use super::*;
 
-    mod cpu {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::view_test(Device::CPU, DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::view_test(Device::CPU, DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::view_test(Device::CPU, DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::view_test(Device::CPU, DType::F64)
-        }
-        #[test]
-        fn bool() -> Result<()> {
-            test_functions::view_test(Device::CPU, DType::BOOL)
-        }
-        #[test]
-        fn u8() -> Result<()> {
-            test_functions::view_test(Device::CPU, DType::U8)
-        }
-        #[test]
-        fn u32() -> Result<()> {
-            test_functions::view_test(Device::CPU, DType::U32)
-        }
-        #[test]
-        fn i8() -> Result<()> {
-            test_functions::view_test(Device::CPU, DType::I8)
-        }
-        #[test]
-        fn i32() -> Result<()> {
-            test_functions::view_test(Device::CPU, DType::I32)
-        }
-        #[test]
-        fn i64() -> Result<()> {
-            test_functions::view_test(Device::CPU, DType::I64)
-        }
+    #[test]
+    fn bf16() -> Result<()> {
+        test_functions::view_test(DType::BF16)
     }
-
-    #[cfg(feature = "cuda")]
-    mod cuda {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::view_test(Device::CUDA(0), DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::view_test(Device::CUDA(0), DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::view_test(Device::CUDA(0), DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::view_test(Device::CUDA(0), DType::F64)
-        }
-        #[test]
-        fn bool() -> Result<()> {
-            test_functions::view_test(Device::CUDA(0), DType::BOOL)
-        }
-        #[test]
-        fn u8() -> Result<()> {
-            test_functions::view_test(Device::CUDA(0), DType::U8)
-        }
-        #[test]
-        fn u32() -> Result<()> {
-            test_functions::view_test(Device::CUDA(0), DType::U32)
-        }
-        #[test]
-        fn i8() -> Result<()> {
-            test_functions::view_test(Device::CUDA(0), DType::I8)
-        }
-        #[test]
-        fn i32() -> Result<()> {
-            test_functions::view_test(Device::CUDA(0), DType::I32)
-        }
-        #[test]
-        fn i64() -> Result<()> {
-            test_functions::view_test(Device::CUDA(0), DType::I64)
-        }
+    #[test]
+    fn f16() -> Result<()> {
+        test_functions::view_test(DType::F16)
+    }
+    #[test]
+    fn f32() -> Result<()> {
+        test_functions::view_test(DType::F32)
+    }
+    #[test]
+    fn f64() -> Result<()> {
+        test_functions::view_test(DType::F64)
+    }
+    #[test]
+    fn bool() -> Result<()> {
+        test_functions::view_test(DType::BOOL)
+    }
+    #[test]
+    fn u8() -> Result<()> {
+        test_functions::view_test(DType::U8)
+    }
+    #[test]
+    fn u32() -> Result<()> {
+        test_functions::view_test(DType::U32)
+    }
+    #[test]
+    fn i8() -> Result<()> {
+        test_functions::view_test(DType::I8)
+    }
+    #[test]
+    fn i32() -> Result<()> {
+        test_functions::view_test(DType::I32)
+    }
+    #[test]
+    fn i64() -> Result<()> {
+        test_functions::view_test(DType::I64)
     }
 }
 
@@ -528,95 +490,45 @@ mod view {
 mod squeeze {
     use super::*;
 
-    mod cpu {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::squeeze_test(Device::CPU, DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::squeeze_test(Device::CPU, DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::squeeze_test(Device::CPU, DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::squeeze_test(Device::CPU, DType::F64)
-        }
-        #[test]
-        fn bool() -> Result<()> {
-            test_functions::squeeze_test(Device::CPU, DType::BOOL)
-        }
-        #[test]
-        fn u8() -> Result<()> {
-            test_functions::squeeze_test(Device::CPU, DType::U8)
-        }
-        #[test]
-        fn u32() -> Result<()> {
-            test_functions::squeeze_test(Device::CPU, DType::U32)
-        }
-        #[test]
-        fn i8() -> Result<()> {
-            test_functions::squeeze_test(Device::CPU, DType::I8)
-        }
-        #[test]
-        fn i32() -> Result<()> {
-            test_functions::squeeze_test(Device::CPU, DType::I32)
-        }
-        #[test]
-        fn i64() -> Result<()> {
-            test_functions::squeeze_test(Device::CPU, DType::I64)
-        }
+    #[test]
+    fn bf16() -> Result<()> {
+        test_functions::squeeze_test(DType::BF16)
     }
-
-    #[cfg(feature = "cuda")]
-    mod cuda {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::squeeze_test(Device::CUDA(0), DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::squeeze_test(Device::CUDA(0), DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::squeeze_test(Device::CUDA(0), DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::squeeze_test(Device::CUDA(0), DType::F64)
-        }
-        #[test]
-        fn bool() -> Result<()> {
-            test_functions::squeeze_test(Device::CUDA(0), DType::BOOL)
-        }
-        #[test]
-        fn u8() -> Result<()> {
-            test_functions::squeeze_test(Device::CUDA(0), DType::U8)
-        }
-        #[test]
-        fn u32() -> Result<()> {
-            test_functions::squeeze_test(Device::CUDA(0), DType::U32)
-        }
-        #[test]
-        fn i8() -> Result<()> {
-            test_functions::squeeze_test(Device::CUDA(0), DType::I8)
-        }
-        #[test]
-        fn i32() -> Result<()> {
-            test_functions::squeeze_test(Device::CUDA(0), DType::I32)
-        }
-        #[test]
-        fn i64() -> Result<()> {
-            test_functions::squeeze_test(Device::CUDA(0), DType::I64)
-        }
+    #[test]
+    fn f16() -> Result<()> {
+        test_functions::squeeze_test(DType::F16)
+    }
+    #[test]
+    fn f32() -> Result<()> {
+        test_functions::squeeze_test(DType::F32)
+    }
+    #[test]
+    fn f64() -> Result<()> {
+        test_functions::squeeze_test(DType::F64)
+    }
+    #[test]
+    fn bool() -> Result<()> {
+        test_functions::squeeze_test(DType::BOOL)
+    }
+    #[test]
+    fn u8() -> Result<()> {
+        test_functions::squeeze_test(DType::U8)
+    }
+    #[test]
+    fn u32() -> Result<()> {
+        test_functions::squeeze_test(DType::U32)
+    }
+    #[test]
+    fn i8() -> Result<()> {
+        test_functions::squeeze_test(DType::I8)
+    }
+    #[test]
+    fn i32() -> Result<()> {
+        test_functions::squeeze_test(DType::I32)
+    }
+    #[test]
+    fn i64() -> Result<()> {
+        test_functions::squeeze_test(DType::I64)
     }
 }
 
@@ -624,95 +536,45 @@ mod squeeze {
 mod squeeze_all {
     use super::*;
 
-    mod cpu {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::squeeze_all_test(Device::CPU, DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::squeeze_all_test(Device::CPU, DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::squeeze_all_test(Device::CPU, DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::squeeze_all_test(Device::CPU, DType::F64)
-        }
-        #[test]
-        fn bool() -> Result<()> {
-            test_functions::squeeze_all_test(Device::CPU, DType::BOOL)
-        }
-        #[test]
-        fn u8() -> Result<()> {
-            test_functions::squeeze_all_test(Device::CPU, DType::U8)
-        }
-        #[test]
-        fn u32() -> Result<()> {
-            test_functions::squeeze_all_test(Device::CPU, DType::U32)
-        }
-        #[test]
-        fn i8() -> Result<()> {
-            test_functions::squeeze_all_test(Device::CPU, DType::I8)
-        }
-        #[test]
-        fn i32() -> Result<()> {
-            test_functions::squeeze_all_test(Device::CPU, DType::I32)
-        }
-        #[test]
-        fn i64() -> Result<()> {
-            test_functions::squeeze_all_test(Device::CPU, DType::I64)
-        }
+    #[test]
+    fn bf16() -> Result<()> {
+        test_functions::squeeze_all_test(DType::BF16)
     }
-
-    #[cfg(feature = "cuda")]
-    mod cuda {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::squeeze_all_test(Device::CUDA(0), DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::squeeze_all_test(Device::CUDA(0), DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::squeeze_all_test(Device::CUDA(0), DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::squeeze_all_test(Device::CUDA(0), DType::F64)
-        }
-        #[test]
-        fn bool() -> Result<()> {
-            test_functions::squeeze_all_test(Device::CUDA(0), DType::BOOL)
-        }
-        #[test]
-        fn u8() -> Result<()> {
-            test_functions::squeeze_all_test(Device::CUDA(0), DType::U8)
-        }
-        #[test]
-        fn u32() -> Result<()> {
-            test_functions::squeeze_all_test(Device::CUDA(0), DType::U32)
-        }
-        #[test]
-        fn i8() -> Result<()> {
-            test_functions::squeeze_all_test(Device::CUDA(0), DType::I8)
-        }
-        #[test]
-        fn i32() -> Result<()> {
-            test_functions::squeeze_all_test(Device::CUDA(0), DType::I32)
-        }
-        #[test]
-        fn i64() -> Result<()> {
-            test_functions::squeeze_all_test(Device::CUDA(0), DType::I64)
-        }
+    #[test]
+    fn f16() -> Result<()> {
+        test_functions::squeeze_all_test(DType::F16)
+    }
+    #[test]
+    fn f32() -> Result<()> {
+        test_functions::squeeze_all_test(DType::F32)
+    }
+    #[test]
+    fn f64() -> Result<()> {
+        test_functions::squeeze_all_test(DType::F64)
+    }
+    #[test]
+    fn bool() -> Result<()> {
+        test_functions::squeeze_all_test(DType::BOOL)
+    }
+    #[test]
+    fn u8() -> Result<()> {
+        test_functions::squeeze_all_test(DType::U8)
+    }
+    #[test]
+    fn u32() -> Result<()> {
+        test_functions::squeeze_all_test(DType::U32)
+    }
+    #[test]
+    fn i8() -> Result<()> {
+        test_functions::squeeze_all_test(DType::I8)
+    }
+    #[test]
+    fn i32() -> Result<()> {
+        test_functions::squeeze_all_test(DType::I32)
+    }
+    #[test]
+    fn i64() -> Result<()> {
+        test_functions::squeeze_all_test(DType::I64)
     }
 }
 
@@ -720,95 +582,45 @@ mod squeeze_all {
 mod unsqueeze {
     use super::*;
 
-    mod cpu {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::unsqueeze_test(Device::CPU, DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::unsqueeze_test(Device::CPU, DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::unsqueeze_test(Device::CPU, DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::unsqueeze_test(Device::CPU, DType::F64)
-        }
-        #[test]
-        fn bool() -> Result<()> {
-            test_functions::unsqueeze_test(Device::CPU, DType::BOOL)
-        }
-        #[test]
-        fn u8() -> Result<()> {
-            test_functions::unsqueeze_test(Device::CPU, DType::U8)
-        }
-        #[test]
-        fn u32() -> Result<()> {
-            test_functions::unsqueeze_test(Device::CPU, DType::U32)
-        }
-        #[test]
-        fn i8() -> Result<()> {
-            test_functions::unsqueeze_test(Device::CPU, DType::I8)
-        }
-        #[test]
-        fn i32() -> Result<()> {
-            test_functions::unsqueeze_test(Device::CPU, DType::I32)
-        }
-        #[test]
-        fn i64() -> Result<()> {
-            test_functions::unsqueeze_test(Device::CPU, DType::I64)
-        }
+    #[test]
+    fn bf16() -> Result<()> {
+        test_functions::unsqueeze_test(DType::BF16)
     }
-
-    #[cfg(feature = "cuda")]
-    mod cuda {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::unsqueeze_test(Device::CUDA(0), DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::unsqueeze_test(Device::CUDA(0), DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::unsqueeze_test(Device::CUDA(0), DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::unsqueeze_test(Device::CUDA(0), DType::F64)
-        }
-        #[test]
-        fn bool() -> Result<()> {
-            test_functions::unsqueeze_test(Device::CUDA(0), DType::BOOL)
-        }
-        #[test]
-        fn u8() -> Result<()> {
-            test_functions::unsqueeze_test(Device::CUDA(0), DType::U8)
-        }
-        #[test]
-        fn u32() -> Result<()> {
-            test_functions::unsqueeze_test(Device::CUDA(0), DType::U32)
-        }
-        #[test]
-        fn i8() -> Result<()> {
-            test_functions::unsqueeze_test(Device::CUDA(0), DType::I8)
-        }
-        #[test]
-        fn i32() -> Result<()> {
-            test_functions::unsqueeze_test(Device::CUDA(0), DType::I32)
-        }
-        #[test]
-        fn i64() -> Result<()> {
-            test_functions::unsqueeze_test(Device::CUDA(0), DType::I64)
-        }
+    #[test]
+    fn f16() -> Result<()> {
+        test_functions::unsqueeze_test(DType::F16)
+    }
+    #[test]
+    fn f32() -> Result<()> {
+        test_functions::unsqueeze_test(DType::F32)
+    }
+    #[test]
+    fn f64() -> Result<()> {
+        test_functions::unsqueeze_test(DType::F64)
+    }
+    #[test]
+    fn bool() -> Result<()> {
+        test_functions::unsqueeze_test(DType::BOOL)
+    }
+    #[test]
+    fn u8() -> Result<()> {
+        test_functions::unsqueeze_test(DType::U8)
+    }
+    #[test]
+    fn u32() -> Result<()> {
+        test_functions::unsqueeze_test(DType::U32)
+    }
+    #[test]
+    fn i8() -> Result<()> {
+        test_functions::unsqueeze_test(DType::I8)
+    }
+    #[test]
+    fn i32() -> Result<()> {
+        test_functions::unsqueeze_test(DType::I32)
+    }
+    #[test]
+    fn i64() -> Result<()> {
+        test_functions::unsqueeze_test(DType::I64)
     }
 }
 
@@ -816,95 +628,45 @@ mod unsqueeze {
 mod transpose {
     use super::*;
 
-    mod cpu {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::transpose_test(Device::CPU, DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::transpose_test(Device::CPU, DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::transpose_test(Device::CPU, DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::transpose_test(Device::CPU, DType::F64)
-        }
-        #[test]
-        fn bool() -> Result<()> {
-            test_functions::transpose_test(Device::CPU, DType::BOOL)
-        }
-        #[test]
-        fn u8() -> Result<()> {
-            test_functions::transpose_test(Device::CPU, DType::U8)
-        }
-        #[test]
-        fn u32() -> Result<()> {
-            test_functions::transpose_test(Device::CPU, DType::U32)
-        }
-        #[test]
-        fn i8() -> Result<()> {
-            test_functions::transpose_test(Device::CPU, DType::I8)
-        }
-        #[test]
-        fn i32() -> Result<()> {
-            test_functions::transpose_test(Device::CPU, DType::I32)
-        }
-        #[test]
-        fn i64() -> Result<()> {
-            test_functions::transpose_test(Device::CPU, DType::I64)
-        }
+    #[test]
+    fn bf16() -> Result<()> {
+        test_functions::transpose_test(DType::BF16)
     }
-
-    #[cfg(feature = "cuda")]
-    mod cuda {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::transpose_test(Device::CUDA(0), DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::transpose_test(Device::CUDA(0), DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::transpose_test(Device::CUDA(0), DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::transpose_test(Device::CUDA(0), DType::F64)
-        }
-        #[test]
-        fn bool() -> Result<()> {
-            test_functions::transpose_test(Device::CUDA(0), DType::BOOL)
-        }
-        #[test]
-        fn u8() -> Result<()> {
-            test_functions::transpose_test(Device::CUDA(0), DType::U8)
-        }
-        #[test]
-        fn u32() -> Result<()> {
-            test_functions::transpose_test(Device::CUDA(0), DType::U32)
-        }
-        #[test]
-        fn i8() -> Result<()> {
-            test_functions::transpose_test(Device::CUDA(0), DType::I8)
-        }
-        #[test]
-        fn i32() -> Result<()> {
-            test_functions::transpose_test(Device::CUDA(0), DType::I32)
-        }
-        #[test]
-        fn i64() -> Result<()> {
-            test_functions::transpose_test(Device::CUDA(0), DType::I64)
-        }
+    #[test]
+    fn f16() -> Result<()> {
+        test_functions::transpose_test(DType::F16)
+    }
+    #[test]
+    fn f32() -> Result<()> {
+        test_functions::transpose_test(DType::F32)
+    }
+    #[test]
+    fn f64() -> Result<()> {
+        test_functions::transpose_test(DType::F64)
+    }
+    #[test]
+    fn bool() -> Result<()> {
+        test_functions::transpose_test(DType::BOOL)
+    }
+    #[test]
+    fn u8() -> Result<()> {
+        test_functions::transpose_test(DType::U8)
+    }
+    #[test]
+    fn u32() -> Result<()> {
+        test_functions::transpose_test(DType::U32)
+    }
+    #[test]
+    fn i8() -> Result<()> {
+        test_functions::transpose_test(DType::I8)
+    }
+    #[test]
+    fn i32() -> Result<()> {
+        test_functions::transpose_test(DType::I32)
+    }
+    #[test]
+    fn i64() -> Result<()> {
+        test_functions::transpose_test(DType::I64)
     }
 }
 
@@ -912,95 +674,45 @@ mod transpose {
 mod slice {
     use super::*;
 
-    mod cpu {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::slice_test(Device::CPU, DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::slice_test(Device::CPU, DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::slice_test(Device::CPU, DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::slice_test(Device::CPU, DType::F64)
-        }
-        #[test]
-        fn bool() -> Result<()> {
-            test_functions::slice_test(Device::CPU, DType::BOOL)
-        }
-        #[test]
-        fn u8() -> Result<()> {
-            test_functions::slice_test(Device::CPU, DType::U8)
-        }
-        #[test]
-        fn u32() -> Result<()> {
-            test_functions::slice_test(Device::CPU, DType::U32)
-        }
-        #[test]
-        fn i8() -> Result<()> {
-            test_functions::slice_test(Device::CPU, DType::I8)
-        }
-        #[test]
-        fn i32() -> Result<()> {
-            test_functions::slice_test(Device::CPU, DType::I32)
-        }
-        #[test]
-        fn i64() -> Result<()> {
-            test_functions::slice_test(Device::CPU, DType::I64)
-        }
+    #[test]
+    fn bf16() -> Result<()> {
+        test_functions::slice_test(DType::BF16)
     }
-
-    #[cfg(feature = "cuda")]
-    mod cuda {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::slice_test(Device::CUDA(0), DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::slice_test(Device::CUDA(0), DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::slice_test(Device::CUDA(0), DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::slice_test(Device::CUDA(0), DType::F64)
-        }
-        #[test]
-        fn bool() -> Result<()> {
-            test_functions::slice_test(Device::CUDA(0), DType::BOOL)
-        }
-        #[test]
-        fn u8() -> Result<()> {
-            test_functions::slice_test(Device::CUDA(0), DType::U8)
-        }
-        #[test]
-        fn u32() -> Result<()> {
-            test_functions::slice_test(Device::CUDA(0), DType::U32)
-        }
-        #[test]
-        fn i8() -> Result<()> {
-            test_functions::slice_test(Device::CUDA(0), DType::I8)
-        }
-        #[test]
-        fn i32() -> Result<()> {
-            test_functions::slice_test(Device::CUDA(0), DType::I32)
-        }
-        #[test]
-        fn i64() -> Result<()> {
-            test_functions::slice_test(Device::CUDA(0), DType::I64)
-        }
+    #[test]
+    fn f16() -> Result<()> {
+        test_functions::slice_test(DType::F16)
+    }
+    #[test]
+    fn f32() -> Result<()> {
+        test_functions::slice_test(DType::F32)
+    }
+    #[test]
+    fn f64() -> Result<()> {
+        test_functions::slice_test(DType::F64)
+    }
+    #[test]
+    fn bool() -> Result<()> {
+        test_functions::slice_test(DType::BOOL)
+    }
+    #[test]
+    fn u8() -> Result<()> {
+        test_functions::slice_test(DType::U8)
+    }
+    #[test]
+    fn u32() -> Result<()> {
+        test_functions::slice_test(DType::U32)
+    }
+    #[test]
+    fn i8() -> Result<()> {
+        test_functions::slice_test(DType::I8)
+    }
+    #[test]
+    fn i32() -> Result<()> {
+        test_functions::slice_test(DType::I32)
+    }
+    #[test]
+    fn i64() -> Result<()> {
+        test_functions::slice_test(DType::I64)
     }
 }
 
@@ -1008,95 +720,45 @@ mod slice {
 mod unfold {
     use super::*;
 
-    mod cpu {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::unfold_test(Device::CPU, DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::unfold_test(Device::CPU, DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::unfold_test(Device::CPU, DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::unfold_test(Device::CPU, DType::F64)
-        }
-        #[test]
-        fn bool() -> Result<()> {
-            test_functions::unfold_test(Device::CPU, DType::BOOL)
-        }
-        #[test]
-        fn u8() -> Result<()> {
-            test_functions::unfold_test(Device::CPU, DType::U8)
-        }
-        #[test]
-        fn u32() -> Result<()> {
-            test_functions::unfold_test(Device::CPU, DType::U32)
-        }
-        #[test]
-        fn i8() -> Result<()> {
-            test_functions::unfold_test(Device::CPU, DType::I8)
-        }
-        #[test]
-        fn i32() -> Result<()> {
-            test_functions::unfold_test(Device::CPU, DType::I32)
-        }
-        #[test]
-        fn i64() -> Result<()> {
-            test_functions::unfold_test(Device::CPU, DType::I64)
-        }
+    #[test]
+    fn bf16() -> Result<()> {
+        test_functions::unfold_test(DType::BF16)
     }
-
-    #[cfg(feature = "cuda")]
-    mod cuda {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::unfold_test(Device::CUDA(0), DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::unfold_test(Device::CUDA(0), DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::unfold_test(Device::CUDA(0), DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::unfold_test(Device::CUDA(0), DType::F64)
-        }
-        #[test]
-        fn bool() -> Result<()> {
-            test_functions::unfold_test(Device::CUDA(0), DType::BOOL)
-        }
-        #[test]
-        fn u8() -> Result<()> {
-            test_functions::unfold_test(Device::CUDA(0), DType::U8)
-        }
-        #[test]
-        fn u32() -> Result<()> {
-            test_functions::unfold_test(Device::CUDA(0), DType::U32)
-        }
-        #[test]
-        fn i8() -> Result<()> {
-            test_functions::unfold_test(Device::CUDA(0), DType::I8)
-        }
-        #[test]
-        fn i32() -> Result<()> {
-            test_functions::unfold_test(Device::CUDA(0), DType::I32)
-        }
-        #[test]
-        fn i64() -> Result<()> {
-            test_functions::unfold_test(Device::CUDA(0), DType::I64)
-        }
+    #[test]
+    fn f16() -> Result<()> {
+        test_functions::unfold_test(DType::F16)
+    }
+    #[test]
+    fn f32() -> Result<()> {
+        test_functions::unfold_test(DType::F32)
+    }
+    #[test]
+    fn f64() -> Result<()> {
+        test_functions::unfold_test(DType::F64)
+    }
+    #[test]
+    fn bool() -> Result<()> {
+        test_functions::unfold_test(DType::BOOL)
+    }
+    #[test]
+    fn u8() -> Result<()> {
+        test_functions::unfold_test(DType::U8)
+    }
+    #[test]
+    fn u32() -> Result<()> {
+        test_functions::unfold_test(DType::U32)
+    }
+    #[test]
+    fn i8() -> Result<()> {
+        test_functions::unfold_test(DType::I8)
+    }
+    #[test]
+    fn i32() -> Result<()> {
+        test_functions::unfold_test(DType::I32)
+    }
+    #[test]
+    fn i64() -> Result<()> {
+        test_functions::unfold_test(DType::I64)
     }
 }
 
@@ -1104,95 +766,45 @@ mod unfold {
 mod reshape {
     use super::*;
 
-    mod cpu {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::reshape_test(Device::CPU, DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::reshape_test(Device::CPU, DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::reshape_test(Device::CPU, DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::reshape_test(Device::CPU, DType::F64)
-        }
-        #[test]
-        fn bool() -> Result<()> {
-            test_functions::reshape_test(Device::CPU, DType::BOOL)
-        }
-        #[test]
-        fn u8() -> Result<()> {
-            test_functions::reshape_test(Device::CPU, DType::U8)
-        }
-        #[test]
-        fn u32() -> Result<()> {
-            test_functions::reshape_test(Device::CPU, DType::U32)
-        }
-        #[test]
-        fn i8() -> Result<()> {
-            test_functions::reshape_test(Device::CPU, DType::I8)
-        }
-        #[test]
-        fn i32() -> Result<()> {
-            test_functions::reshape_test(Device::CPU, DType::I32)
-        }
-        #[test]
-        fn i64() -> Result<()> {
-            test_functions::reshape_test(Device::CPU, DType::I64)
-        }
+    #[test]
+    fn bf16() -> Result<()> {
+        test_functions::reshape_test(DType::BF16)
     }
-
-    #[cfg(feature = "cuda")]
-    mod cuda {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::reshape_test(Device::CUDA(0), DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::reshape_test(Device::CUDA(0), DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::reshape_test(Device::CUDA(0), DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::reshape_test(Device::CUDA(0), DType::F64)
-        }
-        #[test]
-        fn bool() -> Result<()> {
-            test_functions::reshape_test(Device::CUDA(0), DType::BOOL)
-        }
-        #[test]
-        fn u8() -> Result<()> {
-            test_functions::reshape_test(Device::CUDA(0), DType::U8)
-        }
-        #[test]
-        fn u32() -> Result<()> {
-            test_functions::reshape_test(Device::CUDA(0), DType::U32)
-        }
-        #[test]
-        fn i8() -> Result<()> {
-            test_functions::reshape_test(Device::CUDA(0), DType::I8)
-        }
-        #[test]
-        fn i32() -> Result<()> {
-            test_functions::reshape_test(Device::CUDA(0), DType::I32)
-        }
-        #[test]
-        fn i64() -> Result<()> {
-            test_functions::reshape_test(Device::CUDA(0), DType::I64)
-        }
+    #[test]
+    fn f16() -> Result<()> {
+        test_functions::reshape_test(DType::F16)
+    }
+    #[test]
+    fn f32() -> Result<()> {
+        test_functions::reshape_test(DType::F32)
+    }
+    #[test]
+    fn f64() -> Result<()> {
+        test_functions::reshape_test(DType::F64)
+    }
+    #[test]
+    fn bool() -> Result<()> {
+        test_functions::reshape_test(DType::BOOL)
+    }
+    #[test]
+    fn u8() -> Result<()> {
+        test_functions::reshape_test(DType::U8)
+    }
+    #[test]
+    fn u32() -> Result<()> {
+        test_functions::reshape_test(DType::U32)
+    }
+    #[test]
+    fn i8() -> Result<()> {
+        test_functions::reshape_test(DType::I8)
+    }
+    #[test]
+    fn i32() -> Result<()> {
+        test_functions::reshape_test(DType::I32)
+    }
+    #[test]
+    fn i64() -> Result<()> {
+        test_functions::reshape_test(DType::I64)
     }
 }
 
@@ -1200,95 +812,45 @@ mod reshape {
 mod broadcast {
     use super::*;
 
-    mod cpu {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::broadcast_test(Device::CPU, DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::broadcast_test(Device::CPU, DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::broadcast_test(Device::CPU, DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::broadcast_test(Device::CPU, DType::F64)
-        }
-        #[test]
-        fn bool() -> Result<()> {
-            test_functions::broadcast_test(Device::CPU, DType::BOOL)
-        }
-        #[test]
-        fn u8() -> Result<()> {
-            test_functions::broadcast_test(Device::CPU, DType::U8)
-        }
-        #[test]
-        fn u32() -> Result<()> {
-            test_functions::broadcast_test(Device::CPU, DType::U32)
-        }
-        #[test]
-        fn i8() -> Result<()> {
-            test_functions::broadcast_test(Device::CPU, DType::I8)
-        }
-        #[test]
-        fn i32() -> Result<()> {
-            test_functions::broadcast_test(Device::CPU, DType::I32)
-        }
-        #[test]
-        fn i64() -> Result<()> {
-            test_functions::broadcast_test(Device::CPU, DType::I64)
-        }
+    #[test]
+    fn bf16() -> Result<()> {
+        test_functions::broadcast_test(DType::BF16)
     }
-
-    #[cfg(feature = "cuda")]
-    mod cuda {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::broadcast_test(Device::CUDA(0), DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::broadcast_test(Device::CUDA(0), DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::broadcast_test(Device::CUDA(0), DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::broadcast_test(Device::CUDA(0), DType::F64)
-        }
-        #[test]
-        fn bool() -> Result<()> {
-            test_functions::broadcast_test(Device::CUDA(0), DType::BOOL)
-        }
-        #[test]
-        fn u8() -> Result<()> {
-            test_functions::broadcast_test(Device::CUDA(0), DType::U8)
-        }
-        #[test]
-        fn u32() -> Result<()> {
-            test_functions::broadcast_test(Device::CUDA(0), DType::U32)
-        }
-        #[test]
-        fn i8() -> Result<()> {
-            test_functions::broadcast_test(Device::CUDA(0), DType::I8)
-        }
-        #[test]
-        fn i32() -> Result<()> {
-            test_functions::broadcast_test(Device::CUDA(0), DType::I32)
-        }
-        #[test]
-        fn i64() -> Result<()> {
-            test_functions::broadcast_test(Device::CUDA(0), DType::I64)
-        }
+    #[test]
+    fn f16() -> Result<()> {
+        test_functions::broadcast_test(DType::F16)
+    }
+    #[test]
+    fn f32() -> Result<()> {
+        test_functions::broadcast_test(DType::F32)
+    }
+    #[test]
+    fn f64() -> Result<()> {
+        test_functions::broadcast_test(DType::F64)
+    }
+    #[test]
+    fn bool() -> Result<()> {
+        test_functions::broadcast_test(DType::BOOL)
+    }
+    #[test]
+    fn u8() -> Result<()> {
+        test_functions::broadcast_test(DType::U8)
+    }
+    #[test]
+    fn u32() -> Result<()> {
+        test_functions::broadcast_test(DType::U32)
+    }
+    #[test]
+    fn i8() -> Result<()> {
+        test_functions::broadcast_test(DType::I8)
+    }
+    #[test]
+    fn i32() -> Result<()> {
+        test_functions::broadcast_test(DType::I32)
+    }
+    #[test]
+    fn i64() -> Result<()> {
+        test_functions::broadcast_test(DType::I64)
     }
 }
 
@@ -1296,94 +858,44 @@ mod broadcast {
 mod broadcast_left {
     use super::*;
 
-    mod cpu {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::broadcast_left_test(Device::CPU, DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::broadcast_left_test(Device::CPU, DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::broadcast_left_test(Device::CPU, DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::broadcast_left_test(Device::CPU, DType::F64)
-        }
-        #[test]
-        fn bool() -> Result<()> {
-            test_functions::broadcast_left_test(Device::CPU, DType::BOOL)
-        }
-        #[test]
-        fn u8() -> Result<()> {
-            test_functions::broadcast_left_test(Device::CPU, DType::U8)
-        }
-        #[test]
-        fn u32() -> Result<()> {
-            test_functions::broadcast_left_test(Device::CPU, DType::U32)
-        }
-        #[test]
-        fn i8() -> Result<()> {
-            test_functions::broadcast_left_test(Device::CPU, DType::I8)
-        }
-        #[test]
-        fn i32() -> Result<()> {
-            test_functions::broadcast_left_test(Device::CPU, DType::I32)
-        }
-        #[test]
-        fn i64() -> Result<()> {
-            test_functions::broadcast_left_test(Device::CPU, DType::I64)
-        }
+    #[test]
+    fn bf16() -> Result<()> {
+        test_functions::broadcast_left_test(DType::BF16)
     }
-
-    #[cfg(feature = "cuda")]
-    mod cuda {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::broadcast_left_test(Device::CUDA(0), DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::broadcast_left_test(Device::CUDA(0), DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::broadcast_left_test(Device::CUDA(0), DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::broadcast_left_test(Device::CUDA(0), DType::F64)
-        }
-        #[test]
-        fn bool() -> Result<()> {
-            test_functions::broadcast_left_test(Device::CUDA(0), DType::BOOL)
-        }
-        #[test]
-        fn u8() -> Result<()> {
-            test_functions::broadcast_left_test(Device::CUDA(0), DType::U8)
-        }
-        #[test]
-        fn u32() -> Result<()> {
-            test_functions::broadcast_left_test(Device::CUDA(0), DType::U32)
-        }
-        #[test]
-        fn i8() -> Result<()> {
-            test_functions::broadcast_left_test(Device::CUDA(0), DType::I8)
-        }
-        #[test]
-        fn i32() -> Result<()> {
-            test_functions::broadcast_left_test(Device::CUDA(0), DType::I32)
-        }
-        #[test]
-        fn i64() -> Result<()> {
-            test_functions::broadcast_left_test(Device::CUDA(0), DType::I64)
-        }
+    #[test]
+    fn f16() -> Result<()> {
+        test_functions::broadcast_left_test(DType::F16)
+    }
+    #[test]
+    fn f32() -> Result<()> {
+        test_functions::broadcast_left_test(DType::F32)
+    }
+    #[test]
+    fn f64() -> Result<()> {
+        test_functions::broadcast_left_test(DType::F64)
+    }
+    #[test]
+    fn bool() -> Result<()> {
+        test_functions::broadcast_left_test(DType::BOOL)
+    }
+    #[test]
+    fn u8() -> Result<()> {
+        test_functions::broadcast_left_test(DType::U8)
+    }
+    #[test]
+    fn u32() -> Result<()> {
+        test_functions::broadcast_left_test(DType::U32)
+    }
+    #[test]
+    fn i8() -> Result<()> {
+        test_functions::broadcast_left_test(DType::I8)
+    }
+    #[test]
+    fn i32() -> Result<()> {
+        test_functions::broadcast_left_test(DType::I32)
+    }
+    #[test]
+    fn i64() -> Result<()> {
+        test_functions::broadcast_left_test(DType::I64)
     }
 }

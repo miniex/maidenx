@@ -1,6 +1,10 @@
 #![allow(clippy::excessive_precision)]
 
-use maidenx_core::{device::Device, dtype::DType, error::Result};
+use maidenx_core::{
+    device::{set_default_device, Device},
+    dtype::DType,
+    error::Result,
+};
 use maidenx_tensor::{adapter::TensorAdapter, Tensor};
 
 // Constants for test data
@@ -8,21 +12,29 @@ const TEST_DATA_F32: [f32; 4] = [-1.0f32, 0.0, 2.0, -3.0];
 const TEST_DATA_U32: [u32; 3] = [1, 2, 0];
 
 // Helper functions
-fn setup_tensor<T: Clone + 'static>(data: Vec<T>, device: Device, dtype: DType) -> Result<Tensor>
+fn setup_device() {
+    #[cfg(feature = "cuda")]
+    set_default_device(Device::CUDA(0));
+    #[cfg(not(any(feature = "cuda")))]
+    set_default_device(Device::CPU);
+}
+
+fn setup_tensor<T: Clone + 'static>(data: Vec<T>, dtype: DType) -> Result<Tensor>
 where
     Vec<T>: TensorAdapter,
 {
+    setup_device();
+
     let mut tensor = Tensor::new(data)?;
-    tensor.with_device(device)?;
     tensor.with_dtype(dtype)?;
     Ok(tensor)
 }
 
-fn setup_grad_tensor<T: Clone + 'static>(data: Vec<T>, device: Device, dtype: DType) -> Result<Tensor>
+fn setup_grad_tensor<T: Clone + 'static>(data: Vec<T>, dtype: DType) -> Result<Tensor>
 where
     Vec<T>: TensorAdapter,
 {
-    let mut tensor = setup_tensor(data, device, dtype)?;
+    let mut tensor = setup_tensor(data, dtype)?;
     tensor.with_grad().ok();
 
     Ok(tensor)
@@ -31,8 +43,8 @@ where
 mod test_functions {
     use super::*;
 
-    pub fn neg_test(device: Device, dtype: DType) -> Result<()> {
-        let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), device, dtype)?;
+    pub fn neg_test(dtype: DType) -> Result<()> {
+        let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
 
         let result = x.neg()?;
         result.backward()?;
@@ -46,8 +58,8 @@ mod test_functions {
         Ok(())
     }
 
-    pub fn abs_test(device: Device, dtype: DType) -> Result<()> {
-        let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), device, dtype)?;
+    pub fn abs_test(dtype: DType) -> Result<()> {
+        let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
 
         let result = x.abs()?;
         result.backward()?;
@@ -60,10 +72,10 @@ mod test_functions {
         Ok(())
     }
 
-    pub fn sign_test(device: Device, dtype: DType) -> Result<()> {
+    pub fn sign_test(dtype: DType) -> Result<()> {
         match dtype {
             DType::U8 | DType::U32 => {
-                let x = setup_grad_tensor(TEST_DATA_U32.to_vec(), device, dtype)?;
+                let x = setup_grad_tensor(TEST_DATA_U32.to_vec(), dtype)?;
 
                 let result = x.sign()?;
                 result.backward()?;
@@ -74,7 +86,7 @@ mod test_functions {
                 }
             }
             _ => {
-                let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), device, dtype)?;
+                let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
 
                 let result = x.sign()?;
                 result.backward()?;
@@ -88,8 +100,8 @@ mod test_functions {
         Ok(())
     }
 
-    pub fn square_test(device: Device, dtype: DType) -> Result<()> {
-        let x = setup_grad_tensor(TEST_DATA_U32.to_vec(), device, dtype)?;
+    pub fn square_test(dtype: DType) -> Result<()> {
+        let x = setup_grad_tensor(TEST_DATA_U32.to_vec(), dtype)?;
 
         let result = x.square()?;
         result.backward()?;
@@ -102,8 +114,8 @@ mod test_functions {
         Ok(())
     }
 
-    pub fn sqrt_test(device: Device, dtype: DType) -> Result<()> {
-        let x = setup_grad_tensor(TEST_DATA_U32.to_vec(), device, dtype)?;
+    pub fn sqrt_test(dtype: DType) -> Result<()> {
+        let x = setup_grad_tensor(TEST_DATA_U32.to_vec(), dtype)?;
         let result = x.sqrt()?;
         result.backward()?;
 
@@ -125,8 +137,8 @@ mod test_functions {
         Ok(())
     }
 
-    pub fn relu_test(device: Device, dtype: DType) -> Result<()> {
-        let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), device, dtype)?;
+    pub fn relu_test(dtype: DType) -> Result<()> {
+        let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
 
         let result = x.relu()?;
         result.backward()?;
@@ -139,8 +151,8 @@ mod test_functions {
         Ok(())
     }
 
-    pub fn sigmoid_test(device: Device, dtype: DType) -> Result<()> {
-        let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), device, dtype)?;
+    pub fn sigmoid_test(dtype: DType) -> Result<()> {
+        let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
 
         let result = x.sigmoid()?;
         result.backward()?;
@@ -184,8 +196,8 @@ mod test_functions {
         Ok(())
     }
 
-    pub fn tanh_test(device: Device, dtype: DType) -> Result<()> {
-        let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), device, dtype)?;
+    pub fn tanh_test(dtype: DType) -> Result<()> {
+        let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
 
         let result = x.tanh()?;
         result.backward()?;
@@ -224,8 +236,8 @@ mod test_functions {
         Ok(())
     }
 
-    pub fn gelu_test(device: Device, dtype: DType) -> Result<()> {
-        let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), device, dtype)?;
+    pub fn gelu_test(dtype: DType) -> Result<()> {
+        let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
 
         let result = x.gelu()?;
         result.backward()?;
@@ -279,8 +291,8 @@ mod test_functions {
         Ok(())
     }
 
-    pub fn sin_test(device: Device, dtype: DType) -> Result<()> {
-        let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), device, dtype)?;
+    pub fn sin_test(dtype: DType) -> Result<()> {
+        let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
 
         let result = x.sin()?;
         result.backward()?;
@@ -318,8 +330,8 @@ mod test_functions {
         Ok(())
     }
 
-    pub fn cos_test(device: Device, dtype: DType) -> Result<()> {
-        let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), device, dtype)?;
+    pub fn cos_test(dtype: DType) -> Result<()> {
+        let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
 
         let result = x.cos()?;
         result.backward()?;
@@ -357,8 +369,8 @@ mod test_functions {
         Ok(())
     }
 
-    pub fn tan_test(device: Device, dtype: DType) -> Result<()> {
-        let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), device, dtype)?;
+    pub fn tan_test(dtype: DType) -> Result<()> {
+        let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
 
         let result = x.tan()?;
         result.backward()?;
@@ -397,8 +409,8 @@ mod test_functions {
         Ok(())
     }
 
-    pub fn ln_test(device: Device, dtype: DType) -> Result<()> {
-        let x = setup_grad_tensor(TEST_DATA_U32.to_vec(), device, dtype)?;
+    pub fn ln_test(dtype: DType) -> Result<()> {
+        let x = setup_grad_tensor(TEST_DATA_U32.to_vec(), dtype)?;
 
         let result = x.ln()?;
         result.backward()?;
@@ -451,8 +463,8 @@ mod test_functions {
         Ok(())
     }
 
-    pub fn log10_test(device: Device, dtype: DType) -> Result<()> {
-        let x = setup_grad_tensor(TEST_DATA_U32.to_vec(), device, dtype)?;
+    pub fn log10_test(dtype: DType) -> Result<()> {
+        let x = setup_grad_tensor(TEST_DATA_U32.to_vec(), dtype)?;
 
         let result = x.log10()?;
         result.backward()?;
@@ -506,8 +518,8 @@ mod test_functions {
         Ok(())
     }
 
-    pub fn log2_test(device: Device, dtype: DType) -> Result<()> {
-        let x = setup_grad_tensor(TEST_DATA_U32.to_vec(), device, dtype)?;
+    pub fn log2_test(dtype: DType) -> Result<()> {
+        let x = setup_grad_tensor(TEST_DATA_U32.to_vec(), dtype)?;
 
         let result = x.log2()?;
         result.backward()?;
@@ -561,8 +573,8 @@ mod test_functions {
         Ok(())
     }
 
-    pub fn exp_test(device: Device, dtype: DType) -> Result<()> {
-        let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), device, dtype)?;
+    pub fn exp_test(dtype: DType) -> Result<()> {
+        let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
 
         let result = x.exp()?;
         result.backward()?;
@@ -602,8 +614,8 @@ mod test_functions {
         Ok(())
     }
 
-    pub fn exp10_test(device: Device, dtype: DType) -> Result<()> {
-        let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), device, dtype)?;
+    pub fn exp10_test(dtype: DType) -> Result<()> {
+        let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
 
         let result = x.exp10()?;
         result.backward()?;
@@ -644,8 +656,8 @@ mod test_functions {
         Ok(())
     }
 
-    pub fn exp2_test(device: Device, dtype: DType) -> Result<()> {
-        let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), device, dtype)?;
+    pub fn exp2_test(dtype: DType) -> Result<()> {
+        let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
 
         let result = x.exp2()?;
         result.backward()?;
@@ -684,8 +696,8 @@ mod test_functions {
         Ok(())
     }
 
-    pub fn softplus_test(device: Device, dtype: DType) -> Result<()> {
-        let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), device, dtype)?;
+    pub fn softplus_test(dtype: DType) -> Result<()> {
+        let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
 
         let result = x.softplus()?;
         result.backward()?;
@@ -729,9 +741,9 @@ mod test_functions {
         Ok(())
     }
 
-    pub fn logical_not_test(device: Device, dtype: DType) -> Result<()> {
+    pub fn logical_not_test(dtype: DType) -> Result<()> {
         let test_data = vec![1, 0, 1, 0];
-        let x = setup_tensor(test_data, device, dtype)?;
+        let x = setup_tensor(test_data, dtype)?;
 
         let result = x.logical_not()?;
 
@@ -739,8 +751,8 @@ mod test_functions {
         Ok(())
     }
 
-    pub fn add_scalar_test(device: Device, dtype: DType) -> Result<()> {
-        let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), device, dtype)?;
+    pub fn add_scalar_test(dtype: DType) -> Result<()> {
+        let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
         let scalar = 2.0;
 
         let result = x.add_scalar(scalar)?;
@@ -754,8 +766,8 @@ mod test_functions {
         Ok(())
     }
 
-    pub fn sub_scalar_test(device: Device, dtype: DType) -> Result<()> {
-        let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), device, dtype)?;
+    pub fn sub_scalar_test(dtype: DType) -> Result<()> {
+        let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
         let scalar = 2.0;
 
         let result = x.sub_scalar(scalar)?;
@@ -769,8 +781,8 @@ mod test_functions {
         Ok(())
     }
 
-    pub fn mul_scalar_test(device: Device, dtype: DType) -> Result<()> {
-        let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), device, dtype)?;
+    pub fn mul_scalar_test(dtype: DType) -> Result<()> {
+        let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
         let scalar = 2.0;
 
         let result = x.mul_scalar(scalar)?;
@@ -784,8 +796,8 @@ mod test_functions {
         Ok(())
     }
 
-    pub fn div_scalar_test(device: Device, dtype: DType) -> Result<()> {
-        let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), device, dtype)?;
+    pub fn div_scalar_test(dtype: DType) -> Result<()> {
+        let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
         let scalar = 2.0;
 
         let result = x.div_scalar(scalar)?;
@@ -799,8 +811,8 @@ mod test_functions {
         Ok(())
     }
 
-    pub fn pow_test(device: Device, dtype: DType) -> Result<()> {
-        let x = setup_grad_tensor(TEST_DATA_U32.to_vec(), device, dtype)?;
+    pub fn pow_test(dtype: DType) -> Result<()> {
+        let x = setup_grad_tensor(TEST_DATA_U32.to_vec(), dtype)?;
         let exponent = 2.0;
 
         let result = x.pow(exponent)?;
@@ -814,8 +826,8 @@ mod test_functions {
         Ok(())
     }
 
-    pub fn leaky_relu_test(device: Device, dtype: DType) -> Result<()> {
-        let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), device, dtype)?;
+    pub fn leaky_relu_test(dtype: DType) -> Result<()> {
+        let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
         let alpha = 0.1;
 
         let result = x.leaky_relu(alpha)?;
@@ -854,8 +866,8 @@ mod test_functions {
         Ok(())
     }
 
-    pub fn elu_test(device: Device, dtype: DType) -> Result<()> {
-        let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), device, dtype)?;
+    pub fn elu_test(dtype: DType) -> Result<()> {
+        let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
         let alpha = 1.0;
 
         let result = x.elu(alpha)?;
@@ -903,8 +915,8 @@ mod test_functions {
         Ok(())
     }
 
-    pub fn eq_scalar_test(device: Device, dtype: DType) -> Result<()> {
-        let x = setup_tensor(TEST_DATA_F32.to_vec(), device, dtype)?;
+    pub fn eq_scalar_test(dtype: DType) -> Result<()> {
+        let x = setup_tensor(TEST_DATA_F32.to_vec(), dtype)?;
         let scalar = 0.0;
 
         let result = x.eq_scalar(scalar)?;
@@ -913,8 +925,8 @@ mod test_functions {
         Ok(())
     }
 
-    pub fn ne_scalar_test(device: Device, dtype: DType) -> Result<()> {
-        let x = setup_tensor(TEST_DATA_F32.to_vec(), device, dtype)?;
+    pub fn ne_scalar_test(dtype: DType) -> Result<()> {
+        let x = setup_tensor(TEST_DATA_F32.to_vec(), dtype)?;
         let scalar = 0.0;
 
         let result = x.ne_scalar(scalar)?;
@@ -923,8 +935,8 @@ mod test_functions {
         Ok(())
     }
 
-    pub fn lt_scalar_test(device: Device, dtype: DType) -> Result<()> {
-        let x = setup_tensor(TEST_DATA_F32.to_vec(), device, dtype)?;
+    pub fn lt_scalar_test(dtype: DType) -> Result<()> {
+        let x = setup_tensor(TEST_DATA_F32.to_vec(), dtype)?;
         let scalar = 0.0;
 
         let result = x.lt_scalar(scalar)?;
@@ -933,8 +945,8 @@ mod test_functions {
         Ok(())
     }
 
-    pub fn le_scalar_test(device: Device, dtype: DType) -> Result<()> {
-        let x = setup_tensor(TEST_DATA_F32.to_vec(), device, dtype)?;
+    pub fn le_scalar_test(dtype: DType) -> Result<()> {
+        let x = setup_tensor(TEST_DATA_F32.to_vec(), dtype)?;
         let scalar = 0.0;
 
         let result = x.le_scalar(scalar)?;
@@ -943,8 +955,8 @@ mod test_functions {
         Ok(())
     }
 
-    pub fn gt_scalar_test(device: Device, dtype: DType) -> Result<()> {
-        let x = setup_tensor(TEST_DATA_F32.to_vec(), device, dtype)?;
+    pub fn gt_scalar_test(dtype: DType) -> Result<()> {
+        let x = setup_tensor(TEST_DATA_F32.to_vec(), dtype)?;
         let scalar = 0.0;
 
         let result = x.gt_scalar(scalar)?;
@@ -953,8 +965,8 @@ mod test_functions {
         Ok(())
     }
 
-    pub fn ge_scalar_test(device: Device, dtype: DType) -> Result<()> {
-        let x = setup_tensor(TEST_DATA_F32.to_vec(), device, dtype)?;
+    pub fn ge_scalar_test(dtype: DType) -> Result<()> {
+        let x = setup_tensor(TEST_DATA_F32.to_vec(), dtype)?;
         let scalar = 0.0;
 
         let result = x.ge_scalar(scalar)?;
@@ -968,71 +980,33 @@ mod test_functions {
 mod neg {
     use super::*;
 
-    mod cpu {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::neg_test(Device::CPU, DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::neg_test(Device::CPU, DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::neg_test(Device::CPU, DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::neg_test(Device::CPU, DType::F64)
-        }
-        #[test]
-        fn i8() -> Result<()> {
-            test_functions::neg_test(Device::CPU, DType::I8)
-        }
-        #[test]
-        fn i32() -> Result<()> {
-            test_functions::neg_test(Device::CPU, DType::I32)
-        }
-        #[test]
-        fn i64() -> Result<()> {
-            test_functions::neg_test(Device::CPU, DType::I64)
-        }
+    #[test]
+    fn bf16() -> Result<()> {
+        test_functions::neg_test(DType::BF16)
     }
-
-    #[cfg(feature = "cuda")]
-    mod cuda {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::neg_test(Device::CUDA(0), DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::neg_test(Device::CUDA(0), DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::neg_test(Device::CUDA(0), DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::neg_test(Device::CUDA(0), DType::F64)
-        }
-        #[test]
-        fn i8() -> Result<()> {
-            test_functions::neg_test(Device::CUDA(0), DType::I8)
-        }
-        #[test]
-        fn i32() -> Result<()> {
-            test_functions::neg_test(Device::CUDA(0), DType::I32)
-        }
-        #[test]
-        fn i64() -> Result<()> {
-            test_functions::neg_test(Device::CUDA(0), DType::I64)
-        }
+    #[test]
+    fn f16() -> Result<()> {
+        test_functions::neg_test(DType::F16)
+    }
+    #[test]
+    fn f32() -> Result<()> {
+        test_functions::neg_test(DType::F32)
+    }
+    #[test]
+    fn f64() -> Result<()> {
+        test_functions::neg_test(DType::F64)
+    }
+    #[test]
+    fn i8() -> Result<()> {
+        test_functions::neg_test(DType::I8)
+    }
+    #[test]
+    fn i32() -> Result<()> {
+        test_functions::neg_test(DType::I32)
+    }
+    #[test]
+    fn i64() -> Result<()> {
+        test_functions::neg_test(DType::I64)
     }
 }
 
@@ -1040,71 +1014,33 @@ mod neg {
 mod abs {
     use super::*;
 
-    mod cpu {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::abs_test(Device::CPU, DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::abs_test(Device::CPU, DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::abs_test(Device::CPU, DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::abs_test(Device::CPU, DType::F64)
-        }
-        #[test]
-        fn i8() -> Result<()> {
-            test_functions::abs_test(Device::CPU, DType::I8)
-        }
-        #[test]
-        fn i32() -> Result<()> {
-            test_functions::abs_test(Device::CPU, DType::I32)
-        }
-        #[test]
-        fn i64() -> Result<()> {
-            test_functions::abs_test(Device::CPU, DType::I64)
-        }
+    #[test]
+    fn bf16() -> Result<()> {
+        test_functions::abs_test(DType::BF16)
     }
-
-    #[cfg(feature = "cuda")]
-    mod cuda {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::abs_test(Device::CUDA(0), DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::abs_test(Device::CUDA(0), DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::abs_test(Device::CUDA(0), DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::abs_test(Device::CUDA(0), DType::F64)
-        }
-        #[test]
-        fn i8() -> Result<()> {
-            test_functions::abs_test(Device::CUDA(0), DType::I8)
-        }
-        #[test]
-        fn i32() -> Result<()> {
-            test_functions::abs_test(Device::CUDA(0), DType::I32)
-        }
-        #[test]
-        fn i64() -> Result<()> {
-            test_functions::abs_test(Device::CUDA(0), DType::I64)
-        }
+    #[test]
+    fn f16() -> Result<()> {
+        test_functions::abs_test(DType::F16)
+    }
+    #[test]
+    fn f32() -> Result<()> {
+        test_functions::abs_test(DType::F32)
+    }
+    #[test]
+    fn f64() -> Result<()> {
+        test_functions::abs_test(DType::F64)
+    }
+    #[test]
+    fn i8() -> Result<()> {
+        test_functions::abs_test(DType::I8)
+    }
+    #[test]
+    fn i32() -> Result<()> {
+        test_functions::abs_test(DType::I32)
+    }
+    #[test]
+    fn i64() -> Result<()> {
+        test_functions::abs_test(DType::I64)
     }
 }
 
@@ -1112,87 +1048,41 @@ mod abs {
 mod sign {
     use super::*;
 
-    mod cpu {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::sign_test(Device::CPU, DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::sign_test(Device::CPU, DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::sign_test(Device::CPU, DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::sign_test(Device::CPU, DType::F64)
-        }
-        #[test]
-        fn u8() -> Result<()> {
-            test_functions::sign_test(Device::CPU, DType::U8)
-        }
-        #[test]
-        fn u32() -> Result<()> {
-            test_functions::sign_test(Device::CPU, DType::U32)
-        }
-        #[test]
-        fn i8() -> Result<()> {
-            test_functions::sign_test(Device::CPU, DType::I8)
-        }
-        #[test]
-        fn i32() -> Result<()> {
-            test_functions::sign_test(Device::CPU, DType::I32)
-        }
-        #[test]
-        fn i64() -> Result<()> {
-            test_functions::sign_test(Device::CPU, DType::I64)
-        }
+    #[test]
+    fn bf16() -> Result<()> {
+        test_functions::sign_test(DType::BF16)
     }
-
-    #[cfg(feature = "cuda")]
-    mod cuda {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::sign_test(Device::CUDA(0), DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::sign_test(Device::CUDA(0), DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::sign_test(Device::CUDA(0), DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::sign_test(Device::CUDA(0), DType::F64)
-        }
-        #[test]
-        fn u8() -> Result<()> {
-            test_functions::sign_test(Device::CUDA(0), DType::U8)
-        }
-        #[test]
-        fn u32() -> Result<()> {
-            test_functions::sign_test(Device::CUDA(0), DType::U32)
-        }
-        #[test]
-        fn i8() -> Result<()> {
-            test_functions::sign_test(Device::CUDA(0), DType::I8)
-        }
-        #[test]
-        fn i32() -> Result<()> {
-            test_functions::sign_test(Device::CUDA(0), DType::I32)
-        }
-        #[test]
-        fn i64() -> Result<()> {
-            test_functions::sign_test(Device::CUDA(0), DType::I64)
-        }
+    #[test]
+    fn f16() -> Result<()> {
+        test_functions::sign_test(DType::F16)
+    }
+    #[test]
+    fn f32() -> Result<()> {
+        test_functions::sign_test(DType::F32)
+    }
+    #[test]
+    fn f64() -> Result<()> {
+        test_functions::sign_test(DType::F64)
+    }
+    #[test]
+    fn u8() -> Result<()> {
+        test_functions::sign_test(DType::U8)
+    }
+    #[test]
+    fn u32() -> Result<()> {
+        test_functions::sign_test(DType::U32)
+    }
+    #[test]
+    fn i8() -> Result<()> {
+        test_functions::sign_test(DType::I8)
+    }
+    #[test]
+    fn i32() -> Result<()> {
+        test_functions::sign_test(DType::I32)
+    }
+    #[test]
+    fn i64() -> Result<()> {
+        test_functions::sign_test(DType::I64)
     }
 }
 
@@ -1200,87 +1090,41 @@ mod sign {
 mod square {
     use super::*;
 
-    mod cpu {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::square_test(Device::CPU, DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::square_test(Device::CPU, DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::square_test(Device::CPU, DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::square_test(Device::CPU, DType::F64)
-        }
-        #[test]
-        fn u8() -> Result<()> {
-            test_functions::square_test(Device::CPU, DType::U8)
-        }
-        #[test]
-        fn u32() -> Result<()> {
-            test_functions::square_test(Device::CPU, DType::U32)
-        }
-        #[test]
-        fn i8() -> Result<()> {
-            test_functions::square_test(Device::CPU, DType::I8)
-        }
-        #[test]
-        fn i32() -> Result<()> {
-            test_functions::square_test(Device::CPU, DType::I32)
-        }
-        #[test]
-        fn i64() -> Result<()> {
-            test_functions::square_test(Device::CPU, DType::I64)
-        }
+    #[test]
+    fn bf16() -> Result<()> {
+        test_functions::square_test(DType::BF16)
     }
-
-    #[cfg(feature = "cuda")]
-    mod cuda {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::square_test(Device::CUDA(0), DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::square_test(Device::CUDA(0), DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::square_test(Device::CUDA(0), DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::square_test(Device::CUDA(0), DType::F64)
-        }
-        #[test]
-        fn u8() -> Result<()> {
-            test_functions::square_test(Device::CUDA(0), DType::U8)
-        }
-        #[test]
-        fn u32() -> Result<()> {
-            test_functions::square_test(Device::CUDA(0), DType::U32)
-        }
-        #[test]
-        fn i8() -> Result<()> {
-            test_functions::square_test(Device::CUDA(0), DType::I8)
-        }
-        #[test]
-        fn i32() -> Result<()> {
-            test_functions::square_test(Device::CUDA(0), DType::I32)
-        }
-        #[test]
-        fn i64() -> Result<()> {
-            test_functions::square_test(Device::CUDA(0), DType::I64)
-        }
+    #[test]
+    fn f16() -> Result<()> {
+        test_functions::square_test(DType::F16)
+    }
+    #[test]
+    fn f32() -> Result<()> {
+        test_functions::square_test(DType::F32)
+    }
+    #[test]
+    fn f64() -> Result<()> {
+        test_functions::square_test(DType::F64)
+    }
+    #[test]
+    fn u8() -> Result<()> {
+        test_functions::square_test(DType::U8)
+    }
+    #[test]
+    fn u32() -> Result<()> {
+        test_functions::square_test(DType::U32)
+    }
+    #[test]
+    fn i8() -> Result<()> {
+        test_functions::square_test(DType::I8)
+    }
+    #[test]
+    fn i32() -> Result<()> {
+        test_functions::square_test(DType::I32)
+    }
+    #[test]
+    fn i64() -> Result<()> {
+        test_functions::square_test(DType::I64)
     }
 }
 
@@ -1288,87 +1132,41 @@ mod square {
 mod sqrt {
     use super::*;
 
-    mod cpu {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::sqrt_test(Device::CPU, DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::sqrt_test(Device::CPU, DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::sqrt_test(Device::CPU, DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::sqrt_test(Device::CPU, DType::F64)
-        }
-        #[test]
-        fn u8() -> Result<()> {
-            test_functions::sqrt_test(Device::CPU, DType::U8)
-        }
-        #[test]
-        fn u32() -> Result<()> {
-            test_functions::sqrt_test(Device::CPU, DType::U32)
-        }
-        #[test]
-        fn i8() -> Result<()> {
-            test_functions::sqrt_test(Device::CPU, DType::I8)
-        }
-        #[test]
-        fn i32() -> Result<()> {
-            test_functions::sqrt_test(Device::CPU, DType::I32)
-        }
-        #[test]
-        fn i64() -> Result<()> {
-            test_functions::sqrt_test(Device::CPU, DType::I64)
-        }
+    #[test]
+    fn bf16() -> Result<()> {
+        test_functions::sqrt_test(DType::BF16)
     }
-
-    #[cfg(feature = "cuda")]
-    mod cuda {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::sqrt_test(Device::CUDA(0), DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::sqrt_test(Device::CUDA(0), DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::sqrt_test(Device::CUDA(0), DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::sqrt_test(Device::CUDA(0), DType::F64)
-        }
-        #[test]
-        fn u8() -> Result<()> {
-            test_functions::sqrt_test(Device::CUDA(0), DType::U8)
-        }
-        #[test]
-        fn u32() -> Result<()> {
-            test_functions::sqrt_test(Device::CUDA(0), DType::U32)
-        }
-        #[test]
-        fn i8() -> Result<()> {
-            test_functions::sqrt_test(Device::CUDA(0), DType::I8)
-        }
-        #[test]
-        fn i32() -> Result<()> {
-            test_functions::sqrt_test(Device::CUDA(0), DType::I32)
-        }
-        #[test]
-        fn i64() -> Result<()> {
-            test_functions::sqrt_test(Device::CUDA(0), DType::I64)
-        }
+    #[test]
+    fn f16() -> Result<()> {
+        test_functions::sqrt_test(DType::F16)
+    }
+    #[test]
+    fn f32() -> Result<()> {
+        test_functions::sqrt_test(DType::F32)
+    }
+    #[test]
+    fn f64() -> Result<()> {
+        test_functions::sqrt_test(DType::F64)
+    }
+    #[test]
+    fn u8() -> Result<()> {
+        test_functions::sqrt_test(DType::U8)
+    }
+    #[test]
+    fn u32() -> Result<()> {
+        test_functions::sqrt_test(DType::U32)
+    }
+    #[test]
+    fn i8() -> Result<()> {
+        test_functions::sqrt_test(DType::I8)
+    }
+    #[test]
+    fn i32() -> Result<()> {
+        test_functions::sqrt_test(DType::I32)
+    }
+    #[test]
+    fn i64() -> Result<()> {
+        test_functions::sqrt_test(DType::I64)
     }
 }
 
@@ -1376,47 +1174,21 @@ mod sqrt {
 mod relu {
     use super::*;
 
-    mod cpu {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::relu_test(Device::CPU, DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::relu_test(Device::CPU, DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::relu_test(Device::CPU, DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::relu_test(Device::CPU, DType::F64)
-        }
+    #[test]
+    fn bf16() -> Result<()> {
+        test_functions::relu_test(DType::BF16)
     }
-
-    #[cfg(feature = "cuda")]
-    mod cuda {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::relu_test(Device::CUDA(0), DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::relu_test(Device::CUDA(0), DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::relu_test(Device::CUDA(0), DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::relu_test(Device::CUDA(0), DType::F64)
-        }
+    #[test]
+    fn f16() -> Result<()> {
+        test_functions::relu_test(DType::F16)
+    }
+    #[test]
+    fn f32() -> Result<()> {
+        test_functions::relu_test(DType::F32)
+    }
+    #[test]
+    fn f64() -> Result<()> {
+        test_functions::relu_test(DType::F64)
     }
 }
 
@@ -1424,47 +1196,21 @@ mod relu {
 mod sigmoid {
     use super::*;
 
-    mod cpu {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::sigmoid_test(Device::CPU, DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::sigmoid_test(Device::CPU, DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::sigmoid_test(Device::CPU, DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::sigmoid_test(Device::CPU, DType::F64)
-        }
+    #[test]
+    fn bf16() -> Result<()> {
+        test_functions::sigmoid_test(DType::BF16)
     }
-
-    #[cfg(feature = "cuda")]
-    mod cuda {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::sigmoid_test(Device::CUDA(0), DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::sigmoid_test(Device::CUDA(0), DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::sigmoid_test(Device::CUDA(0), DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::sigmoid_test(Device::CUDA(0), DType::F64)
-        }
+    #[test]
+    fn f16() -> Result<()> {
+        test_functions::sigmoid_test(DType::F16)
+    }
+    #[test]
+    fn f32() -> Result<()> {
+        test_functions::sigmoid_test(DType::F32)
+    }
+    #[test]
+    fn f64() -> Result<()> {
+        test_functions::sigmoid_test(DType::F64)
     }
 }
 
@@ -1472,47 +1218,21 @@ mod sigmoid {
 mod tanh {
     use super::*;
 
-    mod cpu {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::tanh_test(Device::CPU, DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::tanh_test(Device::CPU, DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::tanh_test(Device::CPU, DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::tanh_test(Device::CPU, DType::F64)
-        }
+    #[test]
+    fn bf16() -> Result<()> {
+        test_functions::tanh_test(DType::BF16)
     }
-
-    #[cfg(feature = "cuda")]
-    mod cuda {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::tanh_test(Device::CUDA(0), DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::tanh_test(Device::CUDA(0), DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::tanh_test(Device::CUDA(0), DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::tanh_test(Device::CUDA(0), DType::F64)
-        }
+    #[test]
+    fn f16() -> Result<()> {
+        test_functions::tanh_test(DType::F16)
+    }
+    #[test]
+    fn f32() -> Result<()> {
+        test_functions::tanh_test(DType::F32)
+    }
+    #[test]
+    fn f64() -> Result<()> {
+        test_functions::tanh_test(DType::F64)
     }
 }
 
@@ -1520,47 +1240,21 @@ mod tanh {
 mod gelu {
     use super::*;
 
-    mod cpu {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::gelu_test(Device::CPU, DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::gelu_test(Device::CPU, DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::gelu_test(Device::CPU, DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::gelu_test(Device::CPU, DType::F64)
-        }
+    #[test]
+    fn bf16() -> Result<()> {
+        test_functions::gelu_test(DType::BF16)
     }
-
-    #[cfg(feature = "cuda")]
-    mod cuda {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::gelu_test(Device::CUDA(0), DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::gelu_test(Device::CUDA(0), DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::gelu_test(Device::CUDA(0), DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::gelu_test(Device::CUDA(0), DType::F64)
-        }
+    #[test]
+    fn f16() -> Result<()> {
+        test_functions::gelu_test(DType::F16)
+    }
+    #[test]
+    fn f32() -> Result<()> {
+        test_functions::gelu_test(DType::F32)
+    }
+    #[test]
+    fn f64() -> Result<()> {
+        test_functions::gelu_test(DType::F64)
     }
 }
 
@@ -1568,47 +1262,21 @@ mod gelu {
 mod sin {
     use super::*;
 
-    mod cpu {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::sin_test(Device::CPU, DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::sin_test(Device::CPU, DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::sin_test(Device::CPU, DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::sin_test(Device::CPU, DType::F64)
-        }
+    #[test]
+    fn bf16() -> Result<()> {
+        test_functions::sin_test(DType::BF16)
     }
-
-    #[cfg(feature = "cuda")]
-    mod cuda {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::sin_test(Device::CUDA(0), DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::sin_test(Device::CUDA(0), DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::sin_test(Device::CUDA(0), DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::sin_test(Device::CUDA(0), DType::F64)
-        }
+    #[test]
+    fn f16() -> Result<()> {
+        test_functions::sin_test(DType::F16)
+    }
+    #[test]
+    fn f32() -> Result<()> {
+        test_functions::sin_test(DType::F32)
+    }
+    #[test]
+    fn f64() -> Result<()> {
+        test_functions::sin_test(DType::F64)
     }
 }
 
@@ -1616,47 +1284,21 @@ mod sin {
 mod cos {
     use super::*;
 
-    mod cpu {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::cos_test(Device::CPU, DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::cos_test(Device::CPU, DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::cos_test(Device::CPU, DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::cos_test(Device::CPU, DType::F64)
-        }
+    #[test]
+    fn bf16() -> Result<()> {
+        test_functions::cos_test(DType::BF16)
     }
-
-    #[cfg(feature = "cuda")]
-    mod cuda {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::cos_test(Device::CUDA(0), DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::cos_test(Device::CUDA(0), DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::cos_test(Device::CUDA(0), DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::cos_test(Device::CUDA(0), DType::F64)
-        }
+    #[test]
+    fn f16() -> Result<()> {
+        test_functions::cos_test(DType::F16)
+    }
+    #[test]
+    fn f32() -> Result<()> {
+        test_functions::cos_test(DType::F32)
+    }
+    #[test]
+    fn f64() -> Result<()> {
+        test_functions::cos_test(DType::F64)
     }
 }
 
@@ -1664,47 +1306,21 @@ mod cos {
 mod tan {
     use super::*;
 
-    mod cpu {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::tan_test(Device::CPU, DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::tan_test(Device::CPU, DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::tan_test(Device::CPU, DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::tan_test(Device::CPU, DType::F64)
-        }
+    #[test]
+    fn bf16() -> Result<()> {
+        test_functions::tan_test(DType::BF16)
     }
-
-    #[cfg(feature = "cuda")]
-    mod cuda {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::tan_test(Device::CUDA(0), DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::tan_test(Device::CUDA(0), DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::tan_test(Device::CUDA(0), DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::tan_test(Device::CUDA(0), DType::F64)
-        }
+    #[test]
+    fn f16() -> Result<()> {
+        test_functions::tan_test(DType::F16)
+    }
+    #[test]
+    fn f32() -> Result<()> {
+        test_functions::tan_test(DType::F32)
+    }
+    #[test]
+    fn f64() -> Result<()> {
+        test_functions::tan_test(DType::F64)
     }
 }
 
@@ -1712,47 +1328,21 @@ mod tan {
 mod ln {
     use super::*;
 
-    mod cpu {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::ln_test(Device::CPU, DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::ln_test(Device::CPU, DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::ln_test(Device::CPU, DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::ln_test(Device::CPU, DType::F64)
-        }
+    #[test]
+    fn bf16() -> Result<()> {
+        test_functions::ln_test(DType::BF16)
     }
-
-    #[cfg(feature = "cuda")]
-    mod cuda {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::ln_test(Device::CUDA(0), DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::ln_test(Device::CUDA(0), DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::ln_test(Device::CUDA(0), DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::ln_test(Device::CUDA(0), DType::F64)
-        }
+    #[test]
+    fn f16() -> Result<()> {
+        test_functions::ln_test(DType::F16)
+    }
+    #[test]
+    fn f32() -> Result<()> {
+        test_functions::ln_test(DType::F32)
+    }
+    #[test]
+    fn f64() -> Result<()> {
+        test_functions::ln_test(DType::F64)
     }
 }
 
@@ -1760,47 +1350,21 @@ mod ln {
 mod log10 {
     use super::*;
 
-    mod cpu {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::log10_test(Device::CPU, DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::log10_test(Device::CPU, DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::log10_test(Device::CPU, DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::log10_test(Device::CPU, DType::F64)
-        }
+    #[test]
+    fn bf16() -> Result<()> {
+        test_functions::log10_test(DType::BF16)
     }
-
-    #[cfg(feature = "cuda")]
-    mod cuda {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::log10_test(Device::CUDA(0), DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::log10_test(Device::CUDA(0), DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::log10_test(Device::CUDA(0), DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::log10_test(Device::CUDA(0), DType::F64)
-        }
+    #[test]
+    fn f16() -> Result<()> {
+        test_functions::log10_test(DType::F16)
+    }
+    #[test]
+    fn f32() -> Result<()> {
+        test_functions::log10_test(DType::F32)
+    }
+    #[test]
+    fn f64() -> Result<()> {
+        test_functions::log10_test(DType::F64)
     }
 }
 
@@ -1808,47 +1372,21 @@ mod log10 {
 mod log2 {
     use super::*;
 
-    mod cpu {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::log2_test(Device::CPU, DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::log2_test(Device::CPU, DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::log2_test(Device::CPU, DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::log2_test(Device::CPU, DType::F64)
-        }
+    #[test]
+    fn bf16() -> Result<()> {
+        test_functions::log2_test(DType::BF16)
     }
-
-    #[cfg(feature = "cuda")]
-    mod cuda {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::log2_test(Device::CUDA(0), DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::log2_test(Device::CUDA(0), DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::log2_test(Device::CUDA(0), DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::log2_test(Device::CUDA(0), DType::F64)
-        }
+    #[test]
+    fn f16() -> Result<()> {
+        test_functions::log2_test(DType::F16)
+    }
+    #[test]
+    fn f32() -> Result<()> {
+        test_functions::log2_test(DType::F32)
+    }
+    #[test]
+    fn f64() -> Result<()> {
+        test_functions::log2_test(DType::F64)
     }
 }
 
@@ -1856,47 +1394,21 @@ mod log2 {
 mod exp {
     use super::*;
 
-    mod cpu {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::exp_test(Device::CPU, DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::exp_test(Device::CPU, DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::exp_test(Device::CPU, DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::exp_test(Device::CPU, DType::F64)
-        }
+    #[test]
+    fn bf16() -> Result<()> {
+        test_functions::exp_test(DType::BF16)
     }
-
-    #[cfg(feature = "cuda")]
-    mod cuda {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::exp_test(Device::CUDA(0), DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::exp_test(Device::CUDA(0), DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::exp_test(Device::CUDA(0), DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::exp_test(Device::CUDA(0), DType::F64)
-        }
+    #[test]
+    fn f16() -> Result<()> {
+        test_functions::exp_test(DType::F16)
+    }
+    #[test]
+    fn f32() -> Result<()> {
+        test_functions::exp_test(DType::F32)
+    }
+    #[test]
+    fn f64() -> Result<()> {
+        test_functions::exp_test(DType::F64)
     }
 }
 
@@ -1904,47 +1416,21 @@ mod exp {
 mod exp10 {
     use super::*;
 
-    mod cpu {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::exp10_test(Device::CPU, DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::exp10_test(Device::CPU, DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::exp10_test(Device::CPU, DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::exp10_test(Device::CPU, DType::F64)
-        }
+    #[test]
+    fn bf16() -> Result<()> {
+        test_functions::exp10_test(DType::BF16)
     }
-
-    #[cfg(feature = "cuda")]
-    mod cuda {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::exp10_test(Device::CUDA(0), DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::exp10_test(Device::CUDA(0), DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::exp10_test(Device::CUDA(0), DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::exp10_test(Device::CUDA(0), DType::F64)
-        }
+    #[test]
+    fn f16() -> Result<()> {
+        test_functions::exp10_test(DType::F16)
+    }
+    #[test]
+    fn f32() -> Result<()> {
+        test_functions::exp10_test(DType::F32)
+    }
+    #[test]
+    fn f64() -> Result<()> {
+        test_functions::exp10_test(DType::F64)
     }
 }
 
@@ -1952,47 +1438,21 @@ mod exp10 {
 mod exp2 {
     use super::*;
 
-    mod cpu {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::exp2_test(Device::CPU, DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::exp2_test(Device::CPU, DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::exp2_test(Device::CPU, DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::exp2_test(Device::CPU, DType::F64)
-        }
+    #[test]
+    fn bf16() -> Result<()> {
+        test_functions::exp2_test(DType::BF16)
     }
-
-    #[cfg(feature = "cuda")]
-    mod cuda {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::exp2_test(Device::CUDA(0), DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::exp2_test(Device::CUDA(0), DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::exp2_test(Device::CUDA(0), DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::exp2_test(Device::CUDA(0), DType::F64)
-        }
+    #[test]
+    fn f16() -> Result<()> {
+        test_functions::exp2_test(DType::F16)
+    }
+    #[test]
+    fn f32() -> Result<()> {
+        test_functions::exp2_test(DType::F32)
+    }
+    #[test]
+    fn f64() -> Result<()> {
+        test_functions::exp2_test(DType::F64)
     }
 }
 
@@ -2000,47 +1460,21 @@ mod exp2 {
 mod softplus {
     use super::*;
 
-    mod cpu {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::softplus_test(Device::CPU, DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::softplus_test(Device::CPU, DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::softplus_test(Device::CPU, DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::softplus_test(Device::CPU, DType::F64)
-        }
+    #[test]
+    fn bf16() -> Result<()> {
+        test_functions::softplus_test(DType::BF16)
     }
-
-    #[cfg(feature = "cuda")]
-    mod cuda {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::softplus_test(Device::CUDA(0), DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::softplus_test(Device::CUDA(0), DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::softplus_test(Device::CUDA(0), DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::softplus_test(Device::CUDA(0), DType::F64)
-        }
+    #[test]
+    fn f16() -> Result<()> {
+        test_functions::softplus_test(DType::F16)
+    }
+    #[test]
+    fn f32() -> Result<()> {
+        test_functions::softplus_test(DType::F32)
+    }
+    #[test]
+    fn f64() -> Result<()> {
+        test_functions::softplus_test(DType::F64)
     }
 }
 
@@ -2048,39 +1482,17 @@ mod softplus {
 mod logical_not {
     use super::*;
 
-    mod cpu {
-        use super::*;
-
-        #[test]
-        fn bool() -> Result<()> {
-            test_functions::logical_not_test(Device::CPU, DType::BOOL)
-        }
-        #[test]
-        fn u8() -> Result<()> {
-            test_functions::logical_not_test(Device::CPU, DType::U8)
-        }
-        #[test]
-        fn i32() -> Result<()> {
-            test_functions::logical_not_test(Device::CPU, DType::I32)
-        }
+    #[test]
+    fn bool() -> Result<()> {
+        test_functions::logical_not_test(DType::BOOL)
     }
-
-    #[cfg(feature = "cuda")]
-    mod cuda {
-        use super::*;
-
-        #[test]
-        fn bool() -> Result<()> {
-            test_functions::logical_not_test(Device::CUDA(0), DType::BOOL)
-        }
-        #[test]
-        fn u8() -> Result<()> {
-            test_functions::logical_not_test(Device::CUDA(0), DType::U8)
-        }
-        #[test]
-        fn i32() -> Result<()> {
-            test_functions::logical_not_test(Device::CUDA(0), DType::I32)
-        }
+    #[test]
+    fn u8() -> Result<()> {
+        test_functions::logical_not_test(DType::U8)
+    }
+    #[test]
+    fn i32() -> Result<()> {
+        test_functions::logical_not_test(DType::I32)
     }
 }
 
@@ -2088,47 +1500,21 @@ mod logical_not {
 mod add_scalar {
     use super::*;
 
-    mod cpu {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::add_scalar_test(Device::CPU, DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::add_scalar_test(Device::CPU, DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::add_scalar_test(Device::CPU, DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::add_scalar_test(Device::CPU, DType::F64)
-        }
+    #[test]
+    fn bf16() -> Result<()> {
+        test_functions::add_scalar_test(DType::BF16)
     }
-
-    #[cfg(feature = "cuda")]
-    mod cuda {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::add_scalar_test(Device::CUDA(0), DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::add_scalar_test(Device::CUDA(0), DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::add_scalar_test(Device::CUDA(0), DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::add_scalar_test(Device::CUDA(0), DType::F64)
-        }
+    #[test]
+    fn f16() -> Result<()> {
+        test_functions::add_scalar_test(DType::F16)
+    }
+    #[test]
+    fn f32() -> Result<()> {
+        test_functions::add_scalar_test(DType::F32)
+    }
+    #[test]
+    fn f64() -> Result<()> {
+        test_functions::add_scalar_test(DType::F64)
     }
 }
 
@@ -2136,47 +1522,21 @@ mod add_scalar {
 mod sub_scalar {
     use super::*;
 
-    mod cpu {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::sub_scalar_test(Device::CPU, DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::sub_scalar_test(Device::CPU, DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::sub_scalar_test(Device::CPU, DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::sub_scalar_test(Device::CPU, DType::F64)
-        }
+    #[test]
+    fn bf16() -> Result<()> {
+        test_functions::sub_scalar_test(DType::BF16)
     }
-
-    #[cfg(feature = "cuda")]
-    mod cuda {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::sub_scalar_test(Device::CUDA(0), DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::sub_scalar_test(Device::CUDA(0), DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::sub_scalar_test(Device::CUDA(0), DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::sub_scalar_test(Device::CUDA(0), DType::F64)
-        }
+    #[test]
+    fn f16() -> Result<()> {
+        test_functions::sub_scalar_test(DType::F16)
+    }
+    #[test]
+    fn f32() -> Result<()> {
+        test_functions::sub_scalar_test(DType::F32)
+    }
+    #[test]
+    fn f64() -> Result<()> {
+        test_functions::sub_scalar_test(DType::F64)
     }
 }
 
@@ -2184,47 +1544,21 @@ mod sub_scalar {
 mod mul_scalar {
     use super::*;
 
-    mod cpu {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::mul_scalar_test(Device::CPU, DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::mul_scalar_test(Device::CPU, DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::mul_scalar_test(Device::CPU, DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::mul_scalar_test(Device::CPU, DType::F64)
-        }
+    #[test]
+    fn bf16() -> Result<()> {
+        test_functions::mul_scalar_test(DType::BF16)
     }
-
-    #[cfg(feature = "cuda")]
-    mod cuda {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::mul_scalar_test(Device::CUDA(0), DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::mul_scalar_test(Device::CUDA(0), DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::mul_scalar_test(Device::CUDA(0), DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::mul_scalar_test(Device::CUDA(0), DType::F64)
-        }
+    #[test]
+    fn f16() -> Result<()> {
+        test_functions::mul_scalar_test(DType::F16)
+    }
+    #[test]
+    fn f32() -> Result<()> {
+        test_functions::mul_scalar_test(DType::F32)
+    }
+    #[test]
+    fn f64() -> Result<()> {
+        test_functions::mul_scalar_test(DType::F64)
     }
 }
 
@@ -2232,47 +1566,21 @@ mod mul_scalar {
 mod div_scalar {
     use super::*;
 
-    mod cpu {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::div_scalar_test(Device::CPU, DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::div_scalar_test(Device::CPU, DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::div_scalar_test(Device::CPU, DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::div_scalar_test(Device::CPU, DType::F64)
-        }
+    #[test]
+    fn bf16() -> Result<()> {
+        test_functions::div_scalar_test(DType::BF16)
     }
-
-    #[cfg(feature = "cuda")]
-    mod cuda {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::div_scalar_test(Device::CUDA(0), DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::div_scalar_test(Device::CUDA(0), DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::div_scalar_test(Device::CUDA(0), DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::div_scalar_test(Device::CUDA(0), DType::F64)
-        }
+    #[test]
+    fn f16() -> Result<()> {
+        test_functions::div_scalar_test(DType::F16)
+    }
+    #[test]
+    fn f32() -> Result<()> {
+        test_functions::div_scalar_test(DType::F32)
+    }
+    #[test]
+    fn f64() -> Result<()> {
+        test_functions::div_scalar_test(DType::F64)
     }
 }
 
@@ -2280,47 +1588,21 @@ mod div_scalar {
 mod pow {
     use super::*;
 
-    mod cpu {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::pow_test(Device::CPU, DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::pow_test(Device::CPU, DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::pow_test(Device::CPU, DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::pow_test(Device::CPU, DType::F64)
-        }
+    #[test]
+    fn bf16() -> Result<()> {
+        test_functions::pow_test(DType::BF16)
     }
-
-    #[cfg(feature = "cuda")]
-    mod cuda {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::pow_test(Device::CUDA(0), DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::pow_test(Device::CUDA(0), DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::pow_test(Device::CUDA(0), DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::pow_test(Device::CUDA(0), DType::F64)
-        }
+    #[test]
+    fn f16() -> Result<()> {
+        test_functions::pow_test(DType::F16)
+    }
+    #[test]
+    fn f32() -> Result<()> {
+        test_functions::pow_test(DType::F32)
+    }
+    #[test]
+    fn f64() -> Result<()> {
+        test_functions::pow_test(DType::F64)
     }
 }
 
@@ -2328,47 +1610,21 @@ mod pow {
 mod leaky_relu {
     use super::*;
 
-    mod cpu {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::leaky_relu_test(Device::CPU, DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::leaky_relu_test(Device::CPU, DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::leaky_relu_test(Device::CPU, DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::leaky_relu_test(Device::CPU, DType::F64)
-        }
+    #[test]
+    fn bf16() -> Result<()> {
+        test_functions::leaky_relu_test(DType::BF16)
     }
-
-    #[cfg(feature = "cuda")]
-    mod cuda {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::leaky_relu_test(Device::CUDA(0), DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::leaky_relu_test(Device::CUDA(0), DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::leaky_relu_test(Device::CUDA(0), DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::leaky_relu_test(Device::CUDA(0), DType::F64)
-        }
+    #[test]
+    fn f16() -> Result<()> {
+        test_functions::leaky_relu_test(DType::F16)
+    }
+    #[test]
+    fn f32() -> Result<()> {
+        test_functions::leaky_relu_test(DType::F32)
+    }
+    #[test]
+    fn f64() -> Result<()> {
+        test_functions::leaky_relu_test(DType::F64)
     }
 }
 
@@ -2376,47 +1632,21 @@ mod leaky_relu {
 mod elu {
     use super::*;
 
-    mod cpu {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::elu_test(Device::CPU, DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::elu_test(Device::CPU, DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::elu_test(Device::CPU, DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::elu_test(Device::CPU, DType::F64)
-        }
+    #[test]
+    fn bf16() -> Result<()> {
+        test_functions::elu_test(DType::BF16)
     }
-
-    #[cfg(feature = "cuda")]
-    mod cuda {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::elu_test(Device::CUDA(0), DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::elu_test(Device::CUDA(0), DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::elu_test(Device::CUDA(0), DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::elu_test(Device::CUDA(0), DType::F64)
-        }
+    #[test]
+    fn f16() -> Result<()> {
+        test_functions::elu_test(DType::F16)
+    }
+    #[test]
+    fn f32() -> Result<()> {
+        test_functions::elu_test(DType::F32)
+    }
+    #[test]
+    fn f64() -> Result<()> {
+        test_functions::elu_test(DType::F64)
     }
 }
 
@@ -2424,47 +1654,21 @@ mod elu {
 mod eq_scalar {
     use super::*;
 
-    mod cpu {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::eq_scalar_test(Device::CPU, DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::eq_scalar_test(Device::CPU, DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::eq_scalar_test(Device::CPU, DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::eq_scalar_test(Device::CPU, DType::F64)
-        }
+    #[test]
+    fn bf16() -> Result<()> {
+        test_functions::eq_scalar_test(DType::BF16)
     }
-
-    #[cfg(feature = "cuda")]
-    mod cuda {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::eq_scalar_test(Device::CUDA(0), DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::eq_scalar_test(Device::CUDA(0), DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::eq_scalar_test(Device::CUDA(0), DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::eq_scalar_test(Device::CUDA(0), DType::F64)
-        }
+    #[test]
+    fn f16() -> Result<()> {
+        test_functions::eq_scalar_test(DType::F16)
+    }
+    #[test]
+    fn f32() -> Result<()> {
+        test_functions::eq_scalar_test(DType::F32)
+    }
+    #[test]
+    fn f64() -> Result<()> {
+        test_functions::eq_scalar_test(DType::F64)
     }
 }
 
@@ -2472,47 +1676,21 @@ mod eq_scalar {
 mod ne_scalar {
     use super::*;
 
-    mod cpu {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::ne_scalar_test(Device::CPU, DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::ne_scalar_test(Device::CPU, DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::ne_scalar_test(Device::CPU, DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::ne_scalar_test(Device::CPU, DType::F64)
-        }
+    #[test]
+    fn bf16() -> Result<()> {
+        test_functions::ne_scalar_test(DType::BF16)
     }
-
-    #[cfg(feature = "cuda")]
-    mod cuda {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::ne_scalar_test(Device::CUDA(0), DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::ne_scalar_test(Device::CUDA(0), DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::ne_scalar_test(Device::CUDA(0), DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::ne_scalar_test(Device::CUDA(0), DType::F64)
-        }
+    #[test]
+    fn f16() -> Result<()> {
+        test_functions::ne_scalar_test(DType::F16)
+    }
+    #[test]
+    fn f32() -> Result<()> {
+        test_functions::ne_scalar_test(DType::F32)
+    }
+    #[test]
+    fn f64() -> Result<()> {
+        test_functions::ne_scalar_test(DType::F64)
     }
 }
 
@@ -2520,47 +1698,21 @@ mod ne_scalar {
 mod lt_scalar {
     use super::*;
 
-    mod cpu {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::lt_scalar_test(Device::CPU, DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::lt_scalar_test(Device::CPU, DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::lt_scalar_test(Device::CPU, DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::lt_scalar_test(Device::CPU, DType::F64)
-        }
+    #[test]
+    fn bf16() -> Result<()> {
+        test_functions::lt_scalar_test(DType::BF16)
     }
-
-    #[cfg(feature = "cuda")]
-    mod cuda {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::lt_scalar_test(Device::CUDA(0), DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::lt_scalar_test(Device::CUDA(0), DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::lt_scalar_test(Device::CUDA(0), DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::lt_scalar_test(Device::CUDA(0), DType::F64)
-        }
+    #[test]
+    fn f16() -> Result<()> {
+        test_functions::lt_scalar_test(DType::F16)
+    }
+    #[test]
+    fn f32() -> Result<()> {
+        test_functions::lt_scalar_test(DType::F32)
+    }
+    #[test]
+    fn f64() -> Result<()> {
+        test_functions::lt_scalar_test(DType::F64)
     }
 }
 
@@ -2568,47 +1720,21 @@ mod lt_scalar {
 mod le_scalar {
     use super::*;
 
-    mod cpu {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::le_scalar_test(Device::CPU, DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::le_scalar_test(Device::CPU, DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::le_scalar_test(Device::CPU, DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::le_scalar_test(Device::CPU, DType::F64)
-        }
+    #[test]
+    fn bf16() -> Result<()> {
+        test_functions::le_scalar_test(DType::BF16)
     }
-
-    #[cfg(feature = "cuda")]
-    mod cuda {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::le_scalar_test(Device::CUDA(0), DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::le_scalar_test(Device::CUDA(0), DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::le_scalar_test(Device::CUDA(0), DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::le_scalar_test(Device::CUDA(0), DType::F64)
-        }
+    #[test]
+    fn f16() -> Result<()> {
+        test_functions::le_scalar_test(DType::F16)
+    }
+    #[test]
+    fn f32() -> Result<()> {
+        test_functions::le_scalar_test(DType::F32)
+    }
+    #[test]
+    fn f64() -> Result<()> {
+        test_functions::le_scalar_test(DType::F64)
     }
 }
 
@@ -2616,47 +1742,21 @@ mod le_scalar {
 mod gt_scalar {
     use super::*;
 
-    mod cpu {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::gt_scalar_test(Device::CPU, DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::gt_scalar_test(Device::CPU, DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::gt_scalar_test(Device::CPU, DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::gt_scalar_test(Device::CPU, DType::F64)
-        }
+    #[test]
+    fn bf16() -> Result<()> {
+        test_functions::gt_scalar_test(DType::BF16)
     }
-
-    #[cfg(feature = "cuda")]
-    mod cuda {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::gt_scalar_test(Device::CUDA(0), DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::gt_scalar_test(Device::CUDA(0), DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::gt_scalar_test(Device::CUDA(0), DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::gt_scalar_test(Device::CUDA(0), DType::F64)
-        }
+    #[test]
+    fn f16() -> Result<()> {
+        test_functions::gt_scalar_test(DType::F16)
+    }
+    #[test]
+    fn f32() -> Result<()> {
+        test_functions::gt_scalar_test(DType::F32)
+    }
+    #[test]
+    fn f64() -> Result<()> {
+        test_functions::gt_scalar_test(DType::F64)
     }
 }
 
@@ -2664,46 +1764,20 @@ mod gt_scalar {
 mod ge_scalar {
     use super::*;
 
-    mod cpu {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::ge_scalar_test(Device::CPU, DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::ge_scalar_test(Device::CPU, DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::ge_scalar_test(Device::CPU, DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::ge_scalar_test(Device::CPU, DType::F64)
-        }
+    #[test]
+    fn bf16() -> Result<()> {
+        test_functions::ge_scalar_test(DType::BF16)
     }
-
-    #[cfg(feature = "cuda")]
-    mod cuda {
-        use super::*;
-
-        #[test]
-        fn bf16() -> Result<()> {
-            test_functions::ge_scalar_test(Device::CUDA(0), DType::BF16)
-        }
-        #[test]
-        fn f16() -> Result<()> {
-            test_functions::ge_scalar_test(Device::CUDA(0), DType::F16)
-        }
-        #[test]
-        fn f32() -> Result<()> {
-            test_functions::ge_scalar_test(Device::CUDA(0), DType::F32)
-        }
-        #[test]
-        fn f64() -> Result<()> {
-            test_functions::ge_scalar_test(Device::CUDA(0), DType::F64)
-        }
+    #[test]
+    fn f16() -> Result<()> {
+        test_functions::ge_scalar_test(DType::F16)
+    }
+    #[test]
+    fn f32() -> Result<()> {
+        test_functions::ge_scalar_test(DType::F32)
+    }
+    #[test]
+    fn f64() -> Result<()> {
+        test_functions::ge_scalar_test(DType::F64)
     }
 }

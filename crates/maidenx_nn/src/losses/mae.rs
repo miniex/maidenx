@@ -25,9 +25,19 @@ impl MAE {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use maidenx_core::device::{set_default_device, Device};
+
+    fn setup_device() {
+        #[cfg(feature = "cuda")]
+        set_default_device(Device::CUDA(0));
+        #[cfg(not(any(feature = "cuda")))]
+        set_default_device(Device::CPU);
+    }
 
     #[test]
     fn forward() -> Result<()> {
+        setup_device();
+
         let pred = Tensor::new(vec![2.0f32, 3.0, 4.0])?;
         let target = Tensor::new(vec![1.0f32, 2.0, 3.0])?;
 
@@ -41,6 +51,8 @@ mod tests {
 
     #[test]
     fn backward() -> Result<()> {
+        setup_device();
+
         let mut pred = Tensor::new(vec![2.0f32, 3.0, 4.0])?;
         pred.with_grad()?;
 

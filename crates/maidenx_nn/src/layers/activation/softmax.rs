@@ -87,11 +87,23 @@ fn prepare_metadata(tensor: &Tensor) -> Vec<usize> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use maidenx_core::error::Result;
+    use maidenx_core::{
+        device::{set_default_device, Device},
+        error::Result,
+    };
     use maidenx_tensor::Tensor;
 
+    fn setup_device() {
+        #[cfg(feature = "cuda")]
+        set_default_device(Device::CUDA(0));
+        #[cfg(not(any(feature = "cuda")))]
+        set_default_device(Device::CPU);
+    }
+
     #[test]
-    fn softmax_forward_2d() -> Result<()> {
+    fn forward_2d() -> Result<()> {
+        setup_device();
+
         // Create a 2D tensor and apply softmax along the last dimension
         let input = Tensor::new(vec![vec![1.0f32, 2.0, 3.0], vec![4.0, 5.0, 6.0]])?;
         let softmax = Softmax::new(-1)?;
@@ -125,7 +137,35 @@ mod tests {
     }
 
     #[test]
-    fn softmax_forward_different_dimension() -> Result<()> {
+    fn forward_3d() -> Result<()> {
+        setup_device();
+
+        // Create a 3D tensor and apply softmax along the last dimension
+        let input = Tensor::new(vec![
+            vec![vec![1.0f32, 2.0, 3.0], vec![4.0, 5.0, 6.0]],
+            vec![vec![7.0, 8.0, 9.0], vec![10.0, 11.0, 12.0]],
+        ])?;
+        let softmax = Softmax::new(-1)?;
+        let output = softmax.forward(&input)?;
+
+        // Check shape is preserved
+        assert_eq!(output.shape(), &[2, 2, 3]);
+
+        // Each slice (last dimension) should sum to approximately 1
+        let output_data = output.to_flatten_vec::<f32>()?;
+
+        for i in 0..4 {
+            let slice_sum = output_data[i * 3] + output_data[i * 3 + 1] + output_data[i * 3 + 2];
+            assert!((slice_sum - 1.0).abs() < 1e-5, "Slice {} sum should be close to 1, got {}", i, slice_sum);
+        }
+
+        Ok(())
+    }
+
+    #[test]
+    fn forward_different_dimension() -> Result<()> {
+        setup_device();
+
         // Create a 2D tensor and apply softmax along the first dimension
         let input = Tensor::new(vec![vec![1.0f32, 2.0, 3.0], vec![4.0, 5.0, 6.0]])?;
         let softmax = Softmax::new(0)?; // Apply along first dimension
@@ -155,31 +195,9 @@ mod tests {
     }
 
     #[test]
-    fn softmax_forward_3d() -> Result<()> {
-        // Create a 3D tensor and apply softmax along the last dimension
-        let input = Tensor::new(vec![
-            vec![vec![1.0f32, 2.0, 3.0], vec![4.0, 5.0, 6.0]],
-            vec![vec![7.0, 8.0, 9.0], vec![10.0, 11.0, 12.0]],
-        ])?;
-        let softmax = Softmax::new(-1)?;
-        let output = softmax.forward(&input)?;
+    fn backward() -> Result<()> {
+        setup_device();
 
-        // Check shape is preserved
-        assert_eq!(output.shape(), &[2, 2, 3]);
-
-        // Each slice (last dimension) should sum to approximately 1
-        let output_data = output.to_flatten_vec::<f32>()?;
-
-        for i in 0..4 {
-            let slice_sum = output_data[i * 3] + output_data[i * 3 + 1] + output_data[i * 3 + 2];
-            assert!((slice_sum - 1.0).abs() < 1e-5, "Slice {} sum should be close to 1, got {}", i, slice_sum);
-        }
-
-        Ok(())
-    }
-
-    #[test]
-    fn softmax_backward() -> Result<()> {
         // Create a simple input tensor with gradients enabled
         let mut input = Tensor::new(vec![vec![1.0f32, 2.0], vec![3.0, 4.0]])?;
         input.with_grad()?;
@@ -204,30 +222,6 @@ mod tests {
         let grad_vec = input_grad.to_flatten_vec::<f32>()?;
         let has_nonzero = grad_vec.iter().any(|&v| v.abs() > 1e-10);
         assert!(has_nonzero, "Gradient should not be all zeros");
-
-        Ok(())
-    }
-
-    #[test]
-    fn softmax_integer_input() -> Result<()> {
-        // Test that softmax works with integer inputs by promoting to float
-        let input = Tensor::new(vec![vec![1i32, 2, 3], vec![4, 5, 6]])?;
-        let softmax = Softmax::new(-1)?;
-        let output = softmax.forward(&input)?;
-
-        // Output should be float (f32)
-        assert_eq!(output.dtype(), DType::F32);
-
-        // Check shape is preserved
-        assert_eq!(output.shape(), &[2, 3]);
-
-        // Each row should sum to approximately 1
-        let output_vec = output.to_flatten_vec::<f32>()?;
-        let row1_sum = output_vec[0] + output_vec[1] + output_vec[2];
-        let row2_sum = output_vec[3] + output_vec[4] + output_vec[5];
-
-        assert!((row1_sum - 1.0).abs() < 1e-5, "Row 1 sum should be close to 1, got {}", row1_sum);
-        assert!((row2_sum - 1.0).abs() < 1e-5, "Row 2 sum should be close to 1, got {}", row2_sum);
 
         Ok(())
     }

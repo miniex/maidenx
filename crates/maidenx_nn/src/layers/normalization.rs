@@ -127,9 +127,19 @@ impl LayerNorm {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use maidenx_core::device::set_default_device;
+
+    fn setup_device() {
+        #[cfg(feature = "cuda")]
+        set_default_device(Device::CUDA(0));
+        #[cfg(not(any(feature = "cuda")))]
+        set_default_device(Device::CPU);
+    }
 
     #[test]
     fn layer_norm_forward() -> Result<()> {
+        setup_device();
+
         // Create a layer norm for normalizing the last dimension (size 3)
         let layer_norm = LayerNorm::new(vec![3], true, 1e-5)?;
 
@@ -152,6 +162,8 @@ mod tests {
 
     #[test]
     fn layer_norm_backward() -> Result<()> {
+        setup_device();
+
         let layer_norm = LayerNorm::new(vec![3], true, 1e-5)?;
 
         let mut input = Tensor::new(vec![vec![1.0f32, 2.0, 3.0], vec![4.0, 5.0, 6.0]])?;
@@ -178,6 +190,8 @@ mod tests {
 
     #[test]
     fn layer_norm_multi_dim() -> Result<()> {
+        setup_device();
+
         // Test layer norm with multi-dimensional normalized shape [2, 3]
         let layer_norm = LayerNorm::new(vec![2, 3], true, 1e-5)?;
 

@@ -393,9 +393,19 @@ mod conv2d {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use maidenx_core::device::set_default_device;
+
+    fn setup_device() {
+        #[cfg(feature = "cuda")]
+        set_default_device(Device::CUDA(0));
+        #[cfg(not(any(feature = "cuda")))]
+        set_default_device(Device::CPU);
+    }
 
     #[test]
     fn conv2d_forward() -> Result<()> {
+        setup_device();
+
         let conv = Conv2d::new(3, 64, (3, 3), (1, 1), (1, 1), true)?;
 
         let input = Tensor::randn(&[1, 3, 32, 32])?;
@@ -407,6 +417,8 @@ mod tests {
 
     #[test]
     fn conv2d_backward() -> Result<()> {
+        setup_device();
+
         let conv = Conv2d::new(3, 64, (3, 3), (1, 1), (1, 1), true)?;
 
         let mut input = Tensor::randn(&[1, 3, 32, 32])?;
