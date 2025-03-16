@@ -12,7 +12,7 @@ macro_rules! declare_extern_binary_ops {
                     pub fn [<cuda_add_ $dtype>](
                         num_els: usize,
                         num_dims: usize,
-                        dims_and_strides: *const usize,
+                        metadata: *const usize,
                         lhs: *const $ty,
                         rhs: *const $ty,
                         out: *mut $ty,
@@ -20,7 +20,7 @@ macro_rules! declare_extern_binary_ops {
                     pub fn [<cuda_sub_ $dtype>](
                         num_els: usize,
                         num_dims: usize,
-                        dims_and_strides: *const usize,
+                        metadata: *const usize,
                         lhs: *const $ty,
                         rhs: *const $ty,
                         out: *mut $ty,
@@ -28,7 +28,7 @@ macro_rules! declare_extern_binary_ops {
                     pub fn [<cuda_mul_ $dtype>](
                         num_els: usize,
                         num_dims: usize,
-                        dims_and_strides: *const usize,
+                        metadata: *const usize,
                         lhs: *const $ty,
                         rhs: *const $ty,
                         out: *mut $ty,
@@ -36,7 +36,7 @@ macro_rules! declare_extern_binary_ops {
                     pub fn [<cuda_div_ $dtype>](
                         num_els: usize,
                         num_dims: usize,
-                        dims_and_strides: *const usize,
+                        metadata: *const usize,
                         lhs: *const $ty,
                         rhs: *const $ty,
                         out: *mut $ty,
@@ -45,7 +45,7 @@ macro_rules! declare_extern_binary_ops {
                     pub fn [<cuda_logical_and_ $dtype>](
                         num_els: usize,
                         num_dims: usize,
-                        dims_and_strides: *const usize,
+                        metadata: *const usize,
                         lhs: *const $ty,
                         rhs: *const $ty,
                         out: *mut bool,
@@ -53,7 +53,7 @@ macro_rules! declare_extern_binary_ops {
                     pub fn [<cuda_logical_or_ $dtype>](
                         num_els: usize,
                         num_dims: usize,
-                        dims_and_strides: *const usize,
+                        metadata: *const usize,
                         lhs: *const $ty,
                         rhs: *const $ty,
                         out: *mut bool,
@@ -61,7 +61,7 @@ macro_rules! declare_extern_binary_ops {
                     pub fn [<cuda_logical_xor_ $dtype>](
                         num_els: usize,
                         num_dims: usize,
-                        dims_and_strides: *const usize,
+                        metadata: *const usize,
                         lhs: *const $ty,
                         rhs: *const $ty,
                         out: *mut bool,
@@ -70,7 +70,7 @@ macro_rules! declare_extern_binary_ops {
                     pub fn [<cuda_eq_ $dtype>](
                         num_els: usize,
                         num_dims: usize,
-                        dims_and_strides: *const usize,
+                        metadata: *const usize,
                         lhs: *const $ty,
                         rhs: *const $ty,
                         out: *mut bool,
@@ -78,7 +78,7 @@ macro_rules! declare_extern_binary_ops {
                     pub fn [<cuda_ne_ $dtype>](
                         num_els: usize,
                         num_dims: usize,
-                        dims_and_strides: *const usize,
+                        metadata: *const usize,
                         lhs: *const $ty,
                         rhs: *const $ty,
                         out: *mut bool,
@@ -86,7 +86,7 @@ macro_rules! declare_extern_binary_ops {
                     pub fn [<cuda_lt_ $dtype>](
                         num_els: usize,
                         num_dims: usize,
-                        dims_and_strides: *const usize,
+                        metadata: *const usize,
                         lhs: *const $ty,
                         rhs: *const $ty,
                         out: *mut bool,
@@ -94,7 +94,7 @@ macro_rules! declare_extern_binary_ops {
                     pub fn [<cuda_le_ $dtype>](
                         num_els: usize,
                         num_dims: usize,
-                        dims_and_strides: *const usize,
+                        metadata: *const usize,
                         lhs: *const $ty,
                         rhs: *const $ty,
                         out: *mut bool,
@@ -102,7 +102,7 @@ macro_rules! declare_extern_binary_ops {
                     pub fn [<cuda_gt_ $dtype>](
                         num_els: usize,
                         num_dims: usize,
-                        dims_and_strides: *const usize,
+                        metadata: *const usize,
                         lhs: *const $ty,
                         rhs: *const $ty,
                         out: *mut bool,
@@ -110,7 +110,7 @@ macro_rules! declare_extern_binary_ops {
                     pub fn [<cuda_ge_ $dtype>](
                         num_els: usize,
                         num_dims: usize,
-                        dims_and_strides: *const usize,
+                        metadata: *const usize,
                         lhs: *const $ty,
                         rhs: *const $ty,
                         out: *mut bool,

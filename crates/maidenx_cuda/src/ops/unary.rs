@@ -21,7 +21,7 @@ macro_rules! declare_extern_unary_ops {
                         pub fn [<cuda_ $arithmetic_op _ $dtype:lower>](
                             num_els: usize,
                             num_dims: usize,
-                            dims_and_strides: *const usize,
+                            metadata: *const usize,
                             input: *const $ty,
                             output: *mut $ty,
                         );
@@ -30,7 +30,7 @@ macro_rules! declare_extern_unary_ops {
                         pub fn [<cuda_ $comparison_op _ $dtype:lower>](
                             num_els: usize,
                             num_dims: usize,
-                            dims_and_strides: *const usize,
+                            metadata: *const usize,
                             input: *const $ty,
                             output: *mut bool,
                         );
@@ -59,7 +59,7 @@ macro_rules! declare_extern_unary_ops_with_constant {
                         pub fn [<cuda_ $arithmetic_op _ $dtype:lower>](
                             num_els: usize,
                             num_dims: usize,
-                            dims_and_strides: *const usize,
+                            metadata: *const usize,
                             input: *const $ty,
                             constant: $ty,
                             output: *mut $ty,
@@ -69,7 +69,7 @@ macro_rules! declare_extern_unary_ops_with_constant {
                         pub fn [<cuda_ $comparison_op _ $dtype:lower>](
                             num_els: usize,
                             num_dims: usize,
-                            dims_and_strides: *const usize,
+                            metadata: *const usize,
                             input: *const $ty,
                             constant: $ty,
                             output: *mut bool,

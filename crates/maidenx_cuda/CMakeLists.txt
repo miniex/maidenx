@@ -79,7 +79,7 @@ set_target_properties(ops PROPERTIES
 
 # Add "nn" library
 file(GLOB NN_SOURCES
-    kernels/nn/*.cu
+    kernels/nn/**/**.cu
 )
 add_cuda_library(nn "${NN_SOURCES}")
 set_target_properties(nn PROPERTIES

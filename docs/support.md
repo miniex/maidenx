@@ -147,6 +147,8 @@ Blank: Upcoming support
 | **Normalization Layers** |
 |            | `LayerNorm`        | ✓ | ✓ |
 | **Activation Layers** |
+|            | `Softmax`          | ✓ | ✓ | 
+| tensor ops aliases |
 |            | `ReLU`             | ✓ | ✓ |
 |            | `Sigmoid`          | ✓ | ✓ |
 |            | `Tanh`             | ✓ | ✓ |

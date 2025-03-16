@@ -11,7 +11,7 @@ macro_rules! declare_extern_matmul_ops {
                 $(
                     pub fn [<cuda_matmul_ $dtype>](
                         num_els: usize,
-                        dims_and_strides: *const usize,
+                        metadata: *const usize,
                         a: *const $ty,
                         b: *const $ty,
                         c: *mut $ty,
@@ -20,7 +20,7 @@ macro_rules! declare_extern_matmul_ops {
                     pub fn [<cuda_matmul_backward_ $dtype>](
                         num_els_a: usize,
                         num_els_b: usize,
-                        dims_and_strides: *const usize,
+                        metadata: *const usize,
                         grad_output: *const $ty,
                         a: *const $ty,
                         b: *const $ty,
