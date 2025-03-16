@@ -143,6 +143,8 @@ Blank: Upcoming support
 |            | `Linear`           | ✓ | ✓ |
 | **Convolution Layers** |
 |            | `Conv2d`           | ✓ | ✓ |
+| **Normalization Layers** |
+|            | `LayerNorm`        | ✓ | ✓ |
 | **Activation Layers** |
 |            | `ReLU`             | ✓ | ✓ |
 |            | `Sigmoid`          | ✓ | ✓ |
