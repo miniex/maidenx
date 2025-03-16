@@ -1,4 +1,4 @@
-use crate::layer::Layer;
+use crate::layer::{Layer, LayerState};
 use maidenx_core::{error::Result, scalar::Scalar};
 use maidenx_tensor::Tensor;
 
@@ -6,11 +6,13 @@ pub mod softmax;
 pub use softmax::*;
 
 #[derive(Layer, Clone)]
-pub struct ReLU {}
+pub struct ReLU {
+    state: LayerState,
+}
 
 impl ReLU {
     pub fn new() -> Result<Self> {
-        Ok(Self {})
+        Ok(Self { state: LayerState::new() })
     }
 
     pub fn forward(&self, input: &Tensor) -> Result<Tensor> {
@@ -23,11 +25,13 @@ impl ReLU {
 }
 
 #[derive(Layer, Clone)]
-pub struct Sigmoid {}
+pub struct Sigmoid {
+    state: LayerState,
+}
 
 impl Sigmoid {
     pub fn new() -> Result<Self> {
-        Ok(Self {})
+        Ok(Self { state: LayerState::new() })
     }
 
     pub fn forward(&self, input: &Tensor) -> Result<Tensor> {
@@ -40,11 +44,13 @@ impl Sigmoid {
 }
 
 #[derive(Layer, Clone)]
-pub struct Tanh {}
+pub struct Tanh {
+    state: LayerState,
+}
 
 impl Tanh {
     pub fn new() -> Result<Self> {
-        Ok(Self {})
+        Ok(Self { state: LayerState::new() })
     }
 
     pub fn forward(&self, input: &Tensor) -> Result<Tensor> {
@@ -59,11 +65,16 @@ impl Tanh {
 #[derive(Layer, Clone)]
 pub struct LeakyReLU {
     exponent: Scalar,
+
+    state: LayerState,
 }
 
 impl LeakyReLU {
     pub fn new(exponent: impl Into<Scalar>) -> Result<Self> {
-        Ok(Self { exponent: exponent.into() })
+        Ok(Self {
+            exponent: exponent.into(),
+            state: LayerState::new(),
+        })
     }
 
     pub fn forward(&self, input: &Tensor) -> Result<Tensor> {
@@ -76,11 +87,13 @@ impl LeakyReLU {
 }
 
 #[derive(Layer, Clone)]
-pub struct GELU {}
+pub struct GELU {
+    state: LayerState,
+}
 
 impl GELU {
     pub fn new() -> Result<Self> {
-        Ok(Self {})
+        Ok(Self { state: LayerState::new() })
     }
 
     pub fn forward(&self, input: &Tensor) -> Result<Tensor> {
@@ -95,11 +108,16 @@ impl GELU {
 #[derive(Layer, Clone)]
 pub struct ELU {
     exponent: Scalar,
+
+    state: LayerState,
 }
 
 impl ELU {
     pub fn new(exponent: impl Into<Scalar>) -> Result<Self> {
-        Ok(Self { exponent: exponent.into() })
+        Ok(Self {
+            exponent: exponent.into(),
+            state: LayerState::new(),
+        })
     }
 
     pub fn forward(&self, input: &Tensor) -> Result<Tensor> {

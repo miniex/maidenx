@@ -58,6 +58,16 @@ pub fn derive_layer(input: TokenStream) -> TokenStream {
             fn parameters(&mut self) -> Vec<&mut #maidenx_tensor_path::Tensor> {
                 self.parameters()
             }
+
+            fn is_training(&self) -> bool {
+                self.state.is_training()
+            }
+            fn train(&mut self)  {
+                self.state.train();
+            }
+            fn eval(&mut self) {
+                self.state.eval();
+            }
         }
     };
     TokenStream::from(expanded)

@@ -262,6 +262,10 @@ impl Tensor {
         Self::fill_with_spec(shape, value, device, dtype)
     }
 
+    pub fn fill_like<T: Into<Scalar>>(src: &Tensor, value: T) -> Result<Self> {
+        Self::fill_with_spec(src.layout().shape(), value, src.device(), src.dtype())
+    }
+
     pub fn fill_with_spec<T: Into<Scalar>>(shape: &[usize], value: T, device: Device, dtype: DType) -> Result<Self> {
         let layout = Layout::from_shape(shape);
         let size = layout.size();
@@ -317,6 +321,10 @@ impl Tensor {
         let dtype = get_default_dtype();
 
         Self::randn_with_spec(shape, device, dtype)
+    }
+
+    pub fn randn_like(src: &Tensor) -> Result<Self> {
+        Self::randn_with_spec(src.layout().shape(), src.device(), src.dtype())
     }
 
     pub fn randn_with_spec(shape: &[usize], device: Device, dtype: DType) -> Result<Self> {

@@ -1,4 +1,4 @@
-use crate::layer::Layer;
+use crate::layer::{Layer, LayerState};
 use maidenx_core::{
     device::{get_default_device, Device},
     dtype::{get_default_dtype, DType},
@@ -12,6 +12,8 @@ pub struct LayerNorm {
     bias: Option<Tensor>,
     normalized_shape: Vec<usize>,
     eps: f32,
+
+    state: LayerState,
 }
 
 impl LayerNorm {
@@ -40,6 +42,7 @@ impl LayerNorm {
             bias: b,
             normalized_shape,
             eps,
+            state: LayerState::new(),
         })
     }
 

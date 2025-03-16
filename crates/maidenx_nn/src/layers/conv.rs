@@ -1,6 +1,6 @@
 #![allow(clippy::too_many_arguments)]
 
-use crate::layer::Layer;
+use crate::layer::{Layer, LayerState};
 use maidenx_core::{
     device::{get_default_device, Device},
     dtype::{get_default_dtype, DType},
@@ -109,6 +109,8 @@ pub struct Conv2d {
     kernel_size: (usize, usize),
     stride: (usize, usize),
     padding: (usize, usize),
+
+    state: LayerState,
 }
 
 impl Conv2d {
@@ -160,6 +162,7 @@ impl Conv2d {
             kernel_size,
             stride,
             padding,
+            state: LayerState::new(),
         })
     }
 

@@ -148,6 +148,8 @@ Blank: Upcoming support
 |            | `Conv2d`           | ✓ | ✓ |
 | **Normalization Layers** |
 |            | `LayerNorm`        | ✓ | ✓ |
+| **Dropout Layers** |
+|            | `Dropout`          | ✓ | ✓ |
 | **Activation Layers** |
 |            | `Softmax`          | ✓ | ✓ | 
 | tensor ops aliases |

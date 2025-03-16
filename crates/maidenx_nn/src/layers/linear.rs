@@ -1,4 +1,4 @@
-use crate::layer::Layer;
+use crate::layer::{Layer, LayerState};
 use maidenx_core::{
     device::{get_default_device, Device},
     dtype::{get_default_dtype, DType},
@@ -10,6 +10,8 @@ use maidenx_tensor::Tensor;
 pub struct Linear {
     weight: Tensor,
     bias: Option<Tensor>,
+
+    state: LayerState,
 }
 
 impl Linear {
@@ -39,7 +41,11 @@ impl Linear {
             None
         };
 
-        Ok(Self { weight: w, bias: b })
+        Ok(Self {
+            weight: w,
+            bias: b,
+            state: LayerState::new(),
+        })
     }
 
     pub fn forward(&self, input: &Tensor) -> Result<Tensor> {

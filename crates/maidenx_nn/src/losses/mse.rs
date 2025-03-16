@@ -1,14 +1,16 @@
-use crate::layer::Layer;
+use crate::layer::{Layer, LayerState};
 use maidenx_core::{error::Result, scalar::Scalar};
 use maidenx_tensor::Tensor;
 
 #[derive(Layer, Clone, Default)]
 #[layer(inputs = 2)]
-pub struct MSE {}
+pub struct MSE {
+    state: LayerState,
+}
 
 impl MSE {
     pub fn new() -> Self {
-        MSE::default()
+        Self { state: LayerState::new() }
     }
 
     pub fn forward(&self, (pred, target): (&Tensor, &Tensor)) -> Result<Tensor> {

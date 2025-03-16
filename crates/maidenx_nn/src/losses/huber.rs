@@ -1,4 +1,4 @@
-use crate::layer::Layer;
+use crate::layer::{Layer, LayerState};
 use maidenx_core::{error::Result, scalar::Scalar};
 use maidenx_tensor::Tensor;
 
@@ -6,11 +6,16 @@ use maidenx_tensor::Tensor;
 #[layer(inputs = 2)]
 pub struct Huber {
     delta: Scalar,
+
+    state: LayerState,
 }
 
 impl Huber {
     pub fn new(delta: impl Into<Scalar>) -> Self {
-        Self { delta: delta.into() }
+        Self {
+            delta: delta.into(),
+            state: LayerState::new(),
+        }
     }
 
     pub fn forward(&self, (pred, target): (&Tensor, &Tensor)) -> Result<Tensor> {

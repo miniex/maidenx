@@ -1,15 +1,20 @@
-use crate::layer::Layer;
+use crate::layer::{Layer, LayerState};
 use maidenx_core::{dtype::DType, error::Result, scalar::Scalar};
 use maidenx_tensor::{Tensor, TensorNode};
 
 #[derive(Layer, Clone)]
 pub struct Softmax {
     dim: Scalar,
+
+    state: LayerState,
 }
 
 impl Softmax {
     pub fn new(dim: impl Into<Scalar>) -> Result<Self> {
-        Ok(Self { dim: dim.into() })
+        Ok(Self {
+            dim: dim.into(),
+            state: LayerState::new(),
+        })
     }
 
     pub fn forward(&self, input: &Tensor) -> Result<Tensor> {
