@@ -9,7 +9,7 @@ impl Tensor {
 
     pub fn view<T: Into<Scalar> + Clone>(&self, shape: &[T]) -> Result<Self> {
         let computed_shape = self.compute_shape_with_auto(shape)?;
-        let mut result = Self::from_tensor(self)?;
+        let mut result = Self::share_data(self)?;
         result.layout_mut().view(&computed_shape)?;
 
         if self.requires_grad() {
@@ -51,7 +51,7 @@ impl Tensor {
             shape.push(1);
         }
 
-        let mut result = Self::from_tensor(self)?;
+        let mut result = Self::share_data(self)?;
         result.layout_mut().view(&shape)?;
 
         if self.requires_grad() {
@@ -69,7 +69,7 @@ impl Tensor {
     pub fn squeeze_all(&self) -> Result<Self> {
         let shape: Vec<usize> = self.shape().iter().filter(|&&dim| dim != 1).cloned().collect();
 
-        let mut result = Self::from_tensor(self)?;
+        let mut result = Self::share_data(self)?;
         result.layout_mut().view(&shape)?;
 
         if self.requires_grad() {
@@ -103,7 +103,7 @@ impl Tensor {
         }
         shape.insert(dim, 1);
 
-        let mut result = Self::from_tensor(self)?;
+        let mut result = Self::share_data(self)?;
         result.layout_mut().view(&shape)?;
 
         if self.requires_grad() {
@@ -134,7 +134,7 @@ impl Tensor {
             dim1_i32 as usize
         };
 
-        let mut result = Self::from_tensor(self)?;
+        let mut result = Self::share_data(self)?;
         result.layout_mut().transpose(dim0, dim1)?;
 
         if self.requires_grad() {
@@ -165,7 +165,7 @@ impl Tensor {
         let new_layout = self
             .layout()
             .slice(dim, start_i32 as isize, end_i32.map(|e| e as isize), step_i32 as isize)?;
-        let mut result = Self::from_tensor(self)?;
+        let mut result = Self::share_data(self)?;
         *result.layout_mut() = new_layout;
 
         if self.requires_grad() {
@@ -224,7 +224,7 @@ impl Tensor {
         };
 
         let new_layout = self.layout().unfold(dim, size_i32 as usize, step_i32 as usize)?;
-        let mut result = Self::from_tensor(self)?;
+        let mut result = Self::share_data(self)?;
         *result.layout_mut() = new_layout;
 
         if self.requires_grad() {
@@ -255,23 +255,41 @@ impl Tensor {
 
     pub fn reshape<T: Into<Scalar> + Clone>(&self, shape: &[T]) -> Result<Self> {
         let computed_shape = self.compute_shape_with_auto(shape)?;
-        let mut result = Self::from_tensor(self)?;
-        result.layout_mut().view(&computed_shape)?;
 
-        if self.requires_grad() {
-            result.with_grad()?;
+        if self.is_contiguous() {
+            let mut result = Self::share_data(self)?;
+            result.layout_mut().view(&computed_shape)?;
 
-            let orig_shape = self.shape().to_vec();
-            let backward_fn = Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> { Ok(vec![grad_out.view(&orig_shape)?]) });
+            if self.requires_grad() {
+                result.with_grad()?;
 
-            let node = TensorNode::new("reshape".to_string(), vec![self.clone()], Some(backward_fn));
-            result.node = Some(node);
+                let orig_shape = self.shape().to_vec();
+                let backward_fn =
+                    Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> { Ok(vec![grad_out.view(&orig_shape)?]) });
+
+                let node = TensorNode::new("reshape".to_string(), vec![self.clone()], Some(backward_fn));
+                result.node = Some(node);
+            }
+
+            Ok(result)
+        } else {
+            let mut result = self.contiguous()?;
+            result.layout_mut().view(&computed_shape)?;
+
+            if self.requires_grad() {
+                let orig_shape = self.shape().to_vec();
+                let backward_fn =
+                    Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> { Ok(vec![grad_out.view(&orig_shape)?]) });
+
+                let node = TensorNode::new("reshape".to_string(), vec![self.clone()], Some(backward_fn));
+                result.node = Some(node);
+            }
+
+            Ok(result)
         }
-
-        result.contiguous()?;
-
-        Ok(result)
     }
+
+    // ==== broadcast ops ====
 
     pub fn broadcast(&self, shape: &[usize]) -> Result<Self> {
         if self.shape() == shape {

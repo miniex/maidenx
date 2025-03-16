@@ -109,6 +109,7 @@ Blank: Upcoming support
 |            | `unfold`           | ✓ | ✓ | ✓ |
 | reshape operations |
 |            | `reshape`          | ✓ | ✓ | ✓ |
+| broadcast operations |
 |            | `broadcast`        | ✓ | ✓ | ✓ |
 |            | `broadcast_like`   | ✓ | ✓ | ✓ |
 |            | `broadcast_left`   | ✓ | ✓ | ✓ |

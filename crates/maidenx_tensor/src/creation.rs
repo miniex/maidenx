@@ -100,6 +100,24 @@ impl Tensor {
         Ok(result)
     }
 
+    pub fn share_data(target: &Tensor) -> Result<Self> {
+        let tensor = Self {
+            data: TensorData {
+                buffer: Arc::clone(&target.data.buffer),
+                grad: None,
+            },
+            metadata: TensorMetadata {
+                device: target.device(),
+                dtype: target.dtype(),
+                layout: target.layout().clone(),
+                requires_grad: false,
+            },
+            node: None,
+        };
+
+        Ok(tensor)
+    }
+
     pub fn empty(shape: &[usize]) -> Result<Self> {
         let device = get_default_device();
         let dtype = get_default_dtype();
