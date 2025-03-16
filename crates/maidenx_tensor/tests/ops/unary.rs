@@ -741,6 +741,56 @@ mod test_functions {
         Ok(())
     }
 
+    pub fn recip_test(dtype: DType) -> Result<()> {
+        let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
+
+        let result = x.recip()?;
+        result.backward()?;
+
+        let expected_output = [1.0 / (-1.0f32), 1.0 / 0.0f32, 1.0 / 2.0f32, 1.0 / (-3.0f32)];
+
+        let result_vec = result.to_flatten_vec::<f32>()?;
+        for (a, b) in result_vec.iter().zip(expected_output.iter()) {
+            if TEST_DATA_F32[result_vec.iter().position(|x| x == a).unwrap_or(0)] == 0.0 {
+                assert!(a.is_infinite(), "Expected infinity, got {}", a);
+                continue;
+            }
+
+            let tolerance = match dtype {
+                DType::BF16 => 0.1,
+                DType::F16 => 0.05,
+                _ => 1e-4,
+            };
+            assert!((a - b).abs() < tolerance, "Values differ: {} vs {} (tolerance: {})", a, b, tolerance);
+        }
+
+        if let Some(g) = x.grad()? {
+            let grad_vec = g.to_flatten_vec::<f32>()?;
+            for (i, &x_val) in TEST_DATA_F32.iter().enumerate() {
+                if x_val == 0.0 {
+                    continue;
+                }
+
+                let expected_grad = -1.0 / (x_val * x_val);
+                let tolerance = match dtype {
+                    DType::BF16 => 0.5,
+                    DType::F16 => 0.1,
+                    _ => 1e-4,
+                };
+                assert!(
+                    (grad_vec[i] - expected_grad).abs() < tolerance,
+                    "Gradients differ at index {}: {} vs {} (tolerance: {})",
+                    i,
+                    grad_vec[i],
+                    expected_grad,
+                    tolerance
+                );
+            }
+        }
+
+        Ok(())
+    }
+
     pub fn logical_not_test(dtype: DType) -> Result<()> {
         let test_data = vec![1, 0, 1, 0];
         let x = setup_tensor(test_data, dtype)?;
@@ -1475,6 +1525,28 @@ mod softplus {
     #[test]
     fn f64() -> Result<()> {
         test_functions::softplus_test(DType::F64)
+    }
+}
+
+// recip operation tests
+mod recip {
+    use super::*;
+
+    #[test]
+    fn bf16() -> Result<()> {
+        test_functions::recip_test(DType::BF16)
+    }
+    #[test]
+    fn f16() -> Result<()> {
+        test_functions::recip_test(DType::F16)
+    }
+    #[test]
+    fn f32() -> Result<()> {
+        test_functions::recip_test(DType::F32)
+    }
+    #[test]
+    fn f64() -> Result<()> {
+        test_functions::recip_test(DType::F64)
     }
 }
 

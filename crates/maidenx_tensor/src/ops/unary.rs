@@ -505,6 +505,35 @@ impl Tensor {
         Ok(result)
     }
 
+    pub fn recip(&self) -> Result<Tensor> {
+        let target_dtype = if self.dtype().is_int() { DType::F32 } else { self.dtype() };
+
+        let input = promote_tensor(self, target_dtype)?;
+        let mut result = Self::empty_with_spec(input.shape(), input.device(), input.dtype())?;
+
+        unsafe {
+            result.with_buffer_mut(|out_buf| {
+                maidenx_core::be::ops::unary::recip(out_buf, input.buffer(), input.size(), input.ndim(), Some(&prepare_metadata(&input)))?;
+                Ok(())
+            })?;
+        }
+
+        if self.requires_grad() {
+            result.with_grad()?;
+
+            let input_clone = self.clone();
+            let backward_fn = Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> {
+                let input_squared = input_clone.square()?;
+                let neg_grad = grad_out.neg()?;
+                Ok(vec![neg_grad.div(&input_squared)?])
+            });
+            let node = TensorNode::new("recip".to_string(), vec![self.clone()], Some(backward_fn));
+            result.node = Some(node);
+        }
+
+        Ok(result)
+    }
+
     // Comparison
 
     pub fn logical_not(&self) -> Result<Tensor> {

@@ -173,6 +173,9 @@ UNARY_OP(double, exp2_f64, exp2(x));
 UNARY_OP(float, softplus_f32, logf(1.0f + expf(x)));
 UNARY_OP(double, softplus_f64, log(1.0 + exp(x)));
 
+UNARY_OP(float, recip_f32, 1.0f / x);
+UNARY_OP(double, recip_f64, 1.0 / x);
+
 UNARY_OP_OUTPUT(float, bool, logical_not_f32, x == 0.0f);
 UNARY_OP_OUTPUT(double, bool, logical_not_f64, x == 0.0f);
 UNARY_OP_OUTPUT(bool, bool, logical_not_bool, !x);
@@ -212,6 +215,7 @@ UNARY_OP(__half, exp10_f16, __float2half(exp10f(__half2float(x))));
 UNARY_OP(__half, exp2_f16, __float2half(exp2f(__half2float(x))));
 UNARY_OP(__half, softplus_f16,
          __float2half(logf(1.0f + expf(__half2float(x)))));
+UNARY_OP(__half, recip_f16, __float2half(1.0f / __half2float(x)));
 
 UNARY_OP_OUTPUT(__half, bool, logical_not_f16, x == __half(0.0f));
 
@@ -253,6 +257,8 @@ UNARY_OP(__nv_bfloat16, exp2_bf16,
          __float2bfloat16(exp2f(__bfloat162float(x))));
 UNARY_OP(__nv_bfloat16, softplus_bf16,
          __float2bfloat16(logf(1.0f + expf(__bfloat162float(x)))));
+UNARY_OP(__nv_bfloat16, recip_bf16,
+         __float2bfloat16(1.0f / __bfloat162float(x)));
 
 UNARY_OP_OUTPUT(__nv_bfloat16, bool, logical_not_bf16,
                 x == __nv_bfloat16(0.0f));

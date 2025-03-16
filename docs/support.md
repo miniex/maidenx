@@ -73,6 +73,7 @@ Blank: Upcoming support
 |            | `exp10`            | ✓ | ✓ | ✓ |
 |            | `exp2`             | ✓ | ✓ | ✓ |
 |            | `softplus`         | ✓ | ✓ | ✓ |
+|            | `recip`            | ✓ | ✓ | ✓ |
 | logical operations |
 |            | `logical_not`      | ✗ | ✓ | ✓ |
 | with constant |
