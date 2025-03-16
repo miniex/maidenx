@@ -109,6 +109,7 @@ Blank: Upcoming support
 | reshape operations |
 |            | `reshape`          | ✓ | ✓ | ✓ |
 |            | `broadcast`        | ✓ | ✓ | ✓ |
+|            | `broadcast_like`   | ✓ | ✓ | ✓ |
 |            | `broadcast_left`   | ✓ | ✓ | ✓ |
 | **Padding Operations** |
 |            | `pad`                  | ✓ | ✓ | ✓ |

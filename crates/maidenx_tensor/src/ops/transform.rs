@@ -370,6 +370,10 @@ impl Tensor {
         Ok(result)
     }
 
+    pub fn broadcast_like(&self, other: &Self) -> Result<Self> {
+        self.broadcast(other.shape())
+    }
+
     pub fn broadcast_left(&self, batch_dims: &[usize]) -> Result<Self> {
         let mut new_shape = batch_dims.as_ref().to_vec();
         new_shape.extend(self.shape());
