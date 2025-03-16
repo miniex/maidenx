@@ -113,7 +113,7 @@ impl Tensor {
         Ok(result)
     }
 
-    pub fn mean(&self, dim: impl Into<Scalar>) -> Result<Self> {
+    pub fn mean(&self, dim: impl Into<Scalar>, keep_dims: bool) -> Result<Self> {
         let dim_i32 = dim.into().as_i32();
         let dim: usize = if dim_i32 < 0 {
             (self.ndim() as i32 + dim_i32) as usize
@@ -128,6 +128,8 @@ impl Tensor {
                 ndim: self.ndim(),
             });
         }
+
+        let original_shape = shape.clone();
         shape.remove(dim);
 
         let target_dtype = if self.dtype().is_int() { DType::F32 } else { self.dtype() };
@@ -144,16 +146,27 @@ impl Tensor {
             })?;
         }
 
+        if keep_dims {
+            let mut keep_dims_shape = original_shape;
+            keep_dims_shape[dim] = 1;
+            result = result.view(&keep_dims_shape)?;
+        }
+
         if self.requires_grad() {
             result.with_grad()?;
 
             let input_shape = self.shape().to_vec();
             let dim_size = self.shape()[dim];
             let backward_fn = Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> {
-                let mut grad_shape = input_shape.clone();
-                grad_shape[dim] = 1;
-                let viewed_grad = grad_out.view(&grad_shape)?;
-                let broadcasted_grad = viewed_grad.broadcast(&input_shape)?;
+                let mut grad_out = grad_out.clone();
+
+                if !keep_dims {
+                    let mut grad_shape = input_shape.clone();
+                    grad_shape[dim] = 1;
+                    grad_out = grad_out.view(&grad_shape)?;
+                }
+
+                let broadcasted_grad = grad_out.broadcast(&input_shape)?;
 
                 Ok(vec![broadcasted_grad.div_scalar(dim_size)?])
             });
@@ -165,10 +178,10 @@ impl Tensor {
         Ok(result)
     }
 
-    pub fn mean_all(&self) -> Result<Self> {
+    pub fn mean_all(&self, keep_dims: bool) -> Result<Self> {
         let mut result = self.clone();
         for dim in (0..self.ndim()).rev() {
-            result = result.mean(dim)?;
+            result = result.mean(dim, keep_dims)?;
         }
 
         Ok(result)

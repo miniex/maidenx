@@ -143,7 +143,7 @@ Blank: Upcoming support
 |            | `Linear`           | ✓ | ✓ |
 | **Convolution Layers** |
 |            | `Conv2d`           | ✓ | ✓ |
-| **Functional Layers (Activations)** |
+| **Activation Layers** |
 |            | `ReLU`             | ✓ | ✓ |
 |            | `Sigmoid`          | ✓ | ✓ |
 |            | `Tanh`             | ✓ | ✓ |

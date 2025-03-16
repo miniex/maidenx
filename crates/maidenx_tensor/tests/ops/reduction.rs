@@ -83,32 +83,50 @@ mod test_functions {
     }
 
     pub fn mean_test(device: Device, dtype: DType) -> Result<()> {
-        // Test with floating point data
+        // Test with floating point data (keepdims=false)
         let x = setup_grad_tensor(TEST_DATA_F32_2D.iter().flatten().copied().collect(), &[2, 3], device, dtype)?;
-        let result = x.mean(0)?;
+        let result = x.mean(0, false)?;
         result.backward()?;
-
         assert_eq!(result.to_flatten_vec::<f32>()?, vec![2.5, 3.5, 4.5]);
+        assert_eq!(result.shape(), &[3]);
         if let Some(g) = x.grad()? {
             assert_eq!(g.to_flatten_vec::<f32>()?, vec![0.5, 0.5, 0.5, 0.5, 0.5, 0.5]);
         }
 
-        // Test with integer data
-        let x = setup_tensor(TEST_DATA_U32_2D.iter().flatten().copied().collect(), &[2, 2], device, DType::U32)?;
-        let result = x.mean(0)?;
+        // Test with floating point data (keepdims=true)
+        let x = setup_grad_tensor(TEST_DATA_F32_2D.iter().flatten().copied().collect(), &[2, 3], device, dtype)?;
+        let result = x.mean(0, true)?;
+        result.backward()?;
+        assert_eq!(result.to_flatten_vec::<f32>()?, vec![2.5, 3.5, 4.5]);
+        assert_eq!(result.shape(), &[1, 3]); // Dimension is kept
+        if let Some(g) = x.grad()? {
+            assert_eq!(g.to_flatten_vec::<f32>()?, vec![0.5, 0.5, 0.5, 0.5, 0.5, 0.5]);
+        }
 
+        // Test with integer data (keepdims=false)
+        let x = setup_tensor(TEST_DATA_U32_2D.iter().flatten().copied().collect(), &[2, 2], device, DType::U32)?;
+        let result = x.mean(0, false)?;
         // Should be automatically converted to f32
         assert_eq!(result.to_flatten_vec::<f32>()?, vec![2.0, 3.0]);
+        assert_eq!(result.shape(), &[2]);
+
+        // Test with integer data (keepdims=true)
+        let x = setup_tensor(TEST_DATA_U32_2D.iter().flatten().copied().collect(), &[2, 2], device, DType::U32)?;
+        let result = x.mean(0, true)?;
+        // Should be automatically converted to f32
+        assert_eq!(result.to_flatten_vec::<f32>()?, vec![2.0, 3.0]);
+        assert_eq!(result.shape(), &[1, 2]); // Dimension is kept
 
         Ok(())
     }
 
     pub fn mean_all_test(device: Device, dtype: DType) -> Result<()> {
+        // Test mean_all with keepdims=false
         let x = setup_grad_tensor(TEST_DATA_F32_2D.iter().flatten().copied().collect(), &[2, 3], device, dtype)?;
-        let result = x.mean_all()?;
+        let result = x.mean_all(false)?;
         result.backward()?;
-
         assert_eq!(result.to_flatten_vec::<f32>()?, vec![3.5]);
+        assert_eq!(result.shape(), &[]); // All dimensions are reduced
         if let Some(g) = x.grad()? {
             match dtype {
                 DType::BF16 | DType::F16 => {
@@ -127,6 +145,42 @@ mod test_functions {
                 }
             }
         }
+
+        // Test mean_all with keepdims=true
+        let x = setup_grad_tensor(TEST_DATA_F32_2D.iter().flatten().copied().collect(), &[2, 3], device, dtype)?;
+        let result = x.mean_all(true)?;
+        result.backward()?;
+        assert_eq!(result.to_flatten_vec::<f32>()?, vec![3.5]);
+        assert_eq!(result.shape(), &[1, 1]); // All dimensions are kept but with size 1
+        if let Some(g) = x.grad()? {
+            match dtype {
+                DType::BF16 | DType::F16 => {
+                    let grad = g.to_flatten_vec::<f32>()?;
+                    assert!(
+                        grad.iter().all(|&x| (x - 1.0 / 6.0).abs() < 0.001),
+                        "Expected values close to 1/6 (0.16666667), got {:?}",
+                        grad
+                    );
+                }
+                _ => {
+                    assert_eq!(
+                        g.to_flatten_vec::<f32>()?,
+                        vec![1.0 / 6.0, 1.0 / 6.0, 1.0 / 6.0, 1.0 / 6.0, 1.0 / 6.0, 1.0 / 6.0]
+                    );
+                }
+            }
+        }
+
+        // Test 3D tensor with keepdims
+        let x = setup_grad_tensor((0..24).map(|x| x as f32).collect(), &[2, 3, 4], device, dtype)?;
+
+        // Test reducing middle dimension with keepdims=true
+        let result = x.mean(1, true)?;
+        assert_eq!(result.shape(), &[2, 1, 4]); // Middle dimension is kept but with size 1
+
+        // Test reducing all dimensions with keepdims=true
+        let result = x.mean_all(true)?;
+        assert_eq!(result.shape(), &[1, 1, 1]); // All dimensions are kept but with size 1
 
         Ok(())
     }
