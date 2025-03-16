@@ -2,8 +2,8 @@ use crate::layer::Layer;
 use maidenx_core::{error::Result, scalar::Scalar};
 use maidenx_tensor::Tensor;
 
-// pub mod softmax;
-// pub use softmax::*;
+pub mod softmax;
+pub use softmax::*;
 
 #[derive(Layer, Clone)]
 pub struct ReLU {}
