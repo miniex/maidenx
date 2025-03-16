@@ -25,7 +25,7 @@
   - Updated tensor indexing methods to support offsets. [[89a382b](https://github.com/miniex/maidenx/commit/89a382b)]
 
 ## Fixed Issues
-- Fixed borrowing issues in inplace operations (`_add`, `_sub`). [[af8b5d5](https://github.com/miniex/maidenx/commit/af8b5d5)]
+- Fixed borrowing issues in inplace operations. [[af8b5d5](https://github.com/miniex/maidenx/commit/af8b5d5)]
 
 
 ---
