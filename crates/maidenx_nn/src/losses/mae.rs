@@ -4,11 +4,11 @@ use maidenx_tensor::Tensor;
 
 #[derive(Layer, Clone, Default)]
 #[layer(inputs = 2)]
-pub struct MAE {
+pub struct MAELoss {
     state: LayerState,
 }
 
-impl MAE {
+impl MAELoss {
     pub fn new() -> Self {
         Self { state: LayerState::new() }
     }
@@ -43,7 +43,7 @@ mod tests {
         let pred = Tensor::new(vec![2.0f32, 3.0, 4.0])?;
         let target = Tensor::new(vec![1.0f32, 2.0, 3.0])?;
 
-        let mae_loss = MAE::new();
+        let mae_loss = MAELoss::new();
         let loss = mae_loss.forward((&pred, &target))?;
 
         assert_eq!(loss.to_flatten_vec::<f32>()?, vec![1.0]);
@@ -60,7 +60,7 @@ mod tests {
 
         let target = Tensor::new(vec![1.0f32, 2.0, 3.0])?;
 
-        let mae_loss = MAE::new();
+        let mae_loss = MAELoss::new();
         let loss = mae_loss.forward((&pred, &target))?;
         loss.backward()?;
 

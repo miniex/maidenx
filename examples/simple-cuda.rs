@@ -17,7 +17,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     input.with_grad()?;
 
     let mut linear = Linear::new(3, 1, true)?;
-    let mse_loss = MSE::new();
+    let mse_loss = MSELoss::new();
     let mut optimizer = SGD::new(0.01);
     let epochs = 1000;
 

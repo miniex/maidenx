@@ -4,11 +4,11 @@ use maidenx_tensor::Tensor;
 
 #[derive(Layer, Clone, Default)]
 #[layer(inputs = 2)]
-pub struct MSE {
+pub struct MSELoss {
     state: LayerState,
 }
 
-impl MSE {
+impl MSELoss {
     pub fn new() -> Self {
         Self { state: LayerState::new() }
     }
@@ -42,7 +42,7 @@ mod tests {
 
         let pred = Tensor::new(vec![2.0f32, 3.0, 4.0])?;
         let target = Tensor::new(vec![1.0f32, 2.0, 3.0])?;
-        let mse_loss = MSE::new();
+        let mse_loss = MSELoss::new();
 
         let loss = mse_loss.forward((&pred, &target))?;
 
@@ -58,7 +58,7 @@ mod tests {
         let mut pred = Tensor::new(vec![2.0f32, 3.0, 4.0])?;
         pred.with_grad()?;
         let target = Tensor::new(vec![1.0f32, 2.0, 3.0])?;
-        let mse_loss = MSE::new();
+        let mse_loss = MSELoss::new();
         let loss = mse_loss.forward((&pred, &target))?;
 
         loss.backward()?;

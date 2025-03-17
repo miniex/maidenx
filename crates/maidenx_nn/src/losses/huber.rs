@@ -4,13 +4,13 @@ use maidenx_tensor::Tensor;
 
 #[derive(Layer, Clone)]
 #[layer(inputs = 2)]
-pub struct Huber {
+pub struct HuberLoss {
     delta: Scalar,
 
     state: LayerState,
 }
 
-impl Huber {
+impl HuberLoss {
     pub fn new(delta: impl Into<Scalar>) -> Self {
         Self {
             delta: delta.into(),
@@ -62,7 +62,7 @@ mod tests {
 
         let pred = Tensor::new(vec![2.0f32, 3.0, 4.0])?;
         let target = Tensor::new(vec![1.0f32, 2.0, 3.0])?;
-        let huber_loss = Huber::new(1.0);
+        let huber_loss = HuberLoss::new(1.0);
         let loss = huber_loss.forward((&pred, &target))?;
 
         let expected_loss = (0.5 + 0.5 + 0.5) / 3.0;
@@ -78,7 +78,7 @@ mod tests {
         let mut pred = Tensor::new(vec![2.0f32, 3.0, 4.0])?;
         pred.with_grad()?;
         let target = Tensor::new(vec![1.0f32, 2.0, 3.0])?;
-        let huber_loss = Huber::new(1.0);
+        let huber_loss = HuberLoss::new(1.0);
         let loss = huber_loss.forward((&pred, &target))?;
         loss.backward()?;
 
