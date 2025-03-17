@@ -341,4 +341,101 @@ impl Tensor {
 
         Ok(result)
     }
+
+    pub fn range(n: usize) -> Result<Self> {
+        Self::arange(0, n as i32, 1)
+    }
+
+    pub fn range_with_spec(n: usize, device: Device, dtype: DType) -> Result<Self> {
+        Self::arange_with_spec(0, n as i32, 1, device, dtype)
+    }
+
+    pub fn arange<T: Into<Scalar>>(start: T, end: T, step: T) -> Result<Self> {
+        let device = get_default_device();
+        let dtype = get_default_dtype();
+
+        Self::arange_with_spec(start, end, step, device, dtype)
+    }
+
+    pub fn arange_with_spec<T: Into<Scalar>>(start: T, end: T, step: T, device: Device, dtype: DType) -> Result<Self> {
+        let start_scalar = start.into();
+        let end_scalar = end.into();
+        let step_scalar = step.into();
+
+        let (start_val, end_val, step_val) = match dtype {
+            DType::F32 | DType::F16 | DType::BF16 => (start_scalar.as_f32(), end_scalar.as_f32(), step_scalar.as_f32()),
+            DType::F64 => (start_scalar.as_f64(), end_scalar.as_f64(), step_scalar.as_f64()),
+            DType::I32 | DType::I8 | DType::BOOL => (start_scalar.as_i32() as f64, end_scalar.as_i32() as f64, step_scalar.as_i32() as f64),
+            DType::I64 => (start_scalar.as_i64() as f64, end_scalar.as_i64() as f64, step_scalar.as_i64() as f64),
+            DType::U32 | DType::U8 => (start_scalar.as_u32() as f64, end_scalar.as_u32() as f64, step_scalar.as_u32() as f64),
+        };
+
+        if step_val == 0.0 {
+            return Err(Error::InvalidArgument("arange: step cannot be zero".to_string()));
+        }
+
+        let count = ((end_val - start_val) / step_val).ceil() as usize;
+
+        let values: Vec<f64> = (0..count).map(|i| start_val + (i as f64) * step_val).collect();
+
+        match dtype {
+            DType::F32 => {
+                let float_values: Vec<f32> = values.into_iter().map(|v| v as f32).collect();
+                Self::new_with_spec(float_values, device, dtype)
+            }
+            DType::F64 => Self::new_with_spec(values, device, dtype),
+            DType::I32 => {
+                let int_values: Vec<i32> = values.into_iter().map(|v| v as i32).collect();
+                Self::new_with_spec(int_values, device, dtype)
+            }
+            DType::I64 => {
+                let int_values: Vec<i64> = values.into_iter().map(|v| v as i64).collect();
+                Self::new_with_spec(int_values, device, dtype)
+            }
+            DType::U32 => {
+                let uint_values: Vec<u32> = values.into_iter().map(|v| if v < 0.0 { 0 } else { v as u32 }).collect();
+                Self::new_with_spec(uint_values, device, dtype)
+            }
+            DType::I8 => {
+                let int_values: Vec<i8> = values
+                    .into_iter()
+                    .map(|v| {
+                        if v < i8::MIN as f64 {
+                            i8::MIN
+                        } else if v > i8::MAX as f64 {
+                            i8::MAX
+                        } else {
+                            v as i8
+                        }
+                    })
+                    .collect();
+                Self::new_with_spec(int_values, device, dtype)
+            }
+            DType::U8 => {
+                let uint_values: Vec<u8> = values
+                    .into_iter()
+                    .map(|v| {
+                        if v < 0.0 {
+                            0
+                        } else if v > u8::MAX as f64 {
+                            u8::MAX
+                        } else {
+                            v as u8
+                        }
+                    })
+                    .collect();
+                Self::new_with_spec(uint_values, device, dtype)
+            }
+            DType::BOOL => {
+                let bool_values: Vec<bool> = values.into_iter().map(|v| v != 0.0).collect();
+                Self::new_with_spec(bool_values, device, dtype)
+            }
+            DType::F16 | DType::BF16 => {
+                let float_values: Vec<f32> = values.into_iter().map(|v| v as f32).collect();
+                let mut tensor = Self::new_with_spec(float_values, device, DType::F32)?;
+                tensor.with_dtype(dtype)?;
+                Ok(tensor)
+            }
+        }
+    }
 }
