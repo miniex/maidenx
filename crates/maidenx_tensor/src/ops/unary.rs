@@ -346,6 +346,10 @@ impl Tensor {
         Ok(result)
     }
 
+    pub fn log(&self) -> Result<Tensor> {
+        self.ln()
+    }
+
     pub fn log10(&self) -> Result<Tensor> {
         let target_dtype = if self.dtype().is_int() { DType::F32 } else { self.dtype() };
 
