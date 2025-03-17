@@ -364,10 +364,10 @@ impl Tensor {
 
         let (start_val, end_val, step_val) = match dtype {
             DType::F32 | DType::F16 | DType::BF16 => (start_scalar.as_f32(), end_scalar.as_f32(), step_scalar.as_f32()),
-            DType::F64 => (start_scalar.as_f64(), end_scalar.as_f64(), step_scalar.as_f64()),
-            DType::I32 | DType::I8 | DType::BOOL => (start_scalar.as_i32() as f64, end_scalar.as_i32() as f64, step_scalar.as_i32() as f64),
-            DType::I64 => (start_scalar.as_i64() as f64, end_scalar.as_i64() as f64, step_scalar.as_i64() as f64),
-            DType::U32 | DType::U8 => (start_scalar.as_u32() as f64, end_scalar.as_u32() as f64, step_scalar.as_u32() as f64),
+            DType::F64 => (start_scalar.as_f64() as f32, end_scalar.as_f64() as f32, step_scalar.as_f64() as f32),
+            DType::I32 | DType::I8 | DType::BOOL => (start_scalar.as_i32() as f32, end_scalar.as_i32() as f32, step_scalar.as_i32() as f32),
+            DType::I64 => (start_scalar.as_i64() as f32, end_scalar.as_i64() as f32, step_scalar.as_i64() as f32),
+            DType::U32 | DType::U8 => (start_scalar.as_u32() as f32, end_scalar.as_u32() as f32, step_scalar.as_u32() as f32),
         };
 
         if step_val == 0.0 {
@@ -376,14 +376,13 @@ impl Tensor {
 
         let count = ((end_val - start_val) / step_val).ceil() as usize;
 
-        let values: Vec<f64> = (0..count).map(|i| start_val + (i as f64) * step_val).collect();
-
+        let values: Vec<f32> = (0..count).map(|i| start_val + (i as f32) * step_val).collect();
         match dtype {
-            DType::F32 => {
-                let float_values: Vec<f32> = values.into_iter().map(|v| v as f32).collect();
-                Self::new_with_spec(float_values, device, dtype)
+            DType::F32 => Self::new_with_spec(values, device, dtype),
+            DType::F64 => {
+                let double_values: Vec<f64> = values.into_iter().map(|v| v as f64).collect();
+                Self::new_with_spec(double_values, device, dtype)
             }
-            DType::F64 => Self::new_with_spec(values, device, dtype),
             DType::I32 => {
                 let int_values: Vec<i32> = values.into_iter().map(|v| v as i32).collect();
                 Self::new_with_spec(int_values, device, dtype)
@@ -400,9 +399,9 @@ impl Tensor {
                 let int_values: Vec<i8> = values
                     .into_iter()
                     .map(|v| {
-                        if v < i8::MIN as f64 {
+                        if v < i8::MIN as f32 {
                             i8::MIN
-                        } else if v > i8::MAX as f64 {
+                        } else if v > i8::MAX as f32 {
                             i8::MAX
                         } else {
                             v as i8
@@ -417,7 +416,7 @@ impl Tensor {
                     .map(|v| {
                         if v < 0.0 {
                             0
-                        } else if v > u8::MAX as f64 {
+                        } else if v > u8::MAX as f32 {
                             u8::MAX
                         } else {
                             v as u8
@@ -431,8 +430,7 @@ impl Tensor {
                 Self::new_with_spec(bool_values, device, dtype)
             }
             DType::F16 | DType::BF16 => {
-                let float_values: Vec<f32> = values.into_iter().map(|v| v as f32).collect();
-                let mut tensor = Self::new_with_spec(float_values, device, DType::F32)?;
+                let mut tensor = Self::new_with_spec(values, device, DType::F32)?;
                 tensor.with_dtype(dtype)?;
                 Ok(tensor)
             }
