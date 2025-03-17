@@ -44,23 +44,70 @@ mod test_functions {
     use super::*;
 
     pub fn sum_test(dtype: DType) -> Result<()> {
-        // Test 1D sum
+        // Test 1D sum (keep_dims=false)
         let x = setup_grad_tensor(TEST_DATA_F32_1D.to_vec(), &[4], dtype)?;
-        let result = x.sum(0)?;
+        let result = x.sum(0, false)?;
         result.backward()?;
 
         assert_eq!(result.to_flatten_vec::<f32>()?, vec![10.0]);
+        assert_eq!(result.shape(), &[]); // Scalar result
         if let Some(g) = x.grad()? {
             assert_eq!(g.to_flatten_vec::<f32>()?, vec![1.0, 1.0, 1.0, 1.0]);
         }
 
-        // Test 2D sum along dim 0
+        // Test 1D sum (keep_dims=true)
+        let x = setup_grad_tensor(TEST_DATA_F32_1D.to_vec(), &[4], dtype)?;
+        let result = x.sum(0, true)?;
+        result.backward()?;
+
+        assert_eq!(result.to_flatten_vec::<f32>()?, vec![10.0]);
+        assert_eq!(result.shape(), &[1]); // Dimension is kept
+        if let Some(g) = x.grad()? {
+            assert_eq!(g.to_flatten_vec::<f32>()?, vec![1.0, 1.0, 1.0, 1.0]);
+        }
+
+        // Test 2D sum along dim 0 (keep_dims=false)
         let x = setup_grad_tensor(TEST_DATA_F32_2D.iter().flatten().copied().collect(), &[2, 3], dtype)?;
         println!("{:?}", x);
-        let result = x.sum(0)?;
+        let result = x.sum(0, false)?;
         result.backward()?;
 
         assert_eq!(result.to_flatten_vec::<f32>()?, vec![5.0, 7.0, 9.0]);
+        assert_eq!(result.shape(), &[3]); // First dimension removed
+        if let Some(g) = x.grad()? {
+            assert_eq!(g.to_flatten_vec::<f32>()?, vec![1.0, 1.0, 1.0, 1.0, 1.0, 1.0]);
+        }
+
+        // Test 2D sum along dim 0 (keep_dims=true)
+        let x = setup_grad_tensor(TEST_DATA_F32_2D.iter().flatten().copied().collect(), &[2, 3], dtype)?;
+        println!("{:?}", x);
+        let result = x.sum(0, true)?;
+        result.backward()?;
+
+        assert_eq!(result.to_flatten_vec::<f32>()?, vec![5.0, 7.0, 9.0]);
+        assert_eq!(result.shape(), &[1, 3]); // First dimension kept as 1
+        if let Some(g) = x.grad()? {
+            assert_eq!(g.to_flatten_vec::<f32>()?, vec![1.0, 1.0, 1.0, 1.0, 1.0, 1.0]);
+        }
+
+        // Test 2D sum along dim 1 (keep_dims=false)
+        let x = setup_grad_tensor(TEST_DATA_F32_2D.iter().flatten().copied().collect(), &[2, 3], dtype)?;
+        let result = x.sum(1, false)?;
+        result.backward()?;
+
+        assert_eq!(result.to_flatten_vec::<f32>()?, vec![6.0, 15.0]);
+        assert_eq!(result.shape(), &[2]); // Second dimension removed
+        if let Some(g) = x.grad()? {
+            assert_eq!(g.to_flatten_vec::<f32>()?, vec![1.0, 1.0, 1.0, 1.0, 1.0, 1.0]);
+        }
+
+        // Test 2D sum along dim 1 (keep_dims=true)
+        let x = setup_grad_tensor(TEST_DATA_F32_2D.iter().flatten().copied().collect(), &[2, 3], dtype)?;
+        let result = x.sum(1, true)?;
+        result.backward()?;
+
+        assert_eq!(result.to_flatten_vec::<f32>()?, vec![6.0, 15.0]);
+        assert_eq!(result.shape(), &[2, 1]); // Second dimension kept as 1
         if let Some(g) = x.grad()? {
             assert_eq!(g.to_flatten_vec::<f32>()?, vec![1.0, 1.0, 1.0, 1.0, 1.0, 1.0]);
         }
@@ -133,22 +180,23 @@ mod test_functions {
     }
 
     pub fn mean_all_test(dtype: DType) -> Result<()> {
-        // Test mean_all with keepdims=false
         let x = setup_grad_tensor(TEST_DATA_F32_2D.iter().flatten().copied().collect(), &[2, 3], dtype)?;
-        let result = x.mean_all(false)?;
+        let result = x.mean_all()?;
         result.backward()?;
+
         assert_eq!(result.to_flatten_vec::<f32>()?, vec![3.5]);
-        assert_eq!(result.shape(), &[]); // All dimensions are reduced
         if let Some(g) = x.grad()? {
             match dtype {
                 DType::BF16 | DType::F16 => {
                     let grad = g.to_flatten_vec::<f32>()?;
+
                     assert!(
                         grad.iter().all(|&x| (x - 1.0 / 6.0).abs() < 0.001),
                         "Expected values close to 1/6 (0.16666667), got {:?}",
                         grad
                     );
                 }
+
                 _ => {
                     assert_eq!(
                         g.to_flatten_vec::<f32>()?,
@@ -157,42 +205,6 @@ mod test_functions {
                 }
             }
         }
-
-        // Test mean_all with keepdims=true
-        let x = setup_grad_tensor(TEST_DATA_F32_2D.iter().flatten().copied().collect(), &[2, 3], dtype)?;
-        let result = x.mean_all(true)?;
-        result.backward()?;
-        assert_eq!(result.to_flatten_vec::<f32>()?, vec![3.5]);
-        assert_eq!(result.shape(), &[1, 1]); // All dimensions are kept but with size 1
-        if let Some(g) = x.grad()? {
-            match dtype {
-                DType::BF16 | DType::F16 => {
-                    let grad = g.to_flatten_vec::<f32>()?;
-                    assert!(
-                        grad.iter().all(|&x| (x - 1.0 / 6.0).abs() < 0.001),
-                        "Expected values close to 1/6 (0.16666667), got {:?}",
-                        grad
-                    );
-                }
-                _ => {
-                    assert_eq!(
-                        g.to_flatten_vec::<f32>()?,
-                        vec![1.0 / 6.0, 1.0 / 6.0, 1.0 / 6.0, 1.0 / 6.0, 1.0 / 6.0, 1.0 / 6.0]
-                    );
-                }
-            }
-        }
-
-        // Test 3D tensor with keepdims
-        let x = setup_grad_tensor((0..24).map(|x| x as f32).collect(), &[2, 3, 4], dtype)?;
-
-        // Test reducing middle dimension with keepdims=true
-        let result = x.mean(1, true)?;
-        assert_eq!(result.shape(), &[2, 1, 4]); // Middle dimension is kept but with size 1
-
-        // Test reducing all dimensions with keepdims=true
-        let result = x.mean_all(true)?;
-        assert_eq!(result.shape(), &[1, 1, 1]); // All dimensions are kept but with size 1
 
         Ok(())
     }

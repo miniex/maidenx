@@ -263,9 +263,9 @@ impl Conv2d {
                     let bias = &inputs[2];
                     if bias.requires_grad() {
                         let mut grad_bias = grad_out.clone();
-                        grad_bias = grad_bias.sum(3)?;
-                        grad_bias = grad_bias.sum(2)?;
-                        grad_bias = grad_bias.sum(0)?;
+                        grad_bias = grad_bias.sum(3, false)?;
+                        grad_bias = grad_bias.sum(2, false)?;
+                        grad_bias = grad_bias.sum(0, false)?;
                         grads.push(grad_bias);
                     } else {
                         grads.push(Tensor::zeros_like(bias)?);

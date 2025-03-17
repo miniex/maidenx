@@ -87,7 +87,7 @@ impl Tensor {
 
                 if grad_lhs.shape() != lhs.shape() {
                     while grad_lhs.ndim() > lhs.ndim() {
-                        grad_lhs = grad_lhs.sum(0)?;
+                        grad_lhs = grad_lhs.sum(0, false)?;
                     }
                     if grad_lhs.shape() != lhs.shape() {
                         grad_lhs = grad_lhs.reshape(lhs.shape())?;
@@ -96,7 +96,7 @@ impl Tensor {
 
                 if grad_rhs.shape() != rhs.shape() {
                     while grad_rhs.ndim() > rhs.ndim() {
-                        grad_rhs = grad_rhs.sum(0)?;
+                        grad_rhs = grad_rhs.sum(0, false)?;
                     }
                     if grad_rhs.shape() != rhs.shape() {
                         grad_rhs = grad_rhs.reshape(rhs.shape())?;
