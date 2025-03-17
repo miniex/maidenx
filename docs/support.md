@@ -67,6 +67,7 @@ Blank: Upcoming support
 |            | `cos`              | ✓ | ✓ | ✓ |
 |            | `tan`              | ✓ | ✓ | ✓ |
 |            | `ln`               | ✓ | ✓ | ✓ |
+|            | `log` (ln alias)   | ✓ | ✓ | ✓ |
 |            | `log10`            | ✓ | ✓ | ✓ |
 |            | `log2`             | ✓ | ✓ | ✓ |
 |            | `exp`              | ✓ | ✓ | ✓ |
