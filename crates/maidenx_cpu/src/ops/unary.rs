@@ -202,7 +202,6 @@ macro_rules! unary_op_with_constant_output {
     };
 }
 
-// Regular unary operations
 unary_op!(neg_f32, f32, |x: f32| -x);
 unary_op!(neg_f64, f64, |x: f64| -x);
 unary_op!(neg_bool, bool, |x: bool| !x);
@@ -550,6 +549,28 @@ unary_op_with_constant!(div_scalar_i64, i64, |x: i64, c: i64| if c == 0 {
 } else {
     x.saturating_div(c)
 });
+
+unary_op_with_constant!(maximum_scalar_bf16, bf16, |x, c| if x > c { x } else { c });
+unary_op_with_constant!(maximum_scalar_f16, f16, |x, c| if x > c { x } else { c });
+unary_op_with_constant!(maximum_scalar_f32, f32, |x: f32, c| x.max(c));
+unary_op_with_constant!(maximum_scalar_f64, f64, |x: f64, c| x.max(c));
+unary_op_with_constant!(maximum_scalar_bool, bool, |x, c| x | c);
+unary_op_with_constant!(maximum_scalar_u8, u8, |x: u8, c: u8| x.max(c));
+unary_op_with_constant!(maximum_scalar_u32, u32, |x: u32, c: u32| x.max(c));
+unary_op_with_constant!(maximum_scalar_i8, i8, |x: i8, c: i8| x.max(c));
+unary_op_with_constant!(maximum_scalar_i32, i32, |x: i32, c: i32| x.max(c));
+unary_op_with_constant!(maximum_scalar_i64, i64, |x: i64, c: i64| x.max(c));
+
+unary_op_with_constant!(minimum_scalar_bf16, bf16, |x, c| if x < c { x } else { c });
+unary_op_with_constant!(minimum_scalar_f16, f16, |x, c| if x < c { x } else { c });
+unary_op_with_constant!(minimum_scalar_f32, f32, |x: f32, c| x.min(c));
+unary_op_with_constant!(minimum_scalar_f64, f64, |x: f64, c| x.min(c));
+unary_op_with_constant!(minimum_scalar_bool, bool, |x, c| x & c);
+unary_op_with_constant!(minimum_scalar_u8, u8, |x: u8, c: u8| x.min(c));
+unary_op_with_constant!(minimum_scalar_u32, u32, |x: u32, c: u32| x.min(c));
+unary_op_with_constant!(minimum_scalar_i8, i8, |x: i8, c: i8| x.min(c));
+unary_op_with_constant!(minimum_scalar_i32, i32, |x: i32, c: i32| x.min(c));
+unary_op_with_constant!(minimum_scalar_i64, i64, |x: i64, c: i64| x.min(c));
 
 unary_op_with_constant!(pow_f32, f32, |x: f32, c: f32| x.powf(c));
 unary_op_with_constant!(pow_f64, f64, |x: f64, c: f64| x.powf(c));

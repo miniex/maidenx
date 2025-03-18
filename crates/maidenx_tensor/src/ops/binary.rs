@@ -190,6 +190,122 @@ impl Tensor {
         Ok(result)
     }
 
+    pub fn maximum(&self, rhs: &Tensor) -> Result<Tensor> {
+        let original_lhs_shape = self.shape().to_vec();
+        let original_rhs_shape = rhs.shape().to_vec();
+
+        let target_dtype = if self.dtype() != rhs.dtype() {
+            get_promoted_dtype(self.dtype(), rhs.dtype())
+        } else {
+            self.dtype()
+        };
+
+        let lhs = promote_tensor(self, target_dtype)?;
+        let rhs = promote_tensor(rhs, target_dtype)?;
+        let lhs = broadcast_tensor(&lhs, &rhs)?;
+        let rhs = broadcast_tensor(&rhs, &lhs)?;
+
+        let mut result = Self::empty_with_spec(lhs.shape(), lhs.device(), lhs.dtype())?;
+
+        let metadata = prepare_metadata(&lhs, &rhs);
+        unsafe {
+            result.with_buffer_mut(|out_buf| {
+                maidenx_core::be::ops::binary::maximum(out_buf, lhs.buffer(), rhs.buffer(), lhs.size(), lhs.ndim(), Some(&metadata))?;
+
+                Ok(())
+            })?;
+        }
+
+        if self.requires_grad() || rhs.requires_grad() {
+            result.with_grad()?;
+
+            let lhs_clone = lhs.clone();
+            let rhs_clone = rhs.clone();
+            let backward_fn = Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> {
+                let lhs_mask = lhs_clone.gt(&rhs_clone)?;
+                let equal_mask = lhs_clone.eq(&rhs_clone)?;
+                let equal_half = equal_mask.mul_scalar(0.5)?;
+
+                println!("{:?}", equal_half);
+
+                let grad_left = grad_out
+                    .mul(&lhs_mask)?
+                    .add(&equal_half.mul(grad_out)?)?
+                    .sum_to_shape(&original_lhs_shape)?;
+
+                let rhs_mask = rhs_clone.gt(&lhs_clone)?;
+                let grad_right = grad_out
+                    .mul(&rhs_mask)?
+                    .add(&equal_half.mul(grad_out)?)?
+                    .sum_to_shape(&original_rhs_shape)?;
+
+                Ok(vec![grad_left, grad_right])
+            });
+
+            let node = TensorNode::new("maximum".to_string(), vec![lhs, rhs], Some(backward_fn));
+            result.node = Some(node);
+        }
+
+        Ok(result)
+    }
+
+    pub fn minimum(&self, rhs: &Tensor) -> Result<Tensor> {
+        let original_lhs_shape = self.shape().to_vec();
+        let original_rhs_shape = rhs.shape().to_vec();
+
+        let target_dtype = if self.dtype() != rhs.dtype() {
+            get_promoted_dtype(self.dtype(), rhs.dtype())
+        } else {
+            self.dtype()
+        };
+
+        let lhs = promote_tensor(self, target_dtype)?;
+        let rhs = promote_tensor(rhs, target_dtype)?;
+        let lhs = broadcast_tensor(&lhs, &rhs)?;
+        let rhs = broadcast_tensor(&rhs, &lhs)?;
+
+        let mut result = Self::empty_with_spec(lhs.shape(), lhs.device(), lhs.dtype())?;
+
+        let metadata = prepare_metadata(&lhs, &rhs);
+        unsafe {
+            result.with_buffer_mut(|out_buf| {
+                maidenx_core::be::ops::binary::minimum(out_buf, lhs.buffer(), rhs.buffer(), lhs.size(), lhs.ndim(), Some(&metadata))?;
+
+                Ok(())
+            })?;
+        }
+
+        if self.requires_grad() || rhs.requires_grad() {
+            result.with_grad()?;
+
+            let lhs_clone = lhs.clone();
+            let rhs_clone = rhs.clone();
+            let backward_fn = Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> {
+                let lhs_mask = lhs_clone.lt(&rhs_clone)?;
+                let equal_mask = lhs_clone.eq(&rhs_clone)?;
+                let equal_half = equal_mask.mul_scalar(0.5)?;
+
+                let grad_left = grad_out
+                    .mul(&lhs_mask)?
+                    .add(&equal_half.mul(grad_out)?)?
+                    .sum_to_shape(&original_lhs_shape)?;
+
+                let rhs_mask = rhs_clone.lt(&lhs_clone)?;
+                let grad_right = grad_out
+                    .mul(&rhs_mask)?
+                    .add(&equal_half.mul(grad_out)?)?
+                    .sum_to_shape(&original_rhs_shape)?;
+
+                Ok(vec![grad_left, grad_right])
+            });
+
+            let node = TensorNode::new("minimum".to_string(), vec![lhs, rhs], Some(backward_fn));
+            result.node = Some(node);
+        }
+
+        Ok(result)
+    }
+
     pub fn logical_and(&self, rhs: &Tensor) -> Result<Tensor> {
         let target_dtype = if self.dtype() != rhs.dtype() {
             get_promoted_dtype(self.dtype(), rhs.dtype())

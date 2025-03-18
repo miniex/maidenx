@@ -119,6 +119,8 @@ declare_binary_op!(add, false, [BF16, F16, F32, F64, U8, U32, I8, I32, I64]);
 declare_binary_op!(sub, false, [BF16, F16, F32, F64, U8, U32, I8, I32, I64]);
 declare_binary_op!(mul, false, [BF16, F16, F32, F64, U8, U32, I8, I32, I64]);
 declare_binary_op!(div, false, [BF16, F16, F32, F64, U8, U32, I8, I32, I64]);
+declare_binary_op!(maximum, false, [BF16, F16, F32, F64, U8, U32, I8, I32, I64]);
+declare_binary_op!(minimum, false, [BF16, F16, F32, F64, U8, U32, I8, I32, I64]);
 
 declare_binary_op!(logical_and, true, [BF16, F16, F32, F64, BOOL, U8, U32, I8, I32, I64]);
 declare_binary_op!(logical_or, true, [BF16, F16, F32, F64, BOOL, U8, U32, I8, I32, I64]);

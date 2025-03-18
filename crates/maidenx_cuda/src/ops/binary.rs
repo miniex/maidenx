@@ -41,6 +41,22 @@ macro_rules! declare_extern_binary_ops {
                         rhs: *const $ty,
                         out: *mut $ty,
                     );
+                    pub fn [<cuda_maximum_ $dtype>](
+                        num_els: usize,
+                        num_dims: usize,
+                        metadata: *const usize,
+                        lhs: *const $ty,
+                        rhs: *const $ty,
+                        out: *mut $ty,
+                    );
+                    pub fn [<cuda_minimum_ $dtype>](
+                        num_els: usize,
+                        num_dims: usize,
+                        metadata: *const usize,
+                        lhs: *const $ty,
+                        rhs: *const $ty,
+                        out: *mut $ty,
+                    );
 
                     pub fn [<cuda_logical_and_ $dtype>](
                         num_els: usize,

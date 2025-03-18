@@ -6,7 +6,7 @@ use maidenx_core::{
 };
 
 impl Tensor {
-    pub fn sum(&self, dim: impl Into<Scalar>, keep_dims: bool) -> Result<Tensor> {
+    pub fn sum(&self, dim: impl Into<Scalar>, keep_dim: bool) -> Result<Tensor> {
         let dim_i32 = dim.into().as_i32();
         let dim: usize = if dim_i32 < 0 {
             (self.ndim() as i32 + dim_i32) as usize
@@ -36,10 +36,10 @@ impl Tensor {
             })?;
         }
 
-        if keep_dims {
-            let mut keep_dims_shape = original_shape;
-            keep_dims_shape[dim] = 1;
-            result = result.view(&keep_dims_shape)?;
+        if keep_dim {
+            let mut keep_dim_shape = original_shape;
+            keep_dim_shape[dim] = 1;
+            result = result.view(&keep_dim_shape)?;
         }
 
         if self.requires_grad() {
@@ -49,7 +49,7 @@ impl Tensor {
             let backward_fn = Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> {
                 let grad_out = grad_out.clone();
 
-                if keep_dims {
+                if keep_dim {
                     Ok(vec![grad_out.broadcast(&input_shape)?])
                 } else {
                     let mut grad_shape = input_shape.clone();
@@ -127,7 +127,7 @@ impl Tensor {
         Ok(result)
     }
 
-    pub fn mean(&self, dim: impl Into<Scalar>, keep_dims: bool) -> Result<Self> {
+    pub fn mean(&self, dim: impl Into<Scalar>, keep_dim: bool) -> Result<Self> {
         let dim_i32 = dim.into().as_i32();
         let dim: usize = if dim_i32 < 0 {
             (self.ndim() as i32 + dim_i32) as usize
@@ -160,10 +160,10 @@ impl Tensor {
             })?;
         }
 
-        if keep_dims {
-            let mut keep_dims_shape = original_shape;
-            keep_dims_shape[dim] = 1;
-            result = result.view(&keep_dims_shape)?;
+        if keep_dim {
+            let mut keep_dim_shape = original_shape;
+            keep_dim_shape[dim] = 1;
+            result = result.view(&keep_dim_shape)?;
         }
 
         if self.requires_grad() {
@@ -174,7 +174,7 @@ impl Tensor {
             let backward_fn = Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> {
                 let mut grad_out = grad_out.clone();
 
-                if !keep_dims {
+                if !keep_dim {
                     let mut grad_shape = input_shape.clone();
                     grad_shape[dim] = 1;
                     grad_out = grad_out.view(&grad_shape)?;
@@ -280,6 +280,270 @@ impl Tensor {
 
             let node = TensorNode::new("fold".to_string(), vec![self.clone()], Some(backward_fn));
             result.node = Some(node);
+        }
+
+        Ok(result)
+    }
+
+    pub fn max(&self, dim: impl Into<Scalar>, keep_dim: bool) -> Result<Tensor> {
+        let dim_i32 = dim.into().as_i32();
+        let dim: usize = if dim_i32 < 0 {
+            (self.ndim() as i32 + dim_i32) as usize
+        } else {
+            dim_i32 as usize
+        };
+
+        let mut shape: Vec<usize> = self.shape().to_vec();
+        if dim >= shape.len() {
+            return Err(Error::DimensionOutOfBounds {
+                dim: dim as i32,
+                ndim: self.ndim(),
+            });
+        }
+
+        let original_shape = shape.clone();
+        shape.remove(dim);
+
+        let mut result = Self::empty_with_spec(&shape, self.device(), self.dtype())?;
+        let metadata = prepare_metadata(self, dim);
+        unsafe {
+            result.with_buffer_mut(|out_buf| {
+                maidenx_core::be::ops::reduction::max(out_buf, self.buffer(), self.size(), self.ndim(), 1, Some(&metadata))?;
+
+                Ok(())
+            })?;
+        }
+
+        if keep_dim {
+            let mut keep_dim_shape = original_shape;
+            keep_dim_shape[dim] = 1;
+            result = result.view(&keep_dim_shape)?;
+        }
+
+        if self.requires_grad() {
+            result.with_grad()?;
+
+            let input_shape = self.shape().to_vec();
+            let input_clone = self.clone();
+            let result_clone = result.clone();
+
+            let backward_fn = Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> {
+                let input_ndim = input_clone.ndim();
+                let grad_ndim = grad_out.ndim();
+
+                let max_values = if keep_dim {
+                    result_clone.broadcast(&input_shape)?
+                } else if grad_ndim == input_ndim - 1 {
+                    let mut expanded_shape = vec![0; input_ndim];
+                    let mut result_idx = 0;
+                    (0..input_ndim).for_each(|i| {
+                        if i == dim {
+                            expanded_shape[i] = 1;
+                        } else {
+                            expanded_shape[i] = result_clone.shape()[result_idx];
+                            result_idx += 1;
+                        }
+                    });
+
+                    result_clone.view(&expanded_shape)?.broadcast(&input_shape)?
+                } else {
+                    let broadcast_shape = input_shape.clone();
+                    result_clone.broadcast(&broadcast_shape)?
+                };
+
+                let mut mask = input_clone.eq(&max_values)?;
+                mask.with_dtype(grad_out.dtype())?;
+
+                let count = mask.sum(dim, keep_dim)?;
+                let safe_count = count.maximum_scalar(1.0)?;
+
+                let grad_expanded = if keep_dim {
+                    grad_out.broadcast(&input_shape)?
+                } else if grad_ndim == input_ndim - 1 {
+                    let mut expanded_shape = vec![0; input_ndim];
+
+                    let mut grad_idx = 0;
+                    (0..input_ndim).for_each(|i| {
+                        if i == dim {
+                            expanded_shape[i] = 1;
+                        } else {
+                            expanded_shape[i] = grad_out.shape()[grad_idx];
+                            grad_idx += 1;
+                        }
+                    });
+
+                    grad_out.view(&expanded_shape)?.broadcast(&input_shape)?
+                } else {
+                    let broadcast_shape = input_shape.clone();
+                    grad_out.broadcast(&broadcast_shape)?
+                };
+
+                let count_expanded = if keep_dim {
+                    safe_count.broadcast(&input_shape)?
+                } else if grad_ndim == input_ndim - 1 {
+                    let mut expanded_shape = vec![0; input_ndim];
+
+                    let mut count_idx = 0;
+                    (0..input_ndim).for_each(|i| {
+                        if i == dim {
+                            expanded_shape[i] = 1;
+                        } else {
+                            expanded_shape[i] = safe_count.shape()[count_idx];
+                            count_idx += 1;
+                        }
+                    });
+
+                    safe_count.view(&expanded_shape)?.broadcast(&input_shape)?
+                } else {
+                    let broadcast_shape = input_shape.clone();
+                    safe_count.broadcast(&broadcast_shape)?
+                };
+
+                let distributed_grad = grad_expanded.div(&count_expanded)?;
+                let grad_input = mask.mul(&distributed_grad)?;
+
+                Ok(vec![grad_input])
+            });
+
+            let node = TensorNode::new("max".to_string(), vec![self.clone()], Some(backward_fn));
+            result.node = Some(node);
+        }
+
+        Ok(result)
+    }
+
+    pub fn max_all(&self) -> Result<Self> {
+        let mut result = self.clone();
+        for dim in (0..self.ndim()).rev() {
+            result = result.max(dim, false)?;
+        }
+
+        Ok(result)
+    }
+
+    pub fn min(&self, dim: impl Into<Scalar>, keep_dim: bool) -> Result<Tensor> {
+        let dim_i32 = dim.into().as_i32();
+        let dim: usize = if dim_i32 < 0 {
+            (self.ndim() as i32 + dim_i32) as usize
+        } else {
+            dim_i32 as usize
+        };
+
+        let mut shape: Vec<usize> = self.shape().to_vec();
+        if dim >= shape.len() {
+            return Err(Error::DimensionOutOfBounds {
+                dim: dim as i32,
+                ndim: self.ndim(),
+            });
+        }
+
+        let original_shape = shape.clone();
+        shape.remove(dim);
+
+        let mut result = Self::empty_with_spec(&shape, self.device(), self.dtype())?;
+        let metadata = prepare_metadata(self, dim);
+        unsafe {
+            result.with_buffer_mut(|out_buf| {
+                maidenx_core::be::ops::reduction::min(out_buf, self.buffer(), self.size(), self.ndim(), 1, Some(&metadata))?;
+
+                Ok(())
+            })?;
+        }
+
+        if keep_dim {
+            let mut keep_dim_shape = original_shape;
+            keep_dim_shape[dim] = 1;
+            result = result.view(&keep_dim_shape)?;
+        }
+
+        if self.requires_grad() {
+            result.with_grad()?;
+
+            let input_shape = self.shape().to_vec();
+            let input_clone = self.clone();
+            let result_clone = result.clone();
+
+            let backward_fn = Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> {
+                let input_ndim = input_clone.ndim();
+                let grad_ndim = grad_out.ndim();
+
+                let min_values = if keep_dim {
+                    result_clone.broadcast(&input_shape)?
+                } else if grad_ndim == input_ndim - 1 {
+                    let mut expanded_shape = vec![0; input_ndim];
+                    let mut result_idx = 0;
+                    (0..input_ndim).for_each(|i| {
+                        if i == dim {
+                            expanded_shape[i] = 1;
+                        } else {
+                            expanded_shape[i] = result_clone.shape()[result_idx];
+                            result_idx += 1;
+                        }
+                    });
+                    result_clone.view(&expanded_shape)?.broadcast(&input_shape)?
+                } else {
+                    result_clone.broadcast(&input_shape)?
+                };
+
+                let mut mask = input_clone.eq(&min_values)?;
+                mask.with_dtype(grad_out.dtype())?;
+
+                let count = mask.sum(dim, keep_dim)?;
+                let safe_count = count.maximum_scalar(1.0)?;
+
+                let grad_expanded = if keep_dim {
+                    grad_out.broadcast(&input_shape)?
+                } else if grad_ndim == input_ndim - 1 {
+                    let mut expanded_shape = vec![0; input_ndim];
+                    let mut grad_idx = 0;
+                    (0..input_ndim).for_each(|i| {
+                        if i == dim {
+                            expanded_shape[i] = 1;
+                        } else {
+                            expanded_shape[i] = grad_out.shape()[grad_idx];
+                            grad_idx += 1;
+                        }
+                    });
+                    grad_out.view(&expanded_shape)?.broadcast(&input_shape)?
+                } else {
+                    grad_out.broadcast(&input_shape)?
+                };
+
+                let count_expanded = if keep_dim {
+                    safe_count.broadcast(&input_shape)?
+                } else if grad_ndim == input_ndim - 1 {
+                    let mut expanded_shape = vec![0; input_ndim];
+                    let mut count_idx = 0;
+                    (0..input_ndim).for_each(|i| {
+                        if i == dim {
+                            expanded_shape[i] = 1;
+                        } else {
+                            expanded_shape[i] = safe_count.shape()[count_idx];
+                            count_idx += 1;
+                        }
+                    });
+                    safe_count.view(&expanded_shape)?.broadcast(&input_shape)?
+                } else {
+                    safe_count.broadcast(&input_shape)?
+                };
+
+                let distributed_grad = grad_expanded.div(&count_expanded)?;
+                let grad_input = mask.mul(&distributed_grad)?;
+
+                Ok(vec![grad_input])
+            });
+
+            let node = TensorNode::new("min".to_string(), vec![self.clone()], Some(backward_fn));
+            result.node = Some(node);
+        }
+
+        Ok(result)
+    }
+
+    pub fn min_all(&self) -> Result<Self> {
+        let mut result = self.clone();
+        for dim in (0..self.ndim()).rev() {
+            result = result.min(dim, false)?;
         }
 
         Ok(result)

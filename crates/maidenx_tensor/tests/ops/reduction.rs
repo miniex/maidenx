@@ -44,7 +44,7 @@ mod test_functions {
     use super::*;
 
     pub fn sum_test(dtype: DType) -> Result<()> {
-        // Test 1D sum (keep_dims=false)
+        // Test 1D sum (keep_dim=false)
         let x = setup_grad_tensor(TEST_DATA_F32_1D.to_vec(), &[4], dtype)?;
         let result = x.sum(0, false)?;
         result.backward()?;
@@ -55,7 +55,7 @@ mod test_functions {
             assert_eq!(g.to_flatten_vec::<f32>()?, vec![1.0, 1.0, 1.0, 1.0]);
         }
 
-        // Test 1D sum (keep_dims=true)
+        // Test 1D sum (keep_dim=true)
         let x = setup_grad_tensor(TEST_DATA_F32_1D.to_vec(), &[4], dtype)?;
         let result = x.sum(0, true)?;
         result.backward()?;
@@ -66,7 +66,7 @@ mod test_functions {
             assert_eq!(g.to_flatten_vec::<f32>()?, vec![1.0, 1.0, 1.0, 1.0]);
         }
 
-        // Test 2D sum along dim 0 (keep_dims=false)
+        // Test 2D sum along dim 0 (keep_dim=false)
         let x = setup_grad_tensor(TEST_DATA_F32_2D.iter().flatten().copied().collect(), &[2, 3], dtype)?;
         println!("{:?}", x);
         let result = x.sum(0, false)?;
@@ -78,7 +78,7 @@ mod test_functions {
             assert_eq!(g.to_flatten_vec::<f32>()?, vec![1.0, 1.0, 1.0, 1.0, 1.0, 1.0]);
         }
 
-        // Test 2D sum along dim 0 (keep_dims=true)
+        // Test 2D sum along dim 0 (keep_dim=true)
         let x = setup_grad_tensor(TEST_DATA_F32_2D.iter().flatten().copied().collect(), &[2, 3], dtype)?;
         println!("{:?}", x);
         let result = x.sum(0, true)?;
@@ -90,7 +90,7 @@ mod test_functions {
             assert_eq!(g.to_flatten_vec::<f32>()?, vec![1.0, 1.0, 1.0, 1.0, 1.0, 1.0]);
         }
 
-        // Test 2D sum along dim 1 (keep_dims=false)
+        // Test 2D sum along dim 1 (keep_dim=false)
         let x = setup_grad_tensor(TEST_DATA_F32_2D.iter().flatten().copied().collect(), &[2, 3], dtype)?;
         let result = x.sum(1, false)?;
         result.backward()?;
@@ -101,7 +101,7 @@ mod test_functions {
             assert_eq!(g.to_flatten_vec::<f32>()?, vec![1.0, 1.0, 1.0, 1.0, 1.0, 1.0]);
         }
 
-        // Test 2D sum along dim 1 (keep_dims=true)
+        // Test 2D sum along dim 1 (keep_dim=true)
         let x = setup_grad_tensor(TEST_DATA_F32_2D.iter().flatten().copied().collect(), &[2, 3], dtype)?;
         let result = x.sum(1, true)?;
         result.backward()?;
@@ -246,6 +246,128 @@ mod test_functions {
 
         if let Some(g) = x_2d.grad()? {
             assert_eq!(g.to_flatten_vec::<f32>()?, vec![1.0, 2.0, 1.0, 1.0, 2.0, 1.0]);
+        }
+
+        Ok(())
+    }
+
+    pub fn max_test(dtype: DType) -> Result<()> {
+        // Test with floating point data (keepdims=false)
+        let x = setup_grad_tensor(TEST_DATA_F32_2D.iter().flatten().copied().collect(), &[2, 3], dtype)?;
+        let result = x.max(0, false)?;
+        result.backward()?;
+        assert_eq!(result.to_flatten_vec::<f32>()?, vec![4.0, 5.0, 6.0]);
+        assert_eq!(result.shape(), &[3]);
+        if let Some(g) = x.grad()? {
+            // Gradient should be 1.0 for max values (second row) and 0.0 for others (first row)
+            assert_eq!(g.to_flatten_vec::<f32>()?, vec![0.0, 0.0, 0.0, 1.0, 1.0, 1.0]);
+        }
+
+        // Test with floating point data (keepdims=true)
+        let x = setup_grad_tensor(TEST_DATA_F32_2D.iter().flatten().copied().collect(), &[2, 3], dtype)?;
+        let result = x.max(0, true)?;
+        result.backward()?;
+        assert_eq!(result.to_flatten_vec::<f32>()?, vec![4.0, 5.0, 6.0]);
+        assert_eq!(result.shape(), &[1, 3]); // Dimension is kept
+        if let Some(g) = x.grad()? {
+            // Gradient should be 1.0 for max values (second row) and 0.0 for others (first row)
+            assert_eq!(g.to_flatten_vec::<f32>()?, vec![0.0, 0.0, 0.0, 1.0, 1.0, 1.0]);
+        }
+
+        // Test with integer data (keepdims=false)
+        let x = setup_tensor(TEST_DATA_U32_2D.iter().flatten().copied().collect(), &[2, 2], DType::U32)?;
+        let result = x.max(0, false)?;
+        assert_eq!(result.to_flatten_vec::<u32>()?, vec![3, 4]);
+        assert_eq!(result.shape(), &[2]);
+
+        // Test with integer data (keepdims=true)
+        let x = setup_tensor(TEST_DATA_U32_2D.iter().flatten().copied().collect(), &[2, 2], DType::U32)?;
+        let result = x.max(0, true)?;
+        assert_eq!(result.to_flatten_vec::<u32>()?, vec![3, 4]);
+        assert_eq!(result.shape(), &[1, 2]); // Dimension is kept
+
+        Ok(())
+    }
+
+    pub fn max_all_test(dtype: DType) -> Result<()> {
+        let x = setup_grad_tensor(TEST_DATA_F32_2D.iter().flatten().copied().collect(), &[2, 3], dtype)?;
+        let result = x.max_all()?;
+        result.backward()?;
+        assert_eq!(result.to_flatten_vec::<f32>()?, vec![6.0]);
+        if let Some(g) = x.grad()? {
+            // Gradient should be 1.0 for the maximum value (6.0) and 0.0 for all others
+            assert_eq!(g.to_flatten_vec::<f32>()?, vec![0.0, 0.0, 0.0, 0.0, 0.0, 1.0]);
+        }
+
+        // Test with 1D tensor
+        let x = setup_grad_tensor(TEST_DATA_F32_1D.to_vec(), &[4], dtype)?;
+        let result = x.max_all()?;
+        result.backward()?;
+        assert_eq!(result.to_flatten_vec::<f32>()?, vec![4.0]);
+        if let Some(g) = x.grad()? {
+            // Gradient should be 1.0 for the maximum value (4.0) and 0.0 for all others
+            assert_eq!(g.to_flatten_vec::<f32>()?, vec![0.0, 0.0, 0.0, 1.0]);
+        }
+
+        Ok(())
+    }
+
+    pub fn min_test(dtype: DType) -> Result<()> {
+        // Test with floating point data (keepdims=false)
+        let x = setup_grad_tensor(TEST_DATA_F32_2D.iter().flatten().copied().collect(), &[2, 3], dtype)?;
+        let result = x.min(0, false)?;
+        result.backward()?;
+        assert_eq!(result.to_flatten_vec::<f32>()?, vec![1.0, 2.0, 3.0]);
+        assert_eq!(result.shape(), &[3]);
+        if let Some(g) = x.grad()? {
+            // Gradient should be 1.0 for min values (first row) and 0.0 for others (second row)
+            assert_eq!(g.to_flatten_vec::<f32>()?, vec![1.0, 1.0, 1.0, 0.0, 0.0, 0.0]);
+        }
+
+        // Test with floating point data (keepdims=true)
+        let x = setup_grad_tensor(TEST_DATA_F32_2D.iter().flatten().copied().collect(), &[2, 3], dtype)?;
+        let result = x.min(0, true)?;
+        result.backward()?;
+        assert_eq!(result.to_flatten_vec::<f32>()?, vec![1.0, 2.0, 3.0]);
+        assert_eq!(result.shape(), &[1, 3]); // Dimension is kept
+        if let Some(g) = x.grad()? {
+            // Gradient should be 1.0 for min values (first row) and 0.0 for others (second row)
+            assert_eq!(g.to_flatten_vec::<f32>()?, vec![1.0, 1.0, 1.0, 0.0, 0.0, 0.0]);
+        }
+
+        // Test with integer data (keepdims=false)
+        let x = setup_tensor(TEST_DATA_U32_2D.iter().flatten().copied().collect(), &[2, 2], DType::U32)?;
+        let result = x.min(0, false)?;
+        assert_eq!(result.to_flatten_vec::<u32>()?, vec![1, 2]);
+        assert_eq!(result.shape(), &[2]);
+
+        // Test with integer data (keepdims=true)
+        let x = setup_tensor(TEST_DATA_U32_2D.iter().flatten().copied().collect(), &[2, 2], DType::U32)?;
+        let result = x.min(0, true)?;
+        assert_eq!(result.to_flatten_vec::<u32>()?, vec![1, 2]);
+        assert_eq!(result.shape(), &[1, 2]); // Dimension is kept
+
+        Ok(())
+    }
+
+    pub fn min_all_test(dtype: DType) -> Result<()> {
+        let x = setup_grad_tensor(TEST_DATA_F32_2D.iter().flatten().copied().collect(), &[2, 3], dtype)?;
+        let result = x.min_all()?;
+        result.backward()?;
+        assert_eq!(result.to_flatten_vec::<f32>()?, vec![1.0]);
+        if let Some(g) = x.grad()? {
+            // Gradient should be 1.0 for the minimum value (1.0) and 0.0 for all others
+            assert_eq!(g.to_flatten_vec::<f32>()?, vec![1.0, 0.0, 0.0, 0.0, 0.0, 0.0]);
+        }
+
+        // Test with 1D tensor
+        let x = setup_grad_tensor(TEST_DATA_F32_1D.to_vec(), &[4], dtype)?;
+        let result = x.min_all()?;
+        result.backward()?;
+        assert_eq!(result.to_flatten_vec::<f32>()?, vec![1.0]);
+        if let Some(g) = x.grad()? {
+            // Gradient should be 1.0 for the minimum value (1.0) and 0.0 for all others
+            assert_eq!(g.to_flatten_vec::<f32>()?, vec![1.0, 0.0, 0.0, 0.0]);
         }
 
         Ok(())
@@ -501,5 +623,173 @@ mod fold {
     #[test]
     fn i64() -> Result<()> {
         test_functions::fold_test(DType::I64)
+    }
+}
+
+// max operation tests
+mod max {
+    use super::*;
+
+    #[test]
+    fn bf16() -> Result<()> {
+        test_functions::max_test(DType::BF16)
+    }
+    #[test]
+    fn f16() -> Result<()> {
+        test_functions::max_test(DType::F16)
+    }
+    #[test]
+    fn f32() -> Result<()> {
+        test_functions::max_test(DType::F32)
+    }
+    #[test]
+    fn f64() -> Result<()> {
+        test_functions::max_test(DType::F64)
+    }
+    #[test]
+    fn u8() -> Result<()> {
+        test_functions::max_test(DType::U8)
+    }
+    #[test]
+    fn u32() -> Result<()> {
+        test_functions::max_test(DType::U32)
+    }
+    #[test]
+    fn i8() -> Result<()> {
+        test_functions::max_test(DType::I8)
+    }
+    #[test]
+    fn i32() -> Result<()> {
+        test_functions::max_test(DType::I32)
+    }
+    #[test]
+    fn i64() -> Result<()> {
+        test_functions::max_test(DType::I64)
+    }
+}
+
+// max_all operation tests
+mod max_all {
+    use super::*;
+
+    #[test]
+    fn bf16() -> Result<()> {
+        test_functions::max_all_test(DType::BF16)
+    }
+    #[test]
+    fn f16() -> Result<()> {
+        test_functions::max_all_test(DType::F16)
+    }
+    #[test]
+    fn f32() -> Result<()> {
+        test_functions::max_all_test(DType::F32)
+    }
+    #[test]
+    fn f64() -> Result<()> {
+        test_functions::max_all_test(DType::F64)
+    }
+    #[test]
+    fn u8() -> Result<()> {
+        test_functions::max_all_test(DType::U8)
+    }
+    #[test]
+    fn u32() -> Result<()> {
+        test_functions::max_all_test(DType::U32)
+    }
+    #[test]
+    fn i8() -> Result<()> {
+        test_functions::max_all_test(DType::I8)
+    }
+    #[test]
+    fn i32() -> Result<()> {
+        test_functions::max_all_test(DType::I32)
+    }
+    #[test]
+    fn i64() -> Result<()> {
+        test_functions::max_all_test(DType::I64)
+    }
+}
+
+// min operation tests
+mod min {
+    use super::*;
+
+    #[test]
+    fn bf16() -> Result<()> {
+        test_functions::min_test(DType::BF16)
+    }
+    #[test]
+    fn f16() -> Result<()> {
+        test_functions::min_test(DType::F16)
+    }
+    #[test]
+    fn f32() -> Result<()> {
+        test_functions::min_test(DType::F32)
+    }
+    #[test]
+    fn f64() -> Result<()> {
+        test_functions::min_test(DType::F64)
+    }
+    #[test]
+    fn u8() -> Result<()> {
+        test_functions::min_test(DType::U8)
+    }
+    #[test]
+    fn u32() -> Result<()> {
+        test_functions::min_test(DType::U32)
+    }
+    #[test]
+    fn i8() -> Result<()> {
+        test_functions::min_test(DType::I8)
+    }
+    #[test]
+    fn i32() -> Result<()> {
+        test_functions::min_test(DType::I32)
+    }
+    #[test]
+    fn i64() -> Result<()> {
+        test_functions::min_test(DType::I64)
+    }
+}
+
+// min_all operation tests
+mod min_all {
+    use super::*;
+
+    #[test]
+    fn bf16() -> Result<()> {
+        test_functions::min_all_test(DType::BF16)
+    }
+    #[test]
+    fn f16() -> Result<()> {
+        test_functions::min_all_test(DType::F16)
+    }
+    #[test]
+    fn f32() -> Result<()> {
+        test_functions::min_all_test(DType::F32)
+    }
+    #[test]
+    fn f64() -> Result<()> {
+        test_functions::min_all_test(DType::F64)
+    }
+    #[test]
+    fn u8() -> Result<()> {
+        test_functions::min_all_test(DType::U8)
+    }
+    #[test]
+    fn u32() -> Result<()> {
+        test_functions::min_all_test(DType::U32)
+    }
+    #[test]
+    fn i8() -> Result<()> {
+        test_functions::min_all_test(DType::I8)
+    }
+    #[test]
+    fn i32() -> Result<()> {
+        test_functions::min_all_test(DType::I32)
+    }
+    #[test]
+    fn i64() -> Result<()> {
+        test_functions::min_all_test(DType::I64)
     }
 }

@@ -1,10 +1,11 @@
 pub mod adapter;
+mod aliases;
 mod creation;
 mod d;
 mod f;
 mod iterator;
 mod operators;
-mod ops;
+pub(crate) mod ops;
 pub mod utils;
 mod vec;
 mod wt;
@@ -168,8 +169,8 @@ impl Tensor {
         self.metadata.layout.ndim()
     }
 
-    pub fn size_dim(&self, dim: usize) -> Option<usize> {
-        self.metadata.layout.size_dim(dim)
+    pub fn dim_size(&self, dim: usize) -> Option<usize> {
+        self.metadata.layout.dim_size(dim)
     }
 
     // data - grad

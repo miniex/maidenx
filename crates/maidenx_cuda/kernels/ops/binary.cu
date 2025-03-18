@@ -6,6 +6,10 @@ template <typename T> __device__ T sub_with_clamp(T x, T y) {
   return (x > y) ? (x - y) : 0;
 }
 
+template <typename T> __device__ T maximum(T x, T y) { return (x > y) ? x : y; }
+
+template <typename T> __device__ T minimum(T x, T y) { return (x < y) ? x : y; }
+
 #define BINARY_OP(IN_TYPENAME, OUT_TYPENAME, FN_NAME, FUNC)                    \
   extern "C" __global__ void cuda_##FN_NAME##_kernel(                          \
       const size_t num_els, const size_t num_dims, const size_t *metadata,     \
@@ -115,6 +119,24 @@ BINARY_OP(int64_t, int64_t, sub_i64, x - y);
 BINARY_OP(int64_t, int64_t, mul_i64, x *y);
 BINARY_OP(int64_t, int64_t, div_i64, x / y);
 
+BINARY_OP(float, float, maximum_f32, maximum(x, y));
+BINARY_OP(double, double, maximum_f64, maximum(x, y));
+BINARY_OP(bool, bool, maximum_bool, x || y);
+BINARY_OP(uint8_t, uint8_t, maximum_u8, maximum(x, y));
+BINARY_OP(uint32_t, uint32_t, maximum_u32, maximum(x, y));
+BINARY_OP(int8_t, int8_t, maximum_i8, maximum(x, y));
+BINARY_OP(int32_t, int32_t, maximum_i32, maximum(x, y));
+BINARY_OP(int64_t, int64_t, maximum_i64, maximum(x, y));
+
+BINARY_OP(float, float, minimum_f32, minimum(x, y));
+BINARY_OP(double, double, minimum_f64, minimum(x, y));
+BINARY_OP(bool, bool, minimum_bool, x &&y);
+BINARY_OP(uint8_t, uint8_t, minimum_u8, minimum(x, y));
+BINARY_OP(uint32_t, uint32_t, minimum_u32, minimum(x, y));
+BINARY_OP(int8_t, int8_t, minimum_i8, minimum(x, y));
+BINARY_OP(int32_t, int32_t, minimum_i32, minimum(x, y));
+BINARY_OP(int64_t, int64_t, minimum_i64, minimum(x, y));
+
 BINARY_OP(float, bool, logical_and_f32, (x != 0.0f && y != 0.0f));
 BINARY_OP(float, bool, logical_or_f32, (x != 0.0f || y != 0.0f));
 BINARY_OP(float, bool, logical_xor_f32, (x != 0.0f) != (y != 0.0f));
@@ -194,6 +216,8 @@ BINARY_OP(__half, __half, add_f16, x + y);
 BINARY_OP(__half, __half, sub_f16, x - y);
 BINARY_OP(__half, __half, mul_f16, x *y);
 BINARY_OP(__half, __half, div_f16, x / y);
+BINARY_OP(__half, __half, maximum_f16, maximum(x, y));
+BINARY_OP(__half, __half, minimum_f16, minimum(x, y));
 
 BINARY_OP(__half, bool, logical_and_f16,
           (x != __half(0.0f) && y != __half(0.0f)));
@@ -214,6 +238,8 @@ BINARY_OP(__nv_bfloat16, __nv_bfloat16, add_bf16, x + y);
 BINARY_OP(__nv_bfloat16, __nv_bfloat16, sub_bf16, x - y);
 BINARY_OP(__nv_bfloat16, __nv_bfloat16, mul_bf16, x *y);
 BINARY_OP(__nv_bfloat16, __nv_bfloat16, div_bf16, x / y);
+BINARY_OP(__nv_bfloat16, __nv_bfloat16, maximum_bf16, maximum(x, y));
+BINARY_OP(__nv_bfloat16, __nv_bfloat16, minimum_bf16, minimum(x, y));
 
 BINARY_OP(__nv_bfloat16, bool, logical_and_bf16,
           (x != __nv_bfloat16(0.0f) && y != __nv_bfloat16(0.0f)));

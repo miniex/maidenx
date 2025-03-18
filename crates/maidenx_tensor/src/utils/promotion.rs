@@ -3,6 +3,12 @@ use maidenx_core::{dtype::DType, error::Result};
 use crate::Tensor;
 
 pub fn get_promoted_dtype(dtype1: DType, dtype2: DType) -> DType {
+    if dtype1 == DType::BOOL && dtype2 != DType::BOOL {
+        return dtype2;
+    } else if dtype2 == DType::BOOL && dtype1 != DType::BOOL {
+        return dtype1;
+    }
+
     match (dtype1, dtype2) {
         (dtype1, dtype2) if dtype1 == dtype2 => dtype1,
 

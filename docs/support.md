@@ -35,6 +35,8 @@ Blank: Upcoming support
 |            | `sub`              | ✓ | ✓ | ✓ |
 |            | `mul`              | ✓ | ✓ | ✓ |
 |            | `div`              | ✓ | ✓ | ✓ |
+|            | `maximum`          | ✓ | ✓ | ✓ |
+|            | `minimum`          | ✓ | ✓ | ✓ |
 | logical operations |
 |            | `logical_and`      | ✗ | ✓ | ✓ |
 |            | `logical_or`       | ✗ | ✓ | ✓ |
@@ -82,6 +84,8 @@ Blank: Upcoming support
 |            | `sub_scalar`       | ✓ | ✓ | ✓ |
 |            | `mul_scalar`       | ✓ | ✓ | ✓ |
 |            | `div_scalar`       | ✓ | ✓ | ✓ |
+|            | `maximum_scalar`   | ✓ | ✓ | ✓ |
+|            | `minimum_scalar`   | ✓ | ✓ | ✓ |
 |            | `pow`              | ✓ | ✓ | ✓ |
 |            | `leaky_relu`       | ✓ | ✓ | ✓ |
 |            | `elu`              | ✓ | ✓ | ✓ |
@@ -99,6 +103,8 @@ Blank: Upcoming support
 |            | `mean`             | ✓ | ✓ | ✓ |
 |            | `mean_all`         | ✓ | ✓ | ✓ |
 |            | `fold`             | ✓ | ✓ | ✓ |
+|            | `max`              | ✓ | ✓ | ✓ | 
+|            | `min`              | ✓ | ✓ | ✓ | 
 | **Transform Operations** |
 | view operations |
 |            | `view`             | ✓ | ✓ | ✓ |
@@ -119,6 +125,9 @@ Blank: Upcoming support
 |            | `pad_with_constant`    | ✓ | ✓ | ✓ |
 |            | `pad_with_reflection`  | ✓ | ✓ | ✓ |
 |            | `pad_with_replication` | ✓ | ✓ | ✓ |
+| **NN Layer Aliases** |
+| activation |
+|            | `softmax`          | ✓ | ✓ | ✓ | 
 
 
 <br/>

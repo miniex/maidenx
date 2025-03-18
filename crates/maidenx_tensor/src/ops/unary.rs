@@ -1,4 +1,7 @@
-use crate::{utils::promotion::promote_tensor, Tensor, TensorNode};
+use crate::{
+    utils::promotion::{get_promoted_dtype, promote_tensor},
+    Tensor, TensorNode,
+};
 use maidenx_core::{dtype::DType, error::Result, scalar::Scalar};
 
 impl Tensor {
@@ -557,20 +560,33 @@ impl Tensor {
 impl Tensor {
     pub fn add_scalar(&self, scalar: impl Into<Scalar>) -> Result<Tensor> {
         let scalar = scalar.into();
-        let mut result = Self::empty_with_spec(self.shape(), self.device(), self.dtype())?;
+        let target_dtype = if scalar.dtype() != self.dtype() {
+            get_promoted_dtype(self.dtype(), scalar.dtype())
+        } else {
+            self.dtype()
+        };
+
+        let input = promote_tensor(self, target_dtype)?;
+        let mut result = Self::empty_with_spec(input.shape(), input.device(), input.dtype())?;
 
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::be::ops::unary::add_scalar(out_buf, self.buffer(), scalar, self.size(), self.ndim(), Some(&prepare_metadata(self)))?;
+                maidenx_core::be::ops::unary::add_scalar(
+                    out_buf,
+                    input.buffer(),
+                    scalar,
+                    input.size(),
+                    input.ndim(),
+                    Some(&prepare_metadata(&input)),
+                )?;
                 Ok(())
             })?;
         }
 
         if self.requires_grad() {
             result.with_grad()?;
-
             let backward_fn = Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> { Ok(vec![grad_out.clone()]) });
-            let node = TensorNode::new("add_scalar".to_string(), vec![self.clone()], Some(backward_fn));
+            let node = TensorNode::new("add_scalar".to_string(), vec![input], Some(backward_fn));
             result.node = Some(node);
         }
 
@@ -579,20 +595,33 @@ impl Tensor {
 
     pub fn sub_scalar(&self, scalar: impl Into<Scalar>) -> Result<Tensor> {
         let scalar = scalar.into();
-        let mut result = Self::empty_with_spec(self.shape(), self.device(), self.dtype())?;
+        let target_dtype = if scalar.dtype() != self.dtype() {
+            get_promoted_dtype(self.dtype(), scalar.dtype())
+        } else {
+            self.dtype()
+        };
+
+        let input = promote_tensor(self, target_dtype)?;
+        let mut result = Self::empty_with_spec(input.shape(), input.device(), input.dtype())?;
 
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::be::ops::unary::sub_scalar(out_buf, self.buffer(), scalar, self.size(), self.ndim(), Some(&prepare_metadata(self)))?;
+                maidenx_core::be::ops::unary::sub_scalar(
+                    out_buf,
+                    input.buffer(),
+                    scalar,
+                    input.size(),
+                    input.ndim(),
+                    Some(&prepare_metadata(&input)),
+                )?;
                 Ok(())
             })?;
         }
 
         if self.requires_grad() {
             result.with_grad()?;
-
             let backward_fn = Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> { Ok(vec![grad_out.clone()]) });
-            let node = TensorNode::new("sub_scalar".to_string(), vec![self.clone()], Some(backward_fn));
+            let node = TensorNode::new("sub_scalar".to_string(), vec![input], Some(backward_fn));
             result.node = Some(node);
         }
 
@@ -601,21 +630,35 @@ impl Tensor {
 
     pub fn mul_scalar(&self, scalar: impl Into<Scalar>) -> Result<Tensor> {
         let scalar = scalar.into();
-        let mut result = Self::empty_with_spec(self.shape(), self.device(), self.dtype())?;
+        let target_dtype = if scalar.dtype() != self.dtype() {
+            get_promoted_dtype(self.dtype(), scalar.dtype())
+        } else {
+            self.dtype()
+        };
+
+        let input = promote_tensor(self, target_dtype)?;
+        let mut result = Self::empty_with_spec(input.shape(), input.device(), input.dtype())?;
 
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::be::ops::unary::mul_scalar(out_buf, self.buffer(), scalar, self.size(), self.ndim(), Some(&prepare_metadata(self)))?;
+                maidenx_core::be::ops::unary::mul_scalar(
+                    out_buf,
+                    input.buffer(),
+                    scalar,
+                    input.size(),
+                    input.ndim(),
+                    Some(&prepare_metadata(&input)),
+                )?;
                 Ok(())
             })?;
         }
 
         if self.requires_grad() {
             result.with_grad()?;
-
+            let scalar_clone = scalar;
             let backward_fn =
-                Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> { Ok(vec![grad_out.mul_scalar(scalar)?]) });
-            let node = TensorNode::new("mul_scalar".to_string(), vec![self.clone()], Some(backward_fn));
+                Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> { Ok(vec![grad_out.mul_scalar(scalar_clone)?]) });
+            let node = TensorNode::new("mul_scalar".to_string(), vec![input], Some(backward_fn));
             result.node = Some(node);
         }
 
@@ -624,7 +667,14 @@ impl Tensor {
 
     pub fn div_scalar(&self, scalar: impl Into<Scalar>) -> Result<Tensor> {
         let scalar = scalar.into();
-        let target_dtype = if self.dtype().is_int() { DType::F32 } else { self.dtype() };
+
+        let target_dtype = if self.dtype().is_int() {
+            DType::F32
+        } else if scalar.dtype() != self.dtype() {
+            get_promoted_dtype(self.dtype(), scalar.dtype())
+        } else {
+            self.dtype()
+        };
 
         let input = promote_tensor(self, target_dtype)?;
         let mut result = Self::empty_with_spec(input.shape(), input.device(), input.dtype())?;
@@ -645,10 +695,88 @@ impl Tensor {
 
         if self.requires_grad() {
             result.with_grad()?;
-
+            let scalar_clone = scalar;
             let backward_fn =
-                Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> { Ok(vec![grad_out.div_scalar(scalar)?]) });
-            let node = TensorNode::new("div_scalar".to_string(), vec![self.clone()], Some(backward_fn));
+                Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> { Ok(vec![grad_out.div_scalar(scalar_clone)?]) });
+            let node = TensorNode::new("div_scalar".to_string(), vec![input], Some(backward_fn));
+            result.node = Some(node);
+        }
+
+        Ok(result)
+    }
+
+    pub fn maximum_scalar(&self, scalar: impl Into<Scalar>) -> Result<Tensor> {
+        let scalar = scalar.into();
+        let mut result = Self::empty_with_spec(self.shape(), self.device(), self.dtype())?;
+
+        unsafe {
+            result.with_buffer_mut(|out_buf| {
+                maidenx_core::be::ops::unary::maximum_scalar(
+                    out_buf,
+                    self.buffer(),
+                    scalar,
+                    self.size(),
+                    self.ndim(),
+                    Some(&prepare_metadata(self)),
+                )?;
+                Ok(())
+            })?;
+        }
+
+        if self.requires_grad() {
+            result.with_grad()?;
+            let self_clone = self.clone();
+
+            let backward_fn = Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> {
+                let gt_mask = self_clone.gt_scalar(scalar)?;
+                let eq_mask = self_clone.eq_scalar(scalar)?;
+                let eq_half = eq_mask.mul_scalar(0.5)?;
+
+                let grad_input = grad_out.mul(&gt_mask)?.add(&eq_half.mul(grad_out)?)?;
+
+                Ok(vec![grad_input])
+            });
+
+            let node = TensorNode::new("maximum_scalar".to_string(), vec![self.clone()], Some(backward_fn));
+            result.node = Some(node);
+        }
+
+        Ok(result)
+    }
+
+    pub fn minimum_scalar(&self, scalar: impl Into<Scalar>) -> Result<Tensor> {
+        let scalar = scalar.into();
+        let mut result = Self::empty_with_spec(self.shape(), self.device(), self.dtype())?;
+
+        unsafe {
+            result.with_buffer_mut(|out_buf| {
+                maidenx_core::be::ops::unary::minimum_scalar(
+                    out_buf,
+                    self.buffer(),
+                    scalar,
+                    self.size(),
+                    self.ndim(),
+                    Some(&prepare_metadata(self)),
+                )?;
+                Ok(())
+            })?;
+        }
+
+        if self.requires_grad() {
+            result.with_grad()?;
+            let self_clone = self.clone();
+
+            let backward_fn = Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> {
+                let lt_mask = self_clone.lt_scalar(scalar)?;
+                let eq_mask = self_clone.eq_scalar(scalar)?;
+                let eq_half = eq_mask.mul_scalar(0.5)?;
+
+                let grad_input = grad_out.mul(&lt_mask)?.add(&eq_half.mul(grad_out)?)?;
+
+                Ok(vec![grad_input])
+            });
+
+            let node = TensorNode::new("minimum_scalar".to_string(), vec![self.clone()], Some(backward_fn));
             result.node = Some(node);
         }
 
@@ -857,7 +985,7 @@ impl Tensor {
     }
 }
 
-fn prepare_metadata(tensor: &Tensor) -> Vec<usize> {
+pub(crate) fn prepare_metadata(tensor: &Tensor) -> Vec<usize> {
     let mut info = Vec::new();
 
     // Add dimensions

@@ -41,7 +41,7 @@ pub fn get_index(src: &Tensor, indices: &[usize]) -> Result<Scalar> {
     let mut usize_indices = Vec::with_capacity(indices.len());
     for (dim, &idx) in indices.iter().enumerate() {
         let idx_i32 = idx as i32;
-        let dim_size = src.size_dim(dim).unwrap_or(0) as i32;
+        let dim_size = src.dim_size(dim).unwrap_or(0) as i32;
 
         let actual_idx = if idx_i32 < 0 { dim_size + idx_i32 } else { idx_i32 };
 

@@ -129,6 +129,44 @@ mod test_functions {
         Ok(())
     }
 
+    pub fn maximum_test(dtype: DType) -> Result<()> {
+        let x = setup_grad_tensor(vec![1.0f32, 5.0, 3.0], dtype)?;
+        let y = setup_grad_tensor(vec![3.0f32, 2.0, 3.0], dtype)?;
+        let result = x.maximum(&y)?;
+        result.backward()?;
+
+        assert_eq!(result.to_flatten_vec::<f32>()?, vec![3.0, 5.0, 3.0]);
+
+        if let Some(g) = x.grad()? {
+            assert_eq!(g.to_flatten_vec::<f32>()?, vec![0.0, 1.0, 0.5]);
+        }
+
+        if let Some(g) = y.grad()? {
+            assert_eq!(g.to_flatten_vec::<f32>()?, vec![1.0, 0.0, 0.5]);
+        }
+
+        Ok(())
+    }
+
+    pub fn minimum_test(dtype: DType) -> Result<()> {
+        let x = setup_grad_tensor(vec![1.0f32, 5.0, 3.0], dtype)?;
+        let y = setup_grad_tensor(vec![3.0f32, 2.0, 3.0], dtype)?;
+        let result = x.minimum(&y)?;
+        result.backward()?;
+
+        assert_eq!(result.to_flatten_vec::<f32>()?, vec![1.0, 2.0, 3.0]);
+
+        if let Some(g) = x.grad()? {
+            assert_eq!(g.to_flatten_vec::<f32>()?, vec![1.0, 0.0, 0.5]);
+        }
+
+        if let Some(g) = y.grad()? {
+            assert_eq!(g.to_flatten_vec::<f32>()?, vec![0.0, 1.0, 0.5]);
+        }
+
+        Ok(())
+    }
+
     pub fn logical_and_test(dtype: DType) -> Result<()> {
         let x = setup_tensor(vec![true, false, true, false], dtype)?;
         let y = setup_tensor(vec![true, true, false, false], dtype)?;
@@ -437,6 +475,90 @@ mod div {
     #[test]
     fn i64() -> Result<()> {
         test_functions::div_test(DType::I64)
+    }
+}
+
+// maximum operation tests
+mod maximum {
+    use super::*;
+
+    #[test]
+    fn bf16() -> Result<()> {
+        test_functions::maximum_test(DType::BF16)
+    }
+    #[test]
+    fn f16() -> Result<()> {
+        test_functions::maximum_test(DType::F16)
+    }
+    #[test]
+    fn f32() -> Result<()> {
+        test_functions::maximum_test(DType::F32)
+    }
+    #[test]
+    fn f64() -> Result<()> {
+        test_functions::maximum_test(DType::F64)
+    }
+    #[test]
+    fn u8() -> Result<()> {
+        test_functions::maximum_test(DType::U8)
+    }
+    #[test]
+    fn u32() -> Result<()> {
+        test_functions::maximum_test(DType::U32)
+    }
+    #[test]
+    fn i8() -> Result<()> {
+        test_functions::maximum_test(DType::I8)
+    }
+    #[test]
+    fn i32() -> Result<()> {
+        test_functions::maximum_test(DType::I32)
+    }
+    #[test]
+    fn i64() -> Result<()> {
+        test_functions::maximum_test(DType::I64)
+    }
+}
+
+// minimum operation tests
+mod minimum {
+    use super::*;
+
+    #[test]
+    fn bf16() -> Result<()> {
+        test_functions::minimum_test(DType::BF16)
+    }
+    #[test]
+    fn f16() -> Result<()> {
+        test_functions::minimum_test(DType::F16)
+    }
+    #[test]
+    fn f32() -> Result<()> {
+        test_functions::minimum_test(DType::F32)
+    }
+    #[test]
+    fn f64() -> Result<()> {
+        test_functions::minimum_test(DType::F64)
+    }
+    #[test]
+    fn u8() -> Result<()> {
+        test_functions::minimum_test(DType::U8)
+    }
+    #[test]
+    fn u32() -> Result<()> {
+        test_functions::minimum_test(DType::U32)
+    }
+    #[test]
+    fn i8() -> Result<()> {
+        test_functions::minimum_test(DType::I8)
+    }
+    #[test]
+    fn i32() -> Result<()> {
+        test_functions::minimum_test(DType::I32)
+    }
+    #[test]
+    fn i64() -> Result<()> {
+        test_functions::minimum_test(DType::I64)
     }
 }
 

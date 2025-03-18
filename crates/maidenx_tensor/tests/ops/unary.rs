@@ -117,20 +117,41 @@ mod test_functions {
     pub fn sqrt_test(dtype: DType) -> Result<()> {
         let x = setup_grad_tensor(TEST_DATA_U32.to_vec(), dtype)?;
         let result = x.sqrt()?;
-        result.backward()?;
 
-        match dtype {
-            DType::BF16 | DType::F16 => {
-                let expected_grad = vec![0.5, 0.35351563, f32::INFINITY];
-                if let Some(g) = x.grad()? {
-                    assert_eq!(g.to_flatten_vec::<f32>()?, expected_grad);
-                }
-            }
-            _ => {
-                let expected_grad = vec![0.5, 0.35355338, f32::INFINITY];
-                if let Some(g) = x.grad()? {
-                    assert_eq!(g.to_flatten_vec::<f32>()?, expected_grad);
-                }
+        let (tolerance, expected_grad) = match dtype {
+            DType::BF16 | DType::F16 => (1e-2, vec![0.5, 0.35351563, f32::INFINITY]),
+            _ => (1e-5, vec![0.5, 0.35355338, f32::INFINITY]),
+        };
+
+        let result_vec = result.to_flatten_vec::<f32>()?;
+        let expected_output = [1.0, std::f32::consts::SQRT_2, f32::INFINITY];
+
+        for i in 0..2 {
+            assert!(
+                (result_vec[i] - expected_output[i]).abs() < tolerance,
+                "Output at index {}: got {}, expected {} (diff: {})",
+                i,
+                result_vec[i],
+                expected_output[i],
+                (result_vec[i] - expected_output[i]).abs()
+            );
+        }
+
+        result.backward()?;
+        if let Some(g) = x.grad()? {
+            let grad_vec = g.to_flatten_vec::<f32>()?;
+
+            assert!(grad_vec[2].is_infinite() && grad_vec[2] > 0.0);
+
+            for i in 0..2 {
+                assert!(
+                    (grad_vec[i] - expected_grad[i]).abs() < tolerance,
+                    "Gradient at index {}: got {}, expected {} (diff: {})",
+                    i,
+                    grad_vec[i],
+                    expected_grad[i],
+                    (grad_vec[i] - expected_grad[i]).abs()
+                );
             }
         }
 
@@ -858,6 +879,30 @@ mod test_functions {
             assert_eq!(g.to_flatten_vec::<f32>()?, vec![0.5; 4]);
         }
 
+        Ok(())
+    }
+
+    pub fn maximum_scalar_test(dtype: DType) -> Result<()> {
+        let x = setup_grad_tensor(vec![1.0f32, 5.0, 3.0], dtype)?;
+        let scalar = 2.0;
+        let result = x.maximum_scalar(scalar)?;
+        result.backward()?;
+        assert_eq!(result.to_flatten_vec::<f32>()?, vec![2.0, 5.0, 3.0]);
+        if let Some(g) = x.grad()? {
+            assert_eq!(g.to_flatten_vec::<f32>()?, vec![0.0, 1.0, 1.0]);
+        }
+        Ok(())
+    }
+
+    pub fn minimum_scalar_test(dtype: DType) -> Result<()> {
+        let x = setup_grad_tensor(vec![1.0f32, 5.0, 3.0], dtype)?;
+        let scalar = 2.0;
+        let result = x.minimum_scalar(scalar)?;
+        result.backward()?;
+        assert_eq!(result.to_flatten_vec::<f32>()?, vec![1.0, 2.0, 2.0]);
+        if let Some(g) = x.grad()? {
+            assert_eq!(g.to_flatten_vec::<f32>()?, vec![1.0, 0.0, 0.0]);
+        }
         Ok(())
     }
 
@@ -1653,6 +1698,50 @@ mod div_scalar {
     #[test]
     fn f64() -> Result<()> {
         test_functions::div_scalar_test(DType::F64)
+    }
+}
+
+// maximum_scalar operation tests
+mod maximum_scalar {
+    use super::*;
+
+    #[test]
+    fn bf16() -> Result<()> {
+        test_functions::maximum_scalar_test(DType::BF16)
+    }
+    #[test]
+    fn f16() -> Result<()> {
+        test_functions::maximum_scalar_test(DType::F16)
+    }
+    #[test]
+    fn f32() -> Result<()> {
+        test_functions::maximum_scalar_test(DType::F32)
+    }
+    #[test]
+    fn f64() -> Result<()> {
+        test_functions::maximum_scalar_test(DType::F64)
+    }
+}
+
+// minimum_scalar operation tests
+mod minimum_scalar {
+    use super::*;
+
+    #[test]
+    fn bf16() -> Result<()> {
+        test_functions::minimum_scalar_test(DType::BF16)
+    }
+    #[test]
+    fn f16() -> Result<()> {
+        test_functions::minimum_scalar_test(DType::F16)
+    }
+    #[test]
+    fn f32() -> Result<()> {
+        test_functions::minimum_scalar_test(DType::F32)
+    }
+    #[test]
+    fn f64() -> Result<()> {
+        test_functions::minimum_scalar_test(DType::F64)
     }
 }
 

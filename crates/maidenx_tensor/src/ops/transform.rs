@@ -41,7 +41,7 @@ impl Tensor {
             });
         }
 
-        if self.size_dim(dim) != Some(1) {
+        if self.dim_size(dim) != Some(1) {
             return Ok(self.clone());
         }
 
@@ -181,11 +181,11 @@ impl Tensor {
                 let input = &inputs[0];
                 let mut grad_input = Tensor::zeros_with_spec(&orig_shape, input.device(), input.dtype())?;
 
-                let actual_end = orig_end.unwrap_or(input.size_dim(orig_dim).unwrap_or(0) as i32);
+                let actual_end = orig_end.unwrap_or(input.dim_size(orig_dim).unwrap_or(0) as i32);
 
                 let mut i = 0;
                 for idx in (orig_start..actual_end).step_by(orig_step as usize) {
-                    if idx < 0 || idx >= input.size_dim(orig_dim).unwrap_or(0) as i32 {
+                    if idx < 0 || idx >= input.dim_size(orig_dim).unwrap_or(0) as i32 {
                         continue;
                     }
 

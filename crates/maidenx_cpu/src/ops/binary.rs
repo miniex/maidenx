@@ -377,6 +377,28 @@ binary_op!(
     i64
 );
 
+binary_op!(maximum_bf16, |a, b| if a > b { a } else { b }, bf16);
+binary_op!(maximum_f16, |a, b| if a > b { a } else { b }, f16);
+binary_op!(maximum_f32, |a: f32, b| a.max(b), f32);
+binary_op!(maximum_f64, |a: f64, b| a.max(b), f64);
+binary_op!(maximum_bool, |a, b| a | b, bool);
+binary_op!(maximum_u8, |a: u8, b: u8| a.max(b), u8);
+binary_op!(maximum_u32, |a: u32, b: u32| a.max(b), u32);
+binary_op!(maximum_i8, |a: i8, b: i8| a.max(b), i8);
+binary_op!(maximum_i32, |a: i32, b: i32| a.max(b), i32);
+binary_op!(maximum_i64, |a: i64, b: i64| a.max(b), i64);
+
+binary_op!(minimum_bf16, |a, b| if a < b { a } else { b }, bf16);
+binary_op!(minimum_f16, |a, b| if a < b { a } else { b }, f16);
+binary_op!(minimum_f32, |a: f32, b| a.min(b), f32);
+binary_op!(minimum_f64, |a: f64, b| a.min(b), f64);
+binary_op!(minimum_bool, |a, b| a & b, bool);
+binary_op!(minimum_u8, |a: u8, b: u8| a.min(b), u8);
+binary_op!(minimum_u32, |a: u32, b: u32| a.min(b), u32);
+binary_op!(minimum_i8, |a: i8, b: i8| a.min(b), i8);
+binary_op!(minimum_i32, |a: i32, b: i32| a.min(b), i32);
+binary_op!(minimum_i64, |a: i64, b: i64| a.min(b), i64);
+
 // Comparison operations
 logical_op!(logical_and_bf16, bf16, bf16::from_f32(0.0), |a, b| a && b);
 logical_op!(logical_or_bf16, bf16, bf16::from_f32(0.0), |a, b| a || b);

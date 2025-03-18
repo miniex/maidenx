@@ -3,4 +3,4 @@ mod matmul;
 mod padding;
 mod reduction;
 mod transform;
-mod unary;
+pub(crate) mod unary;

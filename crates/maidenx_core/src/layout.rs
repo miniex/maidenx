@@ -47,7 +47,7 @@ impl Layout {
     pub fn ndim(&self) -> usize {
         self.shape.len()
     }
-    pub fn size_dim(&self, dim: usize) -> Option<usize> {
+    pub fn dim_size(&self, dim: usize) -> Option<usize> {
         self.shape.get(dim).copied()
     }
     pub fn size(&self) -> usize {

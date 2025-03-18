@@ -2,6 +2,10 @@
 #include <cstdint>
 #include <stdint.h>
 
+template <typename T> __device__ T maximum(T x, T y) { return (x > y) ? x : y; }
+
+template <typename T> __device__ T minimum(T x, T y) { return (x < y) ? x : y; }
+
 #define UNARY_OP_OUTPUT(IN_TYPENAME, OUT_TYPENAME, FN_NAME, FUNC)              \
   extern "C" __global__ void cuda_##FN_NAME##_kernel(                          \
       const size_t num_els, const size_t num_dims, const size_t *metadata,     \
@@ -297,6 +301,35 @@ UNARY_OP_WITH_CONSTANT(int64_t, int64_t, add_scalar_i64, x + constant);
 UNARY_OP_WITH_CONSTANT(int64_t, int64_t, sub_scalar_i64, x - constant);
 UNARY_OP_WITH_CONSTANT(int64_t, int64_t, mul_scalar_i64, x *constant);
 UNARY_OP_WITH_CONSTANT(int64_t, int64_t, div_scalar_i64, x / constant);
+
+UNARY_OP_WITH_CONSTANT(float, float, maximum_scalar_f32, maximum(x, constant));
+UNARY_OP_WITH_CONSTANT(double, double, maximum_scalar_f64,
+                       maximum(x, constant));
+UNARY_OP_WITH_CONSTANT(bool, bool, maximum_scalar_bool, x || constant);
+UNARY_OP_WITH_CONSTANT(uint8_t, uint8_t, maximum_scalar_u8,
+                       maximum(x, constant));
+UNARY_OP_WITH_CONSTANT(uint32_t, uint32_t, maximum_scalar_u32,
+                       maximum(x, constant));
+UNARY_OP_WITH_CONSTANT(int8_t, int8_t, maximum_scalar_i8, maximum(x, constant));
+UNARY_OP_WITH_CONSTANT(int32_t, int32_t, maximum_scalar_i32,
+                       maximum(x, constant));
+UNARY_OP_WITH_CONSTANT(int64_t, int64_t, maximum_scalar_i64,
+                       maximum(x, constant));
+
+UNARY_OP_WITH_CONSTANT(float, float, minimum_scalar_f32, minimum(x, constant));
+UNARY_OP_WITH_CONSTANT(double, double, minimum_scalar_f64,
+                       minimum(x, constant));
+UNARY_OP_WITH_CONSTANT(bool, bool, minimum_scalar_bool, x &&constant);
+UNARY_OP_WITH_CONSTANT(uint8_t, uint8_t, minimum_scalar_u8,
+                       minimum(x, constant));
+UNARY_OP_WITH_CONSTANT(uint32_t, uint32_t, minimum_scalar_u32,
+                       minimum(x, constant));
+UNARY_OP_WITH_CONSTANT(int8_t, int8_t, minimum_scalar_i8, minimum(x, constant));
+UNARY_OP_WITH_CONSTANT(int32_t, int32_t, minimum_scalar_i32,
+                       minimum(x, constant));
+UNARY_OP_WITH_CONSTANT(int64_t, int64_t, minimum_scalar_i64,
+                       minimum(x, constant));
+
 UNARY_OP_WITH_CONSTANT(float, float, pow_f32, powf(x, constant));
 UNARY_OP_WITH_CONSTANT(double, double, pow_f64, pow(x, constant));
 UNARY_OP_WITH_CONSTANT(bool, bool, pow_bool, x && (constant != 0));
@@ -367,6 +400,10 @@ UNARY_OP_WITH_CONSTANT(__half, __half, add_scalar_f16, x + constant);
 UNARY_OP_WITH_CONSTANT(__half, __half, sub_scalar_f16, x - constant);
 UNARY_OP_WITH_CONSTANT(__half, __half, mul_scalar_f16, x *constant);
 UNARY_OP_WITH_CONSTANT(__half, __half, div_scalar_f16, x / constant);
+UNARY_OP_WITH_CONSTANT(__half, __half, maximum_scalar_f16,
+                       maximum(x, constant));
+UNARY_OP_WITH_CONSTANT(__half, __half, minimum_scalar_f16,
+                       minimum(x, constant));
 UNARY_OP_WITH_CONSTANT(__half, __half, pow_f16,
                        __float2half(powf(__half2float(x),
                                          __half2float(constant))));
@@ -395,6 +432,10 @@ UNARY_OP_WITH_CONSTANT(__nv_bfloat16, __nv_bfloat16, mul_scalar_bf16,
                        x *constant);
 UNARY_OP_WITH_CONSTANT(__nv_bfloat16, __nv_bfloat16, div_scalar_bf16,
                        x / constant);
+UNARY_OP_WITH_CONSTANT(__nv_bfloat16, __nv_bfloat16, maximum_scalar_bf16,
+                       maximum(x, constant));
+UNARY_OP_WITH_CONSTANT(__nv_bfloat16, __nv_bfloat16, minimum_scalar_bf16,
+                       minimum(x, constant));
 UNARY_OP_WITH_CONSTANT(__nv_bfloat16, __nv_bfloat16, pow_bf16,
                        __float2bfloat16(powf(__bfloat162float(x),
                                              __bfloat162float(constant))));

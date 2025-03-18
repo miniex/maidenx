@@ -395,6 +395,192 @@ macro_rules! fold_op {
     };
 }
 
+macro_rules! max_op {
+    ($name:ident, $type:ty, $min_value:expr) => {
+        #[no_mangle]
+        /// # Safety
+        ///
+        /// * `metadata` must be a valid pointer to an array containing:
+        ///   - dims[num_dims]: array dimensions
+        ///   - strides[num_dims]: strides for input array
+        ///   - max_dims_l[num_max_dims]: length of dimensions to max over
+        ///   - max_dims_s[num_max_dims]: stride of dimensions to max over
+        /// * `inp` must be a valid pointer to an array of at least `num_els` elements
+        /// * `out` must be a valid pointer to an array of appropriate size for the output
+        /// * The alignment requirements of the type must be respected
+        /// * All array indices calculated must be in bounds
+        pub unsafe fn $name(num_els: usize, num_dims: usize, num_red_dims: usize, metadata: *const usize, inp: *const $type, out: *mut $type) {
+            let dims = std::slice::from_raw_parts(metadata, num_dims);
+            let strides = std::slice::from_raw_parts(metadata.add(num_dims), num_dims);
+            let max_dims_l = std::slice::from_raw_parts(metadata.add(2 * num_dims), num_red_dims);
+            let max_dims_s = std::slice::from_raw_parts(metadata.add(2 * num_dims + num_red_dims), num_red_dims);
+
+            let offset = *metadata.add(2 * num_dims + 2 * num_red_dims);
+
+            let input = std::slice::from_raw_parts(inp, num_els);
+
+            // Calculate output size
+            let mut out_size = num_els;
+            for i in 0..num_red_dims {
+                out_size /= max_dims_l[i];
+            }
+            let output = std::slice::from_raw_parts_mut(out, out_size);
+
+            // Initialize output array with minimum possible values
+            output.fill($min_value);
+
+            // Wrap output in Mutex for thread-safe access
+            let output = output.iter().map(|_| Mutex::new($min_value)).collect::<Vec<_>>();
+
+            let is_contiguous = {
+                let mut is_cont = true;
+                let mut acc = 1;
+                for d in (0..num_dims).rev() {
+                    if strides[d] != acc {
+                        is_cont = false;
+                        break;
+                    }
+                    acc *= dims[d];
+                }
+                is_cont
+            };
+
+            // Process elements in parallel
+            (0..num_els).into_par_iter().for_each(|i| {
+                let src_idx = if is_contiguous {
+                    i
+                } else {
+                    let mut idx = 0;
+                    let mut tmp_i = i;
+                    for d in (0..num_dims).rev() {
+                        let i_dim = tmp_i % dims[d];
+                        idx += i_dim * strides[d];
+                        tmp_i /= dims[d];
+                    }
+                    idx
+                };
+
+                let src_value_idx = (src_idx + offset) % num_els;
+
+                // Calculate destination index
+                let mut dst_idx = i;
+                for nd in 0..num_red_dims {
+                    let stride = max_dims_s[nd];
+                    let pre = dst_idx / stride;
+                    let post = dst_idx % stride;
+                    dst_idx = (pre / max_dims_l[nd]) * stride + post;
+                }
+
+                // Update max value atomically
+                let val = input[src_value_idx];
+                if let Ok(mut out) = output[dst_idx].lock() {
+                    *out = if val > *out { val } else { *out };
+                }
+            });
+
+            // Copy results back to output array
+            for (i, mutex) in output.iter().enumerate() {
+                if let Ok(val) = mutex.lock() {
+                    *std::slice::from_raw_parts_mut(out, out_size).get_unchecked_mut(i) = *val;
+                }
+            }
+        }
+    };
+}
+
+macro_rules! min_op {
+    ($name:ident, $type:ty, $max_value:expr) => {
+        #[no_mangle]
+        /// # Safety
+        ///
+        /// * `metadata` must be a valid pointer to an array containing:
+        ///   - dims[num_dims]: array dimensions
+        ///   - strides[num_dims]: strides for input array
+        ///   - min_dims_l[num_min_dims]: length of dimensions to min over
+        ///   - min_dims_s[num_min_dims]: stride of dimensions to min over
+        /// * `inp` must be a valid pointer to an array of at least `num_els` elements
+        /// * `out` must be a valid pointer to an array of appropriate size for the output
+        /// * The alignment requirements of the type must be respected
+        /// * All array indices calculated must be in bounds
+        pub unsafe fn $name(num_els: usize, num_dims: usize, num_red_dims: usize, metadata: *const usize, inp: *const $type, out: *mut $type) {
+            let dims = std::slice::from_raw_parts(metadata, num_dims);
+            let strides = std::slice::from_raw_parts(metadata.add(num_dims), num_dims);
+            let min_dims_l = std::slice::from_raw_parts(metadata.add(2 * num_dims), num_red_dims);
+            let min_dims_s = std::slice::from_raw_parts(metadata.add(2 * num_dims + num_red_dims), num_red_dims);
+
+            let offset = *metadata.add(2 * num_dims + 2 * num_red_dims);
+
+            let input = std::slice::from_raw_parts(inp, num_els);
+
+            // Calculate output size
+            let mut out_size = num_els;
+            for i in 0..num_red_dims {
+                out_size /= min_dims_l[i];
+            }
+            let output = std::slice::from_raw_parts_mut(out, out_size);
+
+            // Initialize output array with maximum possible values
+            output.fill($max_value);
+
+            // Wrap output in Mutex for thread-safe access
+            let output = output.iter().map(|_| Mutex::new($max_value)).collect::<Vec<_>>();
+
+            let is_contiguous = {
+                let mut is_cont = true;
+                let mut acc = 1;
+                for d in (0..num_dims).rev() {
+                    if strides[d] != acc {
+                        is_cont = false;
+                        break;
+                    }
+                    acc *= dims[d];
+                }
+                is_cont
+            };
+
+            // Process elements in parallel
+            (0..num_els).into_par_iter().for_each(|i| {
+                let src_idx = if is_contiguous {
+                    i
+                } else {
+                    let mut idx = 0;
+                    let mut tmp_i = i;
+                    for d in (0..num_dims).rev() {
+                        let i_dim = tmp_i % dims[d];
+                        idx += i_dim * strides[d];
+                        tmp_i /= dims[d];
+                    }
+                    idx
+                };
+
+                let src_value_idx = (src_idx + offset) % num_els;
+
+                // Calculate destination index
+                let mut dst_idx = i;
+                for nd in 0..num_red_dims {
+                    let stride = min_dims_s[nd];
+                    let pre = dst_idx / stride;
+                    let post = dst_idx % stride;
+                    dst_idx = (pre / min_dims_l[nd]) * stride + post;
+                }
+
+                // Update min value atomically
+                let val = input[src_value_idx];
+                if let Ok(mut out) = output[dst_idx].lock() {
+                    *out = if val < *out { val } else { *out };
+                }
+            });
+
+            // Copy results back to output array
+            for (i, mutex) in output.iter().enumerate() {
+                if let Ok(val) = mutex.lock() {
+                    *std::slice::from_raw_parts_mut(out, out_size).get_unchecked_mut(i) = *val;
+                }
+            }
+        }
+    };
+}
+
 sum_op!(sum_bf16, bf16, bf16::from_f32(0.0));
 sum_op!(sum_f16, f16, f16::from_f32(0.0));
 sum_op!(sum_f32, f32, 0.0f32);
@@ -429,3 +615,23 @@ fold_op!(fold_u32, u32, 0u32);
 fold_op!(fold_i8, i8, 0i8);
 fold_op!(fold_i32, i32, 0i32);
 fold_op!(fold_i64, i64, 0i64);
+
+max_op!(max_bf16, bf16, bf16::from_f32(f32::MIN));
+max_op!(max_f16, f16, f16::from_f32(f32::MIN));
+max_op!(max_f32, f32, f32::MIN);
+max_op!(max_f64, f64, f64::MIN);
+max_op!(max_u8, u8, u8::MIN);
+max_op!(max_u32, u32, u32::MIN);
+max_op!(max_i8, i8, i8::MIN);
+max_op!(max_i32, i32, i32::MIN);
+max_op!(max_i64, i64, i64::MIN);
+
+min_op!(min_bf16, bf16, bf16::from_f32(f32::MAX));
+min_op!(min_f16, f16, f16::from_f32(f32::MAX));
+min_op!(min_f32, f32, f32::MAX);
+min_op!(min_f64, f64, f64::MAX);
+min_op!(min_u8, u8, u8::MAX);
+min_op!(min_u32, u32, u32::MAX);
+min_op!(min_i8, i8, i8::MAX);
+min_op!(min_i32, i32, i32::MAX);
+min_op!(min_i64, i64, i64::MAX);

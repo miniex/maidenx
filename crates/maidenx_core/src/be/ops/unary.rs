@@ -375,6 +375,8 @@ declare_unary_op!(add_scalar: constant, [BF16, F16, F32, F64, U8, U32, I8, I32, 
 declare_unary_op!(sub_scalar: constant, [BF16, F16, F32, F64, U8, U32, I8, I32, I64]);
 declare_unary_op!(mul_scalar: constant, [BF16, F16, F32, F64, U8, U32, I8, I32, I64]);
 declare_unary_op!(div_scalar: constant, [BF16, F16, F32, F64, U8, U32, I8, I32, I64]);
+declare_unary_op!(maximum_scalar: constant, [BF16, F16, F32, F64, U8, U32, I8, I32, I64]);
+declare_unary_op!(minimum_scalar: constant, [BF16, F16, F32, F64, U8, U32, I8, I32, I64]);
 declare_unary_op!(pow: constant, [BF16, F16, F32, F64, U8, U32, I8, I32, I64]);
 declare_unary_op!(leaky_relu: constant, [BF16, F16, F32, F64]);
 declare_unary_op!(elu: constant, [BF16, F16, F32, F64]);
