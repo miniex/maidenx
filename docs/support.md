@@ -125,6 +125,9 @@ Blank: Upcoming support
 |            | `pad_with_constant`    | ✓ | ✓ | ✓ |
 |            | `pad_with_reflection`  | ✓ | ✓ | ✓ |
 |            | `pad_with_replication` | ✓ | ✓ | ✓ |
+| **Indexing Operations** |
+|            | `gather`           | ✓ | ✓ | ✓ |
+|            | `scatter_add_`     | ✗ | ✓ | ✓ |
 | **NN Layer Aliases** |
 | activation |
 |            | `softmax`          | ✓ | ✓ | ✓ | 
@@ -143,6 +146,7 @@ Blank: Upcoming support
 |            | `get`              | ✓ | ✓ |
 |            | `set`              | ✓ | ✓ |
 |            | `select`           | ✓ | ✓ |
+|            | `item`             | ✓ | ✓ |
 
 <br/>
 

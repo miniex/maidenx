@@ -368,14 +368,16 @@ pub trait Buffer: Send + Sync {
             Device::CUDA(_) => {
                 // For CUDA buffers, we need to copy the data to host first
                 let dtype_size = self.dtype().size_in_bytes();
-                let mut temp_buffer = vec![0u8; dtype_size];
+                let total_size = self.len() * dtype_size;
+                let mut temp_buffer = vec![0u8; total_size];
 
                 unsafe {
                     // Create a temporary CPU buffer for the single value
-                    self.copy_to_host(temp_buffer.as_mut_ptr() as *mut c_void, dtype_size)?;
+                    self.copy_to_host(temp_buffer.as_mut_ptr() as *mut c_void, total_size)?;
 
                     // Read the scalar from the temporary buffer
-                    Ok(self.dtype().read_scalar(temp_buffer.as_ptr()))
+                    let offset_ptr = temp_buffer.as_ptr().add(index * dtype_size);
+                    Ok(self.dtype().read_scalar(offset_ptr))
                 }
             }
         }

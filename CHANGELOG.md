@@ -1,4 +1,4 @@
-# Changelog for MaidenX 0.1.1
+# MaidenX 0.1.1
 
 ## Added Features
 
@@ -32,7 +32,7 @@
 
 This release introduces additional tensor operations, new activation functions, and performance improvements to MaidenX.
 
-# Changelog for MaidenX 0.1.0
+# MaidenX 0.1.0
 
 ## Added Features
 

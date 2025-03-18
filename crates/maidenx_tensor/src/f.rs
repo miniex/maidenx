@@ -32,6 +32,7 @@ impl Tensor {
 
         Ok(result)
     }
+
     pub fn detach(&self) -> Result<Self> {
         let mut result = self.clone();
         result.metadata.requires_grad = false;
