@@ -1,85 +1,80 @@
-# MaidenX 0.1.1
+# MaidenX Changelog
 
-## Added Features
+## Version 0.1.2
 
-### Tensor Operations
-- **Scalar Operations**:
-  - Added `read_scalar` and `write_scalar` for both CPU and CUDA devices. [[bd3d4b5](https://github.com/miniex/maidenx/commit/bd3d4b5)]
-- **Memory Management**:
-  - Implemented tensor offset support for memory-efficient views. [[82a2e30](https://github.com/miniex/maidenx/commit/82a2e30)]
-- **Padding Operations**:
-  - Introduced new padding operations for flexible tensor dimension management. [[5531e67](https://github.com/miniex/maidenx/commit/5531e67)]
-- **Operator Overriding**:
-  - Added operator overriding capabilities for customized tensor operations. [[f1c957b](https://github.com/miniex/maidenx/commit/f1c957b)]
-- **Metadata Support**:
-  - Added metadata support in tensors for storing additional information. [[030b9f8](https://github.com/miniex/maidenx/commit/030b9f8)]
+### New Features
 
-### Neural Network Components
-- **Activations**:
-  - Added `LeakyReLU`, `GELU`, and `ELU` activation functions. [[06ff9d2](https://github.com/miniex/maidenx/commit/06ff9d2)]
+#### Mathematical Operations
+- Added trigonometric functions (sine, cosine, tangent) [[6ae44d3](https://github.com/miniex/maidenx/commit/6ae44d3)]
+- Added logarithmic and exponential functions (ln, log10, log2, exp, exp2, exp10) [[bcd79bb](https://github.com/miniex/maidenx/commit/bcd79bb)]
 
-## Enhancements
-- **Buffer Management**:
-  - Improved performance by replacing RwLock with Arc for buffer management in tensors. [[af8b5d5](https://github.com/miniex/maidenx/commit/af8b5d5)]
-- **Tensor Indexing**:
-  - Updated tensor indexing methods to support offsets. [[89a382b](https://github.com/miniex/maidenx/commit/89a382b)]
+#### Neural Network
+- Implemented LayerNorm with keepdims option for mean function [[d7face4](https://github.com/miniex/maidenx/commit/d7face4)]
+- Added Dropout layer and LayerState for independent training mode tracking [[4981cac](https://github.com/miniex/maidenx/commit/4981cac)]
+- Added CrossEntropyLoss implementation [[31aa816](https://github.com/miniex/maidenx/commit/31aa816)]
 
-## Fixed Issues
-- Fixed borrowing issues in inplace operations. [[af8b5d5](https://github.com/miniex/maidenx/commit/af8b5d5)]
+#### Tensor Operations
+- Added arange and range functions for evenly spaced tensors [[8b9ba03](https://github.com/miniex/maidenx/commit/8b9ba03)]
+- Added gather and scatter operations for indexed tensor manipulation [[076f2a0](https://github.com/miniex/maidenx/commit/076f2a0)]
+- Added min and max operations [[89fda3b](https://github.com/miniex/maidenx/commit/89fda3b)]
+- Added recip operation for calculating reciprocals [[93dd124](https://github.com/miniex/maidenx/commit/93dd124)]
+- Added softmax function [[f39cbdf](https://github.com/miniex/maidenx/commit/f39cbdf)]
+- Added broadcast_like function [[b2f4d4e](https://github.com/miniex/maidenx/commit/b2f4d4e)]
+- Added log function with ln alias [[b4259f0](https://github.com/miniex/maidenx/commit/b4259f0)]
 
+### Improvements
+- Optimized im2col and col2im CUDA kernels [[a01cca5](https://github.com/miniex/maidenx/commit/a01cca5)]
+- Added keep_dims parameter to the sum function [[d2a717f](https://github.com/miniex/maidenx/commit/d2a717f)]
+- Improved naming of loss function classes [[5344285](https://github.com/miniex/maidenx/commit/5344285)]
+- Fixed boolean promotion issues and scalar type conversion in arange function [[c31db84](https://github.com/miniex/maidenx/commit/c31db84)]
 
----
+### Fixes
+- Fixed compilation errors in softmax CUDA kernel [[14aea5e](https://github.com/miniex/maidenx/commit/14aea5e)]
+- Fixed namespace from nn::functional to nn::alias [[5d2fbbc](https://github.com/miniex/maidenx/commit/5d2fbbc)]
+- Corrected minor typos in the codebase [[d290383](https://github.com/miniex/maidenx/commit/d290383), [aa7041f](https://github.com/miniex/maidenx/commit/aa7041f), [65affd1](https://github.com/miniex/maidenx/commit/65affd1)]
 
-This release introduces additional tensor operations, new activation functions, and performance improvements to MaidenX.
+## Version 0.1.1
 
-# MaidenX 0.1.0
+### Added Features
 
-## Added Features
+#### Tensor Operations
+- Added read_scalar and write_scalar for both CPU and CUDA devices [[bd3d4b5](https://github.com/miniex/maidenx/commit/bd3d4b5)]
+- Implemented tensor offset support for memory-efficient views [[82a2e30](https://github.com/miniex/maidenx/commit/82a2e30)]
+- Introduced new padding operations [[5531e67](https://github.com/miniex/maidenx/commit/5531e67)]
+- Added operator overriding capabilities [[f1c957b](https://github.com/miniex/maidenx/commit/f1c957b)]
+- Added metadata support in tensors [[030b9f8](https://github.com/miniex/maidenx/commit/030b9f8)]
 
-### DType
+#### Neural Network Components
+- Added LeakyReLU, GELU, and ELU activation functions [[06ff9d2](https://github.com/miniex/maidenx/commit/06ff9d2)]
 
-- **Floating-Point Types**:
-  - `bf16`: Brain Floating Point (bfloat16) - 16-bit precision optimized for neural networks
-  - `f16`: IEEE 754 Half-Precision (float16) - 16-bit floating-point
-  - `f32`: IEEE 754 Single-Precision (float32) - 32-bit floating-point
-  - `f64`: IEEE 754 Double-Precision (float64) - 64-bit floating-point
+### Enhancements
+- Improved performance by replacing RwLock with Arc for buffer management [[af8b5d5](https://github.com/miniex/maidenx/commit/af8b5d5)]
+- Updated tensor indexing methods to support offsets [[89a382b](https://github.com/miniex/maidenx/commit/89a382b)]
 
-- **Integer Types**:
-  - `u8`: Unsigned 8-bit integer
-  - `u32`: Unsigned 32-bit integer
-  - `i8`: Signed 8-bit integer
-  - `i32`: Signed 32-bit integer
-  - `i64`: Signed 64-bit integer
+### Fixes
+- Fixed borrowing issues in inplace operations [[af8b5d5](https://github.com/miniex/maidenx/commit/af8b5d5)]
 
-### Neural Network Components
-- **Modules**:
-  - Added `Linear`, `Bilinear`, and `Conv2d` layers supporting CPU and CUDA backends.
-- **Activations**:
-  - Introduced `ReLU`, `Sigmoid`, and `Tanh` activation functions.
-- **Loss Functions**:
-  - Added `MSE`, `MAE`, and `Huber` loss functions.
-- **Optimizers**:
-  - Implemented `SGD` and `Adam` optimizers.
+## Version 0.1.0
 
-### Tensor Operations
-- **Basic Operations**:
-  - Element-wise addition, subtraction, multiplication, division, and matrix multiplication with gradient tracking and broadcasting.
-- **Shape Operations**:
-  - Added operations like `transpose`, `reshape`, and broadcasting utilities.
-- **Reduction Operations**:
-  - Implemented `sum`, `mean`, and related dimensional operations.
-- **Scalar Operations**:
-  - Enabled addition, subtraction, multiplication, and division with scalars.
-- **Comparison Operations**:
-  - Added scalar-based comparisons like `le_scalar` and `gt_scalar`.
+### Added Features
 
-## Enhancements
-- **Gradient Tracking**: Automatic differentiation support for all operations.
-- **Broadcasting**: Fully integrated tensor broadcasting for seamless operations.
+#### DType Support
+- Floating-Point Types: bf16, f16, f32, f64
+- Integer Types: u8, u32, i8, i32, i64
 
-## Known Issues
-- None reported for this version.
+#### Neural Network Components
+- Modules: Linear, Bilinear, Conv2d layers (CPU and CUDA)
+- Activations: ReLU, Sigmoid, Tanh
+- Loss Functions: MSE, MAE, Huber
+- Optimizers: SGD, Adam
 
----
+#### Tensor Operations
+- Basic Operations: element-wise operations with gradient tracking and broadcasting
+- Shape Operations: transpose, reshape, and broadcasting utilities
+- Reduction Operations: sum, mean
+- Scalar Operations: addition, subtraction, multiplication, division
+- Comparison Operations: scalar-based comparisons
 
-This foundational release introduces core tensor operations and neural network components to MaidenX.
+### Enhancements
+- Gradient Tracking via automatic differentiation
+- Full tensor broadcasting support
