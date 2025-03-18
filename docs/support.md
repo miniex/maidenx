@@ -183,6 +183,7 @@ Blank: Upcoming support
 |            | `Huber`            | ✓ | ✓ |
 |            | `MAE`              | ✓ | ✓ |
 |            | `MSE`              | ✓ | ✓ |
+|            | `CrossEntropyLoss` | ✓ | ✓ |
 
 <br/>
 

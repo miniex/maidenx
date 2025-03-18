@@ -53,11 +53,10 @@ impl Softmax {
                 let s_grad = grad_out.mul(&s_t)?;
 
                 let mut target_shape = output.shape().to_vec();
-                let last_dim = target_shape.len() - 1;
-                target_shape.remove(last_dim);
+                target_shape[dim] = 1;
 
                 let s_grad_sum = s_grad.sum_to_shape(&target_shape)?;
-                let broadcasted_sum = s_grad_sum.unsqueeze(last_dim)?.broadcast_like(&output)?;
+                let broadcasted_sum = s_grad_sum.broadcast_like(&output)?;
                 let diff = grad_out.sub(&broadcasted_sum)?;
                 let grad_input = output.mul(&diff)?;
 
@@ -211,8 +210,14 @@ mod tests {
         let softmax = Softmax::new(-1)?;
         let output = softmax.forward(&input)?;
 
-        // Sum all elements (simple loss function)
-        let loss = output.sum_all()?;
+        // Create a target tensor (different from softmax output)
+        let target = Tensor::new(vec![vec![0.3f32, 0.7], vec![0.6, 0.4]])?;
+
+        // Compute MSE loss or some other non-constant loss
+        // (output - target)^2
+        let diff = output.sub(&target)?;
+        let squared_diff = diff.mul(&diff)?;
+        let loss = squared_diff.sum_all()?;
 
         // Backward pass
         loss.backward()?;

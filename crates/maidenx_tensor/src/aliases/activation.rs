@@ -38,11 +38,10 @@ impl Tensor {
                 let s_grad = grad_out.mul(&s_t)?;
 
                 let mut target_shape = output.shape().to_vec();
-                let last_dim = target_shape.len() - 1;
-                target_shape.remove(last_dim);
+                target_shape[dim] = 1;
 
                 let s_grad_sum = s_grad.sum_to_shape(&target_shape)?;
-                let broadcasted_sum = s_grad_sum.unsqueeze(last_dim)?.broadcast_like(&output)?;
+                let broadcasted_sum = s_grad_sum.broadcast_like(&output)?;
                 let diff = grad_out.sub(&broadcasted_sum)?;
                 let grad_input = output.mul(&diff)?;
 
@@ -56,3 +55,4 @@ impl Tensor {
         Ok(result)
     }
 }
+
