@@ -1,3 +1,4 @@
+use crate::test_ops;
 use maidenx_core::{
     device::{set_default_device, Device},
     dtype::DType,
@@ -134,83 +135,4 @@ mod test_functions {
     }
 }
 
-#[test]
-fn bf16() -> Result<()> {
-    test_functions::vector_vector_test(DType::BF16)?;
-    test_functions::matrix_vector_test(DType::BF16)?;
-    test_functions::vector_matrix_test(DType::BF16)?;
-    test_functions::matrix_matrix_test(DType::BF16)?;
-    test_functions::batched_matrix_matrix_test(DType::BF16)
-}
-
-#[test]
-fn f16() -> Result<()> {
-    test_functions::vector_vector_test(DType::F16)?;
-    test_functions::matrix_vector_test(DType::F16)?;
-    test_functions::vector_matrix_test(DType::F16)?;
-    test_functions::matrix_matrix_test(DType::F16)?;
-    test_functions::batched_matrix_matrix_test(DType::F16)
-}
-
-#[test]
-fn f32() -> Result<()> {
-    test_functions::vector_vector_test(DType::F32)?;
-    test_functions::matrix_vector_test(DType::F32)?;
-    test_functions::vector_matrix_test(DType::F32)?;
-    test_functions::matrix_matrix_test(DType::F32)?;
-    test_functions::batched_matrix_matrix_test(DType::F32)
-}
-
-#[test]
-fn f64() -> Result<()> {
-    test_functions::vector_vector_test(DType::F64)?;
-    test_functions::matrix_vector_test(DType::F64)?;
-    test_functions::vector_matrix_test(DType::F64)?;
-    test_functions::matrix_matrix_test(DType::F64)?;
-    test_functions::batched_matrix_matrix_test(DType::F64)
-}
-
-#[test]
-fn u8() -> Result<()> {
-    test_functions::vector_vector_test(DType::U8)?;
-    test_functions::matrix_vector_test(DType::U8)?;
-    test_functions::vector_matrix_test(DType::U8)?;
-    test_functions::matrix_matrix_test(DType::U8)?;
-    test_functions::batched_matrix_matrix_test(DType::U8)
-}
-
-#[test]
-fn u32() -> Result<()> {
-    test_functions::vector_vector_test(DType::U32)?;
-    test_functions::matrix_vector_test(DType::U32)?;
-    test_functions::vector_matrix_test(DType::U32)?;
-    test_functions::matrix_matrix_test(DType::U32)?;
-    test_functions::batched_matrix_matrix_test(DType::U32)
-}
-
-#[test]
-fn i8() -> Result<()> {
-    test_functions::vector_vector_test(DType::I8)?;
-    test_functions::matrix_vector_test(DType::I8)?;
-    test_functions::vector_matrix_test(DType::I8)?;
-    test_functions::matrix_matrix_test(DType::I8)?;
-    test_functions::batched_matrix_matrix_test(DType::I8)
-}
-
-#[test]
-fn i32() -> Result<()> {
-    test_functions::vector_vector_test(DType::I32)?;
-    test_functions::matrix_vector_test(DType::I32)?;
-    test_functions::vector_matrix_test(DType::I32)?;
-    test_functions::matrix_matrix_test(DType::I32)?;
-    test_functions::batched_matrix_matrix_test(DType::I32)
-}
-
-#[test]
-fn i64() -> Result<()> {
-    test_functions::vector_vector_test(DType::I64)?;
-    test_functions::matrix_vector_test(DType::I64)?;
-    test_functions::vector_matrix_test(DType::I64)?;
-    test_functions::matrix_matrix_test(DType::I64)?;
-    test_functions::batched_matrix_matrix_test(DType::I64)
-}
+test_ops!([vector_vector, matrix_vector, vector_matrix, matrix_matrix, batched_matrix_matrix]);

@@ -50,3 +50,62 @@ mod total {
         Ok(())
     }
 }
+
+#[macro_export]
+macro_rules! test_ops {
+    ([$($op:ident),*]) => {
+        $(
+            mod $op {
+                use super::*;
+                use paste::paste;
+
+                paste! {
+                    #[test]
+                    fn bf16() -> Result<()> {
+                        test_functions::[<$op _test>](DType::BF16)
+                    }
+
+                    #[test]
+                    fn f16() -> Result<()> {
+                        test_functions::[<$op _test>](DType::F16)
+                    }
+
+                    #[test]
+                    fn f32() -> Result<()> {
+                        test_functions::[<$op _test>](DType::F32)
+                    }
+
+                    #[test]
+                    fn f64() -> Result<()> {
+                        test_functions::[<$op _test>](DType::F64)
+                    }
+
+                    #[test]
+                    fn u8() -> Result<()> {
+                        test_functions::[<$op _test>](DType::U8)
+                    }
+
+                    #[test]
+                    fn u32() -> Result<()> {
+                        test_functions::[<$op _test>](DType::U32)
+                    }
+
+                    #[test]
+                    fn i8() -> Result<()> {
+                        test_functions::[<$op _test>](DType::I8)
+                    }
+
+                    #[test]
+                    fn i32() -> Result<()> {
+                        test_functions::[<$op _test>](DType::I32)
+                    }
+
+                    #[test]
+                    fn i64() -> Result<()> {
+                        test_functions::[<$op _test>](DType::I64)
+                    }
+                }
+            }
+        )*
+    };
+}

@@ -1,3 +1,4 @@
+use crate::test_ops;
 use maidenx_core::{
     device::{set_default_device, Device},
     dtype::DType,
@@ -83,86 +84,8 @@ mod test_functions {
     }
 }
 
-// gather operation tests
-mod gather {
-    use super::*;
-
-    #[test]
-    fn bf16() -> Result<()> {
-        test_functions::gather_test(DType::BF16)
-    }
-    #[test]
-    fn f16() -> Result<()> {
-        test_functions::gather_test(DType::F16)
-    }
-    #[test]
-    fn f32() -> Result<()> {
-        test_functions::gather_test(DType::F32)
-    }
-    #[test]
-    fn f64() -> Result<()> {
-        test_functions::gather_test(DType::F64)
-    }
-    // #[test]
-    // fn u8() -> Result<()> {
-    //     test_functions::gather_test(DType::U8)
-    // }
-    #[test]
-    fn u32() -> Result<()> {
-        test_functions::gather_test(DType::U32)
-    }
-    // #[test]
-    // fn i8() -> Result<()> {
-    //     test_functions::gather_test(DType::I8)
-    // }
-    #[test]
-    fn i32() -> Result<()> {
-        test_functions::gather_test(DType::I32)
-    }
-    #[test]
-    fn i64() -> Result<()> {
-        test_functions::gather_test(DType::I64)
-    }
-}
-
-// scatter_add_ operation tests
-mod scatter_add_inplace {
-    use super::*;
-
-    #[test]
-    fn bf16() -> Result<()> {
-        test_functions::scatter_add_inplace_test(DType::BF16)
-    }
-    #[test]
-    fn f16() -> Result<()> {
-        test_functions::scatter_add_inplace_test(DType::F16)
-    }
-    #[test]
-    fn f32() -> Result<()> {
-        test_functions::scatter_add_inplace_test(DType::F32)
-    }
-    #[test]
-    fn f64() -> Result<()> {
-        test_functions::scatter_add_inplace_test(DType::F64)
-    }
-    // #[test]
-    // fn u8() -> Result<()> {
-    //     test_functions::scatter_add_inplace_test(DType::U8)
-    // }
-    #[test]
-    fn u32() -> Result<()> {
-        test_functions::scatter_add_inplace_test(DType::U32)
-    }
-    // #[test]
-    // fn i8() -> Result<()> {
-    //     test_functions::scatter_add_inplace_test(DType::I8)
-    // }
-    #[test]
-    fn i32() -> Result<()> {
-        test_functions::scatter_add_inplace_test(DType::I32)
-    }
-    #[test]
-    fn i64() -> Result<()> {
-        test_functions::scatter_add_inplace_test(DType::I64)
-    }
-}
+test_ops!([
+    gather,
+    // inplace
+    scatter_add_inplace
+]);
