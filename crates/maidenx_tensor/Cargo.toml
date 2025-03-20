@@ -1,6 +1,6 @@
 [package]
 name = "maidenx_tensor"
-version = "0.1.0-dev"
+version = "0.1.2"
 description = "maidenx tensor"
 license = "BSD-3-Clause"
 authors = ["Han Damin <miniex@daminstudio.net>"]
@@ -12,7 +12,7 @@ repository = "https://github.com/miniex/maidenx"
 cuda = ["maidenx_core/cuda"]
 
 [dependencies]
-maidenx_core = { path = "../maidenx_core", version = "0.1.0-dev" }
+maidenx_core = { path = "../maidenx_core", version = "0.1.2" }
 half = { workspace = true }
 paste = { workspace = true }
 rand = { version = "0.8.5" }
