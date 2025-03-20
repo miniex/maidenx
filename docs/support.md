@@ -12,7 +12,7 @@ Blank: Upcoming support
 | 16-bit floating point | `maidenx::float16` or `maidenx::half` |
 | 32-bit floating point | `maidenx::float32` |
 | 64-bit floating point | `maidenx::float64` |
-| boolean | `maidenx::bool` (only support logical operations) |
+| boolean | `maidenx::bool` |
 | 8-bit integer (unsigned) | `maidenx::uint8` |
 | 16-bit integer (unsigned) | not supported |
 | 32-bit integer (unsigned) | `maidenx::uint32` |
@@ -21,6 +21,15 @@ Blank: Upcoming support
 | 16-bit integer (signed) | not supported |
 | 32-bit integer (signed) | `maidenx::int32` |
 | 64-bit integer (signed) | `maidenx::int64` |
+
+> [!NOTE]
+> The boolean type in the MaidenX framework is promoted based on the type of operation:
+> 
+> - For logical operations: Remains as maidenx::bool
+> - For arithmetic operations: Promoted to maidenx::uint8 (8-bit unsigned integer)
+> - For operations involving floating-point numbers: Promoted to maidenx::float32 (32-bit floating point)
+>
+> This conversion happens automatically in the framework to ensure type compatibility during different operations, as boolean values (true/false) need to be represented as numeric values (1/0) when used in mathematical contexts.
 
 <br/>
 

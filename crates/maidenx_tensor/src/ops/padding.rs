@@ -1,5 +1,6 @@
-use crate::{Tensor, TensorNode};
+use crate::{utils::promotion::promote_tensor, Tensor, TensorNode};
 use maidenx_core::{
+    dtype::DType,
     error::{Error, Result},
     scalar::Scalar,
 };
@@ -18,30 +19,33 @@ impl Tensor {
             });
         }
 
+        let target_dtype = if self.dtype().is_bool() { DType::U8 } else { self.dtype() };
+        let input = promote_tensor(self, target_dtype)?;
+
         // Calculate output shape
-        let mut output_shape = Vec::with_capacity(self.ndim());
+        let mut output_shape = Vec::with_capacity(input.ndim());
         for (i, &(pad_before, pad_after)) in paddings.iter().enumerate() {
-            output_shape.push(self.shape()[i] + pad_before + pad_after);
+            output_shape.push(input.shape()[i] + pad_before + pad_after);
         }
 
         // Convert pad_value to scalar
         let pad_scalar = pad_value.into();
 
         // Create output tensor
-        let mut result = Self::empty_with_spec(&output_shape, self.device(), self.dtype())?;
+        let mut result = Self::empty_with_spec(&output_shape, input.device(), input.dtype())?;
 
         // Prepare metadata for padding operation
-        let metadata = prepare_metadata_for_padding(self, paddings);
+        let metadata = prepare_metadata_for_padding(&input, paddings);
 
         unsafe {
             let result_size = result.size();
             result.with_buffer_mut(|out_buf| {
                 maidenx_core::be::ops::padding::pad_with_constant(
                     out_buf,
-                    self.buffer(),
-                    self.size(),
+                    input.buffer(),
+                    input.size(),
                     result_size,
-                    self.ndim(),
+                    input.ndim(),
                     Some(&metadata),
                     pad_scalar,
                 )?;
@@ -49,10 +53,10 @@ impl Tensor {
             })?;
         }
 
-        if self.requires_grad() {
+        if input.requires_grad() {
             result.with_grad()?;
 
-            let input_shape = self.shape().to_vec();
+            let input_shape = input.shape().to_vec();
             let paddings_vec = paddings.to_vec();
 
             let backward_fn = Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> {
@@ -93,10 +97,13 @@ impl Tensor {
             });
         }
 
+        let target_dtype = if self.dtype().is_bool() { DType::U8 } else { self.dtype() };
+        let input = promote_tensor(self, target_dtype)?;
+
         // Calculate output shape
-        let mut output_shape = Vec::with_capacity(self.ndim());
+        let mut output_shape = Vec::with_capacity(input.ndim());
         for (i, &(pad_before, pad_after)) in paddings.iter().enumerate() {
-            let dim_size = self.shape()[i];
+            let dim_size = input.shape()[i];
 
             if pad_before >= dim_size || pad_after >= dim_size {
                 return Err(Error::InvalidArgument(format!(
@@ -115,22 +122,22 @@ impl Tensor {
         }
 
         // Create output tensor
-        let mut result = Self::empty_with_spec(&output_shape, self.device(), self.dtype())?;
+        let mut result = Self::empty_with_spec(&output_shape, input.device(), input.dtype())?;
 
         // Prepare metadata for padding operation
-        let metadata = prepare_metadata_for_padding(self, paddings);
+        let metadata = prepare_metadata_for_padding(&input, paddings);
 
         unsafe {
             let result_size = result.size();
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::be::ops::padding::pad_with_reflection(out_buf, self.buffer(), self.size(), result_size, self.ndim(), Some(&metadata))
+                maidenx_core::be::ops::padding::pad_with_reflection(out_buf, input.buffer(), input.size(), result_size, input.ndim(), Some(&metadata))
             })?;
         }
 
-        if self.requires_grad() {
+        if input.requires_grad() {
             result.with_grad()?;
 
-            let input_shape = self.shape().to_vec();
+            let input_shape = input.shape().to_vec();
             let paddings_vec = paddings.to_vec();
 
             let backward_fn = Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> {
@@ -171,29 +178,39 @@ impl Tensor {
             });
         }
 
+        let target_dtype = if self.dtype().is_bool() { DType::U8 } else { self.dtype() };
+        let input = promote_tensor(self, target_dtype)?;
+
         // Calculate output shape
-        let mut output_shape = Vec::with_capacity(self.ndim());
+        let mut output_shape = Vec::with_capacity(input.ndim());
         for (i, &(pad_before, pad_after)) in paddings.iter().enumerate() {
-            output_shape.push(self.shape()[i] + pad_before + pad_after);
+            output_shape.push(input.shape()[i] + pad_before + pad_after);
         }
 
         // Create output tensor
-        let mut result = Self::empty_with_spec(&output_shape, self.device(), self.dtype())?;
+        let mut result = Self::empty_with_spec(&output_shape, input.device(), input.dtype())?;
 
         // Prepare metadata for padding operation
-        let metadata = prepare_metadata_for_padding(self, paddings);
+        let metadata = prepare_metadata_for_padding(&input, paddings);
 
         unsafe {
             let result_size = result.size();
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::be::ops::padding::pad_with_replication(out_buf, self.buffer(), self.size(), result_size, self.ndim(), Some(&metadata))
+                maidenx_core::be::ops::padding::pad_with_replication(
+                    out_buf,
+                    input.buffer(),
+                    input.size(),
+                    result_size,
+                    input.ndim(),
+                    Some(&metadata),
+                )
             })?;
         }
 
-        if self.requires_grad() {
+        if input.requires_grad() {
             result.with_grad()?;
 
-            let input_shape = self.shape().to_vec();
+            let input_shape = input.shape().to_vec();
             let paddings_vec = paddings.to_vec();
 
             let backward_fn = Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> {

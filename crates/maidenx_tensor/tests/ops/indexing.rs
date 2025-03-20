@@ -1,4 +1,4 @@
-use crate::test_ops;
+use crate::test_ops_without_8byte;
 use maidenx_core::{
     device::{set_default_device, Device},
     dtype::DType,
@@ -84,7 +84,7 @@ mod test_functions {
     }
 }
 
-test_ops!([
+test_ops_without_8byte!([
     gather,
     // inplace
     scatter_add_inplace

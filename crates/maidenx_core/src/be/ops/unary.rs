@@ -382,9 +382,9 @@ declare_unary_op!(leaky_relu: constant, [BF16, F16, F32, F64]);
 declare_unary_op!(elu: constant, [BF16, F16, F32, F64]);
 
 // Comparison ops with constant
-declare_unary_op!(eq_scalar: constant_to_bool, [BF16, F16, F32, F64, U8, U32, I8, I32, I64]);
-declare_unary_op!(ne_scalar: constant_to_bool, [BF16, F16, F32, F64, U8, U32, I8, I32, I64]);
-declare_unary_op!(lt_scalar: constant_to_bool, [BF16, F16, F32, F64, U8, U32, I8, I32, I64]);
-declare_unary_op!(le_scalar: constant_to_bool, [BF16, F16, F32, F64, U8, U32, I8, I32, I64]);
-declare_unary_op!(gt_scalar: constant_to_bool, [BF16, F16, F32, F64, U8, U32, I8, I32, I64]);
-declare_unary_op!(ge_scalar: constant_to_bool, [BF16, F16, F32, F64, U8, U32, I8, I32, I64]);
+declare_unary_op!(eq_scalar: constant_to_bool, [BF16, F16, F32, F64, BOOL, U8, U32, I8, I32, I64]);
+declare_unary_op!(ne_scalar: constant_to_bool, [BF16, F16, F32, F64, BOOL, U8, U32, I8, I32, I64]);
+declare_unary_op!(lt_scalar: constant_to_bool, [BF16, F16, F32, F64, BOOL, U8, U32, I8, I32, I64]);
+declare_unary_op!(le_scalar: constant_to_bool, [BF16, F16, F32, F64, BOOL, U8, U32, I8, I32, I64]);
+declare_unary_op!(gt_scalar: constant_to_bool, [BF16, F16, F32, F64, BOOL, U8, U32, I8, I32, I64]);
+declare_unary_op!(ge_scalar: constant_to_bool, [BF16, F16, F32, F64, BOOL, U8, U32, I8, I32, I64]);

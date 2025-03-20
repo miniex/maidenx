@@ -226,8 +226,6 @@ impl Tensor {
                 let equal_mask = lhs_clone.eq(&rhs_clone)?;
                 let equal_half = equal_mask.mul_scalar(0.5)?;
 
-                println!("{:?}", equal_half);
-
                 let grad_left = grad_out
                     .mul(&lhs_mask)?
                     .add(&equal_half.mul(grad_out)?)?
@@ -543,11 +541,15 @@ impl Tensor {
 
 impl Tensor {
     pub fn add_(&mut self, rhs: &Tensor) -> Result<()> {
-        let rhs = if self.shape() == rhs.shape() {
+        let mut rhs = if self.shape() == rhs.shape() {
             rhs.clone()
         } else {
             rhs.broadcast(self.shape())?
         };
+
+        if self.dtype() != rhs.dtype() {
+            rhs.with_dtype(self.dtype())?;
+        }
 
         let metadata = prepare_metadata(self, &rhs);
         let size = self.size();
@@ -567,11 +569,15 @@ impl Tensor {
     }
 
     pub fn sub_(&mut self, rhs: &Tensor) -> Result<()> {
-        let rhs = if self.shape() == rhs.shape() {
+        let mut rhs = if self.shape() == rhs.shape() {
             rhs.clone()
         } else {
             rhs.broadcast(self.shape())?
         };
+
+        if self.dtype() != rhs.dtype() {
+            rhs.with_dtype(self.dtype())?;
+        }
 
         let metadata = prepare_metadata(self, &rhs);
         let size = self.size();
@@ -591,11 +597,15 @@ impl Tensor {
     }
 
     pub fn mul_(&mut self, rhs: &Tensor) -> Result<()> {
-        let rhs = if self.shape() == rhs.shape() {
+        let mut rhs = if self.shape() == rhs.shape() {
             rhs.clone()
         } else {
             rhs.broadcast(self.shape())?
         };
+
+        if self.dtype() != rhs.dtype() {
+            rhs.with_dtype(self.dtype())?;
+        }
 
         let metadata = prepare_metadata(self, &rhs);
         let size = self.size();
@@ -615,11 +625,15 @@ impl Tensor {
     }
 
     pub fn div_(&mut self, rhs: &Tensor) -> Result<()> {
-        let rhs = if self.shape() == rhs.shape() {
+        let mut rhs = if self.shape() == rhs.shape() {
             rhs.clone()
         } else {
             rhs.broadcast(self.shape())?
         };
+
+        if self.dtype() != rhs.dtype() {
+            rhs.with_dtype(self.dtype())?;
+        }
 
         let metadata = prepare_metadata(self, &rhs);
         let size = self.size();

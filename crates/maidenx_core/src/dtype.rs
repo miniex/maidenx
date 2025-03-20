@@ -68,6 +68,10 @@ impl DType {
         }
     }
 
+    pub fn is_bool(&self) -> bool {
+        *self == DType::BOOL
+    }
+
     pub fn is_int(&self) -> bool {
         match self {
             Self::BF16 | Self::F16 | Self::F32 | Self::F64 | Self::BOOL => false,

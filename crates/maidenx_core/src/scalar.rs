@@ -61,6 +61,26 @@ macro_rules! numeric_variants {
             }
 
             #[inline]
+            pub fn to_dtype(&self, dtype: DType) -> Scalar {
+                if self.dtype() == dtype {
+                    return *self;
+                }
+
+                match dtype {
+                    DType::BOOL => Scalar::BOOL(self.as_bool()),
+                    DType::BF16 => Scalar::BF16(bf16::from_f32(self.as_f32())),
+                    DType::F16 => Scalar::F16(f16::from_f32(self.as_f32())),
+                    DType::F32 => Scalar::F32(self.as_f32()),
+                    DType::F64 => Scalar::F64(self.as_f64()),
+                    DType::U8 => Scalar::U8(self.as_u8()),
+                    DType::U32 => Scalar::U32(self.as_u32()),
+                    DType::I8 => Scalar::I8(self.as_i8()),
+                    DType::I32 => Scalar::I32(self.as_i32()),
+                    DType::I64 => Scalar::I64(self.as_i64()),
+                }
+            }
+
+            #[inline]
             pub fn is_int(&self) -> bool {
                 match self {
                     Self::BF16(_) | Self::F16(_) | Self::F32(_) | Self::F64(_) | Self::BOOL(_) => false,

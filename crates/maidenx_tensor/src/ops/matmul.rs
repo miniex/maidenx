@@ -56,10 +56,29 @@ impl Tensor {
             let backward_fn = Box::new(move |inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> {
                 let lhs = &inputs[0];
                 let rhs = &inputs[1];
-                let (metadata, _) = prepare_metadata(lhs, rhs);
 
-                let mut grad_lhs = Self::zeros_like(lhs)?;
-                let mut grad_rhs = Self::zeros_like(rhs)?;
+                let target_dtype = match (lhs.dtype(), rhs.dtype()) {
+                    (DType::I8, DType::I8) => DType::I32,
+                    (DType::U8, DType::U8) => DType::I32,
+                    (dtype1, dtype2) if dtype1 != dtype2 => get_promoted_dtype(dtype1, dtype2),
+                    (dtype, _) => dtype,
+                };
+
+                let target_dtype = if grad_out.dtype() != target_dtype {
+                    get_promoted_dtype(target_dtype, grad_out.dtype())
+                } else {
+                    target_dtype
+                };
+
+                let lhs_promoted = promote_tensor(lhs, target_dtype)?;
+                let rhs_promoted = promote_tensor(rhs, target_dtype)?;
+                let grad_out_promoted = promote_tensor(grad_out, target_dtype)?;
+
+                let (metadata, _) = prepare_metadata(&lhs_promoted, &rhs_promoted);
+
+                let mut grad_lhs = Self::zeros_like(&lhs_promoted)?;
+                let mut grad_rhs = Self::zeros_like(&rhs_promoted)?;
+
                 let grad_lhs_size = grad_lhs.size();
                 let grad_rhs_size = grad_rhs.size();
 
@@ -69,14 +88,13 @@ impl Tensor {
                             maidenx_core::be::ops::matmul::matmul_backward(
                                 Some(gl_buf),
                                 Some(gr_buf),
-                                grad_out.buffer(),
-                                lhs.buffer(),
-                                rhs.buffer(),
+                                grad_out_promoted.buffer(),
+                                lhs_promoted.buffer(),
+                                rhs_promoted.buffer(),
                                 grad_lhs_size,
                                 grad_rhs_size,
                                 Some(&metadata),
                             )?;
-
                             Ok(())
                         })
                     })?;
@@ -85,6 +103,7 @@ impl Tensor {
                 let mut grad_lhs = grad_lhs;
                 let mut grad_rhs = grad_rhs;
 
+                // Reshape gradients to match original tensor shapes
                 if grad_lhs.shape() != lhs.shape() {
                     while grad_lhs.ndim() > lhs.ndim() {
                         grad_lhs = grad_lhs.sum(0, false)?;
@@ -101,6 +120,15 @@ impl Tensor {
                     if grad_rhs.shape() != rhs.shape() {
                         grad_rhs = grad_rhs.reshape(rhs.shape())?;
                     }
+                }
+
+                // Convert gradients back to original dtypes if needed
+                if grad_lhs.dtype() != lhs.dtype() {
+                    grad_lhs = promote_tensor(&grad_lhs, lhs.dtype())?;
+                }
+
+                if grad_rhs.dtype() != rhs.dtype() {
+                    grad_rhs = promote_tensor(&grad_rhs, rhs.dtype())?;
                 }
 
                 Ok(vec![grad_lhs, grad_rhs])

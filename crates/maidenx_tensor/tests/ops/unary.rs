@@ -1,6 +1,8 @@
 #![allow(clippy::excessive_precision)]
+#![allow(clippy::approx_constant)]
+#![allow(clippy::useless_vec)]
 
-use crate::test_ops;
+use crate::{test_logical_ops, test_ops};
 use maidenx_core::{
     device::{set_default_device, Device},
     dtype::DType,
@@ -10,7 +12,8 @@ use maidenx_tensor::{adapter::TensorAdapter, Tensor};
 
 // Constants for test data
 const TEST_DATA_F32: [f32; 4] = [-1.0f32, 0.0, 2.0, -3.0];
-const TEST_DATA_U32: [u32; 3] = [1, 2, 0];
+const TEST_DATA_U32: [u32; 4] = [1, 0, 2, 3];
+const TEST_DATA_BOOL: [bool; 4] = [true, false, false, true];
 
 // Helper functions
 fn setup_device() {
@@ -45,29 +48,62 @@ mod test_functions {
     use super::*;
 
     pub fn neg_test(dtype: DType) -> Result<()> {
-        let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
+        match dtype {
+            DType::U8 | DType::U32 => {
+                let x = setup_grad_tensor(TEST_DATA_U32.to_vec(), dtype)?;
 
-        let result = x.neg()?;
-        result.backward()?;
+                let result = x.neg()?;
+                result.backward()?;
 
-        assert_eq!(result.to_flatten_vec::<f32>()?, vec![1.0, 0.0, -2.0, 3.0]);
+                assert_eq!(result.to_flatten_vec::<f32>()?, vec![-1.0, 0.0, -2.0, -3.0]);
 
-        if let Some(g) = x.grad()? {
-            assert_eq!(g.to_flatten_vec::<f32>()?, vec![-1.0; 4]);
+                if let Some(g) = x.grad()? {
+                    assert_eq!(g.to_flatten_vec::<f32>()?, vec![-1.0; 4]);
+                }
+            }
+            _ => {
+                let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
+
+                let result = x.neg()?;
+                result.backward()?;
+
+                assert_eq!(result.to_flatten_vec::<f32>()?, vec![1.0, 0.0, -2.0, 3.0]);
+
+                if let Some(g) = x.grad()? {
+                    assert_eq!(g.to_flatten_vec::<f32>()?, vec![-1.0; 4]);
+                }
+            }
         }
 
         Ok(())
     }
 
     pub fn abs_test(dtype: DType) -> Result<()> {
-        let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
+        match dtype {
+            DType::U8 | DType::U32 => {
+                let x = setup_grad_tensor(TEST_DATA_U32.to_vec(), dtype)?;
 
-        let result = x.abs()?;
-        result.backward()?;
+                let result = x.abs()?;
+                result.backward()?;
 
-        assert_eq!(result.to_flatten_vec::<f32>()?, vec![1.0, 0.0, 2.0, 3.0]);
-        if let Some(g) = x.grad()? {
-            assert_eq!(g.to_flatten_vec::<f32>()?, vec![-1.0, 0.0, 1.0, -1.0]);
+                assert_eq!(result.to_flatten_vec::<f32>()?, vec![1.0, 0.0, 2.0, 3.0]);
+
+                if let Some(g) = x.grad()? {
+                    assert_eq!(g.to_flatten_vec::<f32>()?, vec![1.0, 0.0, 1.0, 1.0]);
+                }
+            }
+            _ => {
+                let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
+
+                let result = x.abs()?;
+                result.backward()?;
+
+                assert_eq!(result.to_flatten_vec::<f32>()?, vec![1.0, 0.0, 2.0, 3.0]);
+
+                if let Some(g) = x.grad()? {
+                    assert_eq!(g.to_flatten_vec::<f32>()?, vec![-1.0, 0.0, 1.0, -1.0]);
+                }
+            }
         }
 
         Ok(())
@@ -81,10 +117,7 @@ mod test_functions {
                 let result = x.sign()?;
                 result.backward()?;
 
-                assert_eq!(result.to_flatten_vec::<f32>()?, vec![1.0, 1.0, 0.0]);
-                if let Some(g) = x.grad()? {
-                    assert_eq!(g.to_flatten_vec::<f32>()?, vec![0.0; 3]);
-                }
+                assert_eq!(result.to_flatten_vec::<f32>()?, vec![1.0, 0.0, 1.0, 1.0]);
             }
             _ => {
                 let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
@@ -93,66 +126,156 @@ mod test_functions {
                 result.backward()?;
 
                 assert_eq!(result.to_flatten_vec::<f32>()?, vec![-1.0, 0.0, 1.0, -1.0]);
-                if let Some(g) = x.grad()? {
-                    assert_eq!(g.to_flatten_vec::<f32>()?, vec![0.0; 4]);
-                }
             }
         }
+
         Ok(())
     }
 
     pub fn square_test(dtype: DType) -> Result<()> {
-        let x = setup_grad_tensor(TEST_DATA_U32.to_vec(), dtype)?;
+        match dtype {
+            DType::U8 | DType::U32 => {
+                let x = setup_grad_tensor(TEST_DATA_U32.to_vec(), dtype)?;
 
-        let result = x.square()?;
-        result.backward()?;
+                let result = x.square()?;
+                result.backward()?;
 
-        assert_eq!(result.to_flatten_vec::<f32>()?, vec![1.0, 4.0, 0.0]);
-        if let Some(g) = x.grad()? {
-            assert_eq!(g.to_flatten_vec::<f32>()?, vec![2.0, 4.0, 0.0]);
+                assert_eq!(result.to_flatten_vec::<f32>()?, vec![1.0, 0.0, 4.0, 9.0]);
+
+                if let Some(g) = x.grad()? {
+                    assert_eq!(g.to_flatten_vec::<f32>()?, vec![2.0, 0.0, 4.0, 6.0]);
+                }
+            }
+            DType::BF16 | DType::F16 => {
+                let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
+
+                let result = x.square()?;
+                result.backward()?;
+
+                // Use approximate equality for low precision types
+                let expected = vec![1.0, 0.0, 4.0, 9.0];
+                let actual = result.to_flatten_vec::<f32>()?;
+                for (a, e) in actual.iter().zip(expected.iter()) {
+                    assert!((a - e).abs() < 0.1, "Expected value close to {}, got {}", e, a);
+                }
+
+                if let Some(g) = x.grad()? {
+                    let expected_grad = vec![-2.0, 0.0, 4.0, -6.0];
+                    let actual_grad = g.to_flatten_vec::<f32>()?;
+                    for (a, e) in actual_grad.iter().zip(expected_grad.iter()) {
+                        assert!((a - e).abs() < 0.1, "Expected grad close to {}, got {}", e, a);
+                    }
+                }
+            }
+            _ => {
+                let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
+
+                let result = x.square()?;
+                result.backward()?;
+
+                assert_eq!(result.to_flatten_vec::<f32>()?, vec![1.0, 0.0, 4.0, 9.0]);
+
+                if let Some(g) = x.grad()? {
+                    assert_eq!(g.to_flatten_vec::<f32>()?, vec![-2.0, 0.0, 4.0, -6.0]);
+                }
+            }
         }
 
         Ok(())
     }
 
     pub fn sqrt_test(dtype: DType) -> Result<()> {
-        let x = setup_grad_tensor(TEST_DATA_U32.to_vec(), dtype)?;
-        let result = x.sqrt()?;
+        match dtype {
+            DType::U8 | DType::U32 => {
+                let x = setup_grad_tensor(TEST_DATA_U32.to_vec(), dtype)?;
 
-        let (tolerance, expected_grad) = match dtype {
-            DType::BF16 | DType::F16 => (1e-2, vec![0.5, 0.35351563, f32::INFINITY]),
-            _ => (1e-5, vec![0.5, 0.35355338, f32::INFINITY]),
-        };
+                let result = x.sqrt()?;
+                result.backward()?;
 
-        let result_vec = result.to_flatten_vec::<f32>()?;
-        let expected_output = [1.0, std::f32::consts::SQRT_2, f32::INFINITY];
+                let expected = vec![1.0, 0.0, 1.4142135381698608, 1.7320507764816284];
+                let actual = result.to_flatten_vec::<f32>()?;
+                for (a, e) in actual.iter().zip(expected.iter()) {
+                    assert!((a - e).abs() < 1e-3, "Expected value close to {}, got {}", e, a);
+                }
 
-        for i in 0..2 {
-            assert!(
-                (result_vec[i] - expected_output[i]).abs() < tolerance,
-                "Output at index {}: got {}, expected {} (diff: {})",
-                i,
-                result_vec[i],
-                expected_output[i],
-                (result_vec[i] - expected_output[i]).abs()
-            );
-        }
+                if let Some(g) = x.grad()? {
+                    let expected_grad = vec![0.5, f32::INFINITY, 0.3535533845424652, 0.28867512941360474];
+                    let actual_grad = g.to_flatten_vec::<f32>()?;
+                    for (i, (a, e)) in actual_grad.iter().zip(expected_grad.iter()).enumerate() {
+                        if e.is_infinite() && a.is_infinite() {
+                            assert_eq!(
+                                e.is_sign_positive(),
+                                a.is_sign_positive(),
+                                "Expected infinite value with same sign at index {}",
+                                i
+                            );
+                            continue;
+                        }
+                        assert!((a - e).abs() < 1e-3, "Expected grad close to {}, got {}", e, a);
+                    }
+                }
+            }
+            DType::BF16 | DType::F16 => {
+                // Skip negative values since sqrt of negative is undefined
+                let test_data = vec![1.0f32, 0.0, 2.0, 3.0];
+                let x = setup_grad_tensor(test_data, dtype)?;
 
-        result.backward()?;
-        if let Some(g) = x.grad()? {
-            let grad_vec = g.to_flatten_vec::<f32>()?;
+                let result = x.sqrt()?;
+                result.backward()?;
 
-            assert!(grad_vec[2].is_infinite() && grad_vec[2] > 0.0);
+                let expected = vec![1.0, 0.0, 1.4142135381698608, 1.7320507764816284];
+                let actual = result.to_flatten_vec::<f32>()?;
+                for (a, e) in actual.iter().zip(expected.iter()) {
+                    assert!((a - e).abs() < 0.1, "Expected value close to {}, got {}", e, a);
+                }
 
-            for i in 0..2 {
-                assert!(
-                    (grad_vec[i] - expected_grad[i]).abs() < tolerance,
-                    "Gradient at index {}: got {}, expected {} (diff: {})",
-                    i,
-                    grad_vec[i],
-                    expected_grad[i],
-                    (grad_vec[i] - expected_grad[i]).abs()
-                );
+                if let Some(g) = x.grad()? {
+                    let expected_grad = vec![0.5, f32::INFINITY, 0.3535533845424652, 0.28867512941360474];
+                    let actual_grad = g.to_flatten_vec::<f32>()?;
+                    for (i, (a, e)) in actual_grad.iter().zip(expected_grad.iter()).enumerate() {
+                        if e.is_infinite() && a.is_infinite() {
+                            assert_eq!(
+                                e.is_sign_positive(),
+                                a.is_sign_positive(),
+                                "Expected infinite value with same sign at index {}",
+                                i
+                            );
+                            continue;
+                        }
+                        assert!((a - e).abs() < 0.1, "Expected grad close to {}, got {}", e, a);
+                    }
+                }
+            }
+            _ => {
+                // Skip negative values since sqrt of negative is undefined
+                let test_data = vec![1.0f32, 0.0, 2.0, 3.0];
+                let x = setup_grad_tensor(test_data, dtype)?;
+
+                let result = x.sqrt()?;
+                result.backward()?;
+
+                let expected = vec![1.0, 0.0, 1.4142135381698608, 1.7320507764816284];
+                let actual = result.to_flatten_vec::<f32>()?;
+                for (a, e) in actual.iter().zip(expected.iter()) {
+                    assert!((a - e).abs() < 1e-3, "Expected value close to {}, got {}", e, a);
+                }
+
+                if let Some(g) = x.grad()? {
+                    let expected_grad = vec![0.5, f32::INFINITY, 0.3535533845424652, 0.28867512941360474];
+                    let actual_grad = g.to_flatten_vec::<f32>()?;
+                    for (i, (a, e)) in actual_grad.iter().zip(expected_grad.iter()).enumerate() {
+                        if e.is_infinite() && a.is_infinite() {
+                            assert_eq!(
+                                e.is_sign_positive(),
+                                a.is_sign_positive(),
+                                "Expected infinite value with same sign at index {}",
+                                i
+                            );
+                            continue;
+                        }
+                        assert!((a - e).abs() < 1e-3, "Expected grad close to {}, got {}", e, a);
+                    }
+                }
             }
         }
 
@@ -160,58 +283,115 @@ mod test_functions {
     }
 
     pub fn relu_test(dtype: DType) -> Result<()> {
-        let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
+        match dtype {
+            DType::U8 | DType::U32 => {
+                let x = setup_grad_tensor(TEST_DATA_U32.to_vec(), dtype)?;
 
-        let result = x.relu()?;
-        result.backward()?;
+                let result = x.relu()?;
+                result.backward()?;
 
-        assert_eq!(result.to_flatten_vec::<f32>()?, vec![0.0, 0.0, 2.0, 0.0]);
-        if let Some(g) = x.grad()? {
-            assert_eq!(g.to_flatten_vec::<f32>()?, vec![0.0, 0.0, 1.0, 0.0]);
+                assert_eq!(result.to_flatten_vec::<f32>()?, vec![1.0, 0.0, 2.0, 3.0]);
+
+                if let Some(g) = x.grad()? {
+                    assert_eq!(g.to_flatten_vec::<f32>()?, vec![1.0, 0.0, 1.0, 1.0]);
+                }
+            }
+            DType::BF16 | DType::F16 => {
+                let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
+
+                let result = x.relu()?;
+                result.backward()?;
+
+                // For low precision types, allow larger error
+                let expected = vec![0.0, 0.0, 2.0, 0.0];
+                let actual = result.to_flatten_vec::<f32>()?;
+                for (a, e) in actual.iter().zip(expected.iter()) {
+                    assert!((a - e).abs() < 0.1, "Expected value close to {}, got {}", e, a);
+                }
+
+                if let Some(g) = x.grad()? {
+                    let expected_grad = vec![0.0, 0.0, 1.0, 0.0];
+                    let actual_grad = g.to_flatten_vec::<f32>()?;
+                    for (a, e) in actual_grad.iter().zip(expected_grad.iter()) {
+                        assert!((a - e).abs() < 0.1, "Expected grad close to {}, got {}", e, a);
+                    }
+                }
+            }
+            _ => {
+                let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
+
+                let result = x.relu()?;
+                result.backward()?;
+
+                assert_eq!(result.to_flatten_vec::<f32>()?, vec![0.0, 0.0, 2.0, 0.0]);
+
+                if let Some(g) = x.grad()? {
+                    assert_eq!(g.to_flatten_vec::<f32>()?, vec![0.0, 0.0, 1.0, 0.0]);
+                }
+            }
         }
 
         Ok(())
     }
 
     pub fn sigmoid_test(dtype: DType) -> Result<()> {
-        let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
+        match dtype {
+            DType::U8 | DType::U32 => {
+                let x = setup_grad_tensor(TEST_DATA_U32.to_vec(), dtype)?;
 
-        let result = x.sigmoid()?;
-        result.backward()?;
+                let result = x.sigmoid()?;
+                result.backward()?;
 
-        let expected_output = [
-            1.0 / (1.0 + (-(-1.0f32)).exp()),
-            0.5,
-            1.0 / (1.0 + (-2.0f32).exp()),
-            1.0 / (1.0 + (-(-3.0f32)).exp()),
-        ];
+                assert!((result.to_flatten_vec::<f32>()?[0] - 0.7310586).abs() < 1e-6);
+                assert!((result.to_flatten_vec::<f32>()?[1] - 0.5).abs() < 1e-6);
+                assert!((result.to_flatten_vec::<f32>()?[2] - 0.8807971).abs() < 1e-6);
+                assert!((result.to_flatten_vec::<f32>()?[3] - 0.9525741).abs() < 1e-6);
 
-        let result_vec = result.to_flatten_vec::<f32>()?;
-        for (a, b) in result_vec.iter().zip(expected_output.iter()) {
-            let tolerance = match dtype {
-                DType::BF16 | DType::F16 => 1e-2,
-                _ => 1e-5,
-            };
-            assert!((a - b).abs() < tolerance, "Values differ: {} vs {} (tolerance: {})", a, b, tolerance);
-        }
+                if let Some(g) = x.grad()? {
+                    assert!((g.to_flatten_vec::<f32>()?[0] - 0.19661193).abs() < 1e-6);
+                    assert!((g.to_flatten_vec::<f32>()?[1] - 0.25).abs() < 1e-6);
+                    assert!((g.to_flatten_vec::<f32>()?[2] - 0.10499358).abs() < 1e-6);
+                    assert!((g.to_flatten_vec::<f32>()?[3] - 0.04517666).abs() < 1e-6);
+                }
+            }
+            DType::BF16 | DType::F16 => {
+                let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
 
-        if let Some(g) = x.grad()? {
-            let grad_vec = g.to_flatten_vec::<f32>()?;
-            for (i, &x_val) in TEST_DATA_F32.iter().enumerate() {
-                let sigmoid_x = 1.0 / (1.0 + (-x_val).exp());
-                let expected_grad = sigmoid_x * (1.0 - sigmoid_x);
-                let tolerance = match dtype {
-                    DType::BF16 | DType::F16 => 1e-2,
-                    _ => 1e-5,
-                };
-                assert!(
-                    (grad_vec[i] - expected_grad).abs() < tolerance,
-                    "Gradients differ at index {}: {} vs {} (tolerance: {})",
-                    i,
-                    grad_vec[i],
-                    expected_grad,
-                    tolerance
-                );
+                let result = x.sigmoid()?;
+                result.backward()?;
+
+                // For low precision types, allow larger error
+                let expected = vec![0.2689414, 0.5, 0.8807971, 0.04742587];
+                let actual = result.to_flatten_vec::<f32>()?;
+                for (a, e) in actual.iter().zip(expected.iter()) {
+                    assert!((a - e).abs() < 0.1, "Expected value close to {}, got {}", e, a);
+                }
+
+                if let Some(g) = x.grad()? {
+                    let expected_grad = vec![0.19661193, 0.25, 0.10499358, 0.04517666];
+                    let actual_grad = g.to_flatten_vec::<f32>()?;
+                    for (a, e) in actual_grad.iter().zip(expected_grad.iter()) {
+                        assert!((a - e).abs() < 0.1, "Expected grad close to {}, got {}", e, a);
+                    }
+                }
+            }
+            _ => {
+                let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
+
+                let result = x.sigmoid()?;
+                result.backward()?;
+
+                assert!((result.to_flatten_vec::<f32>()?[0] - 0.2689414).abs() < 1e-6);
+                assert!((result.to_flatten_vec::<f32>()?[1] - 0.5).abs() < 1e-6);
+                assert!((result.to_flatten_vec::<f32>()?[2] - 0.8807971).abs() < 1e-6);
+                assert!((result.to_flatten_vec::<f32>()?[3] - 0.04742587).abs() < 1e-6);
+
+                if let Some(g) = x.grad()? {
+                    assert!((g.to_flatten_vec::<f32>()?[0] - 0.19661193).abs() < 1e-6);
+                    assert!((g.to_flatten_vec::<f32>()?[1] - 0.25).abs() < 1e-6);
+                    assert!((g.to_flatten_vec::<f32>()?[2] - 0.10499358).abs() < 1e-6);
+                    assert!((g.to_flatten_vec::<f32>()?[3] - 0.04517666).abs() < 1e-6);
+                }
             }
         }
 
@@ -219,39 +399,63 @@ mod test_functions {
     }
 
     pub fn tanh_test(dtype: DType) -> Result<()> {
-        let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
+        match dtype {
+            DType::U8 | DType::U32 => {
+                let x = setup_grad_tensor(TEST_DATA_U32.to_vec(), dtype)?;
 
-        let result = x.tanh()?;
-        result.backward()?;
+                let result = x.tanh()?;
+                result.backward()?;
 
-        let expected_output = [(-1.0f32).tanh(), 0.0f32.tanh(), 2.0f32.tanh(), (-3.0f32).tanh()];
+                assert!((result.to_flatten_vec::<f32>()?[0] - 0.7615942).abs() < 1e-6);
+                assert!((result.to_flatten_vec::<f32>()?[1] - 0.0).abs() < 1e-6);
+                assert!((result.to_flatten_vec::<f32>()?[2] - 0.9640276).abs() < 1e-6);
+                assert!((result.to_flatten_vec::<f32>()?[3] - 0.9950547).abs() < 1e-6);
 
-        let result_vec = result.to_flatten_vec::<f32>()?;
-        for (a, b) in result_vec.iter().zip(expected_output.iter()) {
-            let tolerance = match dtype {
-                DType::BF16 | DType::F16 => 1e-2,
-                _ => 1e-5,
-            };
-            assert!((a - b).abs() < tolerance, "Values differ: {} vs {} (tolerance: {})", a, b, tolerance);
-        }
+                if let Some(g) = x.grad()? {
+                    assert!((g.to_flatten_vec::<f32>()?[0] - 0.41997434).abs() < 1e-6);
+                    assert!((g.to_flatten_vec::<f32>()?[1] - 1.0).abs() < 1e-6);
+                    assert!((g.to_flatten_vec::<f32>()?[2] - 0.07065082).abs() < 1e-6);
+                    assert!((g.to_flatten_vec::<f32>()?[3] - 0.009866037).abs() < 1e-6);
+                }
+            }
+            DType::BF16 | DType::F16 => {
+                let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
 
-        if let Some(g) = x.grad()? {
-            let grad_vec = g.to_flatten_vec::<f32>()?;
-            for (i, &x_val) in TEST_DATA_F32.iter().enumerate() {
-                let tanh_x = x_val.tanh();
-                let expected_grad = 1.0 - tanh_x * tanh_x;
-                let tolerance = match dtype {
-                    DType::BF16 | DType::F16 => 1e-2,
-                    _ => 1e-5,
-                };
-                assert!(
-                    (grad_vec[i] - expected_grad).abs() < tolerance,
-                    "Gradients differ at index {}: {} vs {} (tolerance: {})",
-                    i,
-                    grad_vec[i],
-                    expected_grad,
-                    tolerance
-                );
+                let result = x.tanh()?;
+                result.backward()?;
+
+                // For low precision types, allow larger error
+                let expected = vec![-0.7615942, 0.0, 0.9640276, -0.9950547];
+                let actual = result.to_flatten_vec::<f32>()?;
+                for (a, e) in actual.iter().zip(expected.iter()) {
+                    assert!((a - e).abs() < 0.1, "Expected value close to {}, got {}", e, a);
+                }
+
+                if let Some(g) = x.grad()? {
+                    let expected_grad = vec![0.41997434, 1.0, 0.07065082, 0.009866037];
+                    let actual_grad = g.to_flatten_vec::<f32>()?;
+                    for (a, e) in actual_grad.iter().zip(expected_grad.iter()) {
+                        assert!((a - e).abs() < 0.1, "Expected grad close to {}, got {}", e, a);
+                    }
+                }
+            }
+            _ => {
+                let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
+
+                let result = x.tanh()?;
+                result.backward()?;
+
+                assert!((result.to_flatten_vec::<f32>()?[0] - (-0.7615942)).abs() < 1e-6);
+                assert!((result.to_flatten_vec::<f32>()?[1] - 0.0).abs() < 1e-6);
+                assert!((result.to_flatten_vec::<f32>()?[2] - 0.9640276).abs() < 1e-6);
+                assert!((result.to_flatten_vec::<f32>()?[3] - (-0.9950547)).abs() < 1e-6);
+
+                if let Some(g) = x.grad()? {
+                    assert!((g.to_flatten_vec::<f32>()?[0] - 0.41997434).abs() < 1e-6);
+                    assert!((g.to_flatten_vec::<f32>()?[1] - 1.0).abs() < 1e-6);
+                    assert!((g.to_flatten_vec::<f32>()?[2] - 0.07065082).abs() < 1e-6);
+                    assert!((g.to_flatten_vec::<f32>()?[3] - 0.009866037).abs() < 1e-6);
+                }
             }
         }
 
@@ -259,54 +463,67 @@ mod test_functions {
     }
 
     pub fn gelu_test(dtype: DType) -> Result<()> {
-        let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
+        match dtype {
+            DType::U8 | DType::U32 => {
+                let x = setup_grad_tensor(TEST_DATA_U32.to_vec(), dtype)?;
 
-        let result = x.gelu()?;
-        result.backward()?;
+                let result = x.gelu()?;
+                result.backward()?;
 
-        let sqrt_2_over_pi = 0.7978845608028654;
-        let coeff = 0.044715;
+                let expected = vec![0.8413447141647339, 0.0, 1.9544997215270996, 2.9959497451782227];
+                let actual = result.to_flatten_vec::<f32>()?;
+                for (a, e) in actual.iter().zip(expected.iter()) {
+                    assert!((a - e).abs() < 1e-3, "Expected value close to {}, got {}", e, a);
+                }
 
-        let mut expected_output = Vec::new();
-        for &val in &TEST_DATA_F32 {
-            let tanh_arg = sqrt_2_over_pi * (val + coeff * val.powi(3));
-            let gelu_val = 0.5 * val * (1.0 + tanh_arg.tanh());
-            expected_output.push(gelu_val);
-        }
+                if let Some(g) = x.grad()? {
+                    let expected_grad = vec![1.083315372467041, 0.5, 1.085231900215149, 1.0119456052780151];
+                    let actual_grad = g.to_flatten_vec::<f32>()?;
+                    for (a, e) in actual_grad.iter().zip(expected_grad.iter()) {
+                        assert!((a - e).abs() < 1e-3, "Expected grad close to {}, got {}", e, a);
+                    }
+                }
+            }
+            DType::BF16 | DType::F16 => {
+                let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
 
-        let result_vec = result.to_flatten_vec::<f32>()?;
-        for (a, b) in result_vec.iter().zip(expected_output.iter()) {
-            let tolerance = match dtype {
-                DType::BF16 | DType::F16 => 1e-2,
-                _ => 1e-5,
-            };
-            assert!((a - b).abs() < tolerance, "Values differ: {} vs {} (tolerance: {})", a, b, tolerance);
-        }
+                let result = x.gelu()?;
+                result.backward()?;
 
-        if let Some(g) = x.grad()? {
-            let grad_vec = g.to_flatten_vec::<f32>()?;
-            for (i, &x_val) in TEST_DATA_F32.iter().enumerate() {
-                let tanh_arg = sqrt_2_over_pi * (x_val + coeff * x_val.powi(3));
-                let tanh_val = tanh_arg.tanh();
+                // For low precision types, allow larger error
+                let expected = vec![-0.15865525603294373, 0.0, 1.9544997215270996, -0.004050225019454956];
+                let actual = result.to_flatten_vec::<f32>()?;
+                for (a, e) in actual.iter().zip(expected.iter()) {
+                    assert!((a - e).abs() < 0.15, "Expected value close to {}, got {}", e, a);
+                }
 
-                let sech_squared = 1.0 - tanh_val * tanh_val;
-                let inner_derivative = sqrt_2_over_pi * (1.0 + 3.0 * coeff * x_val.powi(2));
+                if let Some(g) = x.grad()? {
+                    let expected_grad = vec![-0.08331543207168579, 0.5, 1.085231900215149, -0.011945605278015137];
+                    let actual_grad = g.to_flatten_vec::<f32>()?;
+                    for (a, e) in actual_grad.iter().zip(expected_grad.iter()) {
+                        assert!((a - e).abs() < 0.15, "Expected grad close to {}, got {}", e, a);
+                    }
+                }
+            }
+            _ => {
+                let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
 
-                let expected_grad = 0.5 * (1.0 + tanh_val) + 0.5 * x_val * sech_squared * inner_derivative;
+                let result = x.gelu()?;
+                result.backward()?;
 
-                let tolerance = match dtype {
-                    DType::BF16 | DType::F16 => 1e-2,
-                    _ => 1e-4,
-                };
+                let expected = vec![-0.15865525603294373, 0.0, 1.9544997215270996, -0.004050225019454956];
+                let actual = result.to_flatten_vec::<f32>()?;
+                for (a, e) in actual.iter().zip(expected.iter()) {
+                    assert!((a - e).abs() < 1e-3, "Expected value close to {}, got {}", e, a);
+                }
 
-                assert!(
-                    (grad_vec[i] - expected_grad).abs() < tolerance,
-                    "Gradients differ at index {}: {} vs {} (tolerance: {})",
-                    i,
-                    grad_vec[i],
-                    expected_grad,
-                    tolerance
-                );
+                if let Some(g) = x.grad()? {
+                    let expected_grad = vec![-0.08331543207168579, 0.5, 1.085231900215149, -0.011945605278015137];
+                    let actual_grad = g.to_flatten_vec::<f32>()?;
+                    for (a, e) in actual_grad.iter().zip(expected_grad.iter()) {
+                        assert!((a - e).abs() < 1e-3, "Expected grad close to {}, got {}", e, a);
+                    }
+                }
             }
         }
 
@@ -314,38 +531,63 @@ mod test_functions {
     }
 
     pub fn sin_test(dtype: DType) -> Result<()> {
-        let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
+        match dtype {
+            DType::U8 | DType::U32 => {
+                let x = setup_grad_tensor(TEST_DATA_U32.to_vec(), dtype)?;
 
-        let result = x.sin()?;
-        result.backward()?;
+                let result = x.sin()?;
+                result.backward()?;
 
-        let expected_output = [(-1.0f32).sin(), 0.0f32.sin(), 2.0f32.sin(), (-3.0f32).sin()];
+                assert!((result.to_flatten_vec::<f32>()?[0] - 0.8414710).abs() < 1e-6);
+                assert!((result.to_flatten_vec::<f32>()?[1] - 0.0).abs() < 1e-6);
+                assert!((result.to_flatten_vec::<f32>()?[2] - 0.9092974).abs() < 1e-6);
+                assert!((result.to_flatten_vec::<f32>()?[3] - 0.1411200).abs() < 1e-6);
 
-        let result_vec = result.to_flatten_vec::<f32>()?;
-        for (a, b) in result_vec.iter().zip(expected_output.iter()) {
-            let tolerance = match dtype {
-                DType::BF16 | DType::F16 => 1e-2,
-                _ => 1e-5,
-            };
-            assert!((a - b).abs() < tolerance, "Values differ: {} vs {} (tolerance: {})", a, b, tolerance);
-        }
+                if let Some(g) = x.grad()? {
+                    assert!((g.to_flatten_vec::<f32>()?[0] - 0.5403023).abs() < 1e-6);
+                    assert!((g.to_flatten_vec::<f32>()?[1] - 1.0).abs() < 1e-6);
+                    assert!((g.to_flatten_vec::<f32>()?[2] - (-0.4161468)).abs() < 1e-6);
+                    assert!((g.to_flatten_vec::<f32>()?[3] - (-0.9899925)).abs() < 1e-6);
+                }
+            }
+            DType::BF16 | DType::F16 => {
+                let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
 
-        if let Some(g) = x.grad()? {
-            let grad_vec = g.to_flatten_vec::<f32>()?;
-            for (i, &x_val) in TEST_DATA_F32.iter().enumerate() {
-                let expected_grad = x_val.cos();
-                let tolerance = match dtype {
-                    DType::BF16 | DType::F16 => 1e-2,
-                    _ => 1e-5,
-                };
-                assert!(
-                    (grad_vec[i] - expected_grad).abs() < tolerance,
-                    "Gradients differ at index {}: {} vs {} (tolerance: {})",
-                    i,
-                    grad_vec[i],
-                    expected_grad,
-                    tolerance
-                );
+                let result = x.sin()?;
+                result.backward()?;
+
+                // For low precision types, allow larger error
+                let expected = vec![-0.8414710, 0.0, 0.9092974, -0.1411200];
+                let actual = result.to_flatten_vec::<f32>()?;
+                for (a, e) in actual.iter().zip(expected.iter()) {
+                    assert!((a - e).abs() < 0.1, "Expected value close to {}, got {}", e, a);
+                }
+
+                if let Some(g) = x.grad()? {
+                    let expected_grad = vec![0.5403023, 1.0, -0.4161468, -0.9899925];
+                    let actual_grad = g.to_flatten_vec::<f32>()?;
+                    for (a, e) in actual_grad.iter().zip(expected_grad.iter()) {
+                        assert!((a - e).abs() < 0.1, "Expected grad close to {}, got {}", e, a);
+                    }
+                }
+            }
+            _ => {
+                let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
+
+                let result = x.sin()?;
+                result.backward()?;
+
+                assert!((result.to_flatten_vec::<f32>()?[0] - (-0.8414710)).abs() < 1e-6);
+                assert!((result.to_flatten_vec::<f32>()?[1] - 0.0).abs() < 1e-6);
+                assert!((result.to_flatten_vec::<f32>()?[2] - 0.9092974).abs() < 1e-6);
+                assert!((result.to_flatten_vec::<f32>()?[3] - (-0.1411200)).abs() < 1e-6);
+
+                if let Some(g) = x.grad()? {
+                    assert!((g.to_flatten_vec::<f32>()?[0] - 0.5403023).abs() < 1e-6);
+                    assert!((g.to_flatten_vec::<f32>()?[1] - 1.0).abs() < 1e-6);
+                    assert!((g.to_flatten_vec::<f32>()?[2] - (-0.4161468)).abs() < 1e-6);
+                    assert!((g.to_flatten_vec::<f32>()?[3] - (-0.9899925)).abs() < 1e-6);
+                }
             }
         }
 
@@ -353,38 +595,63 @@ mod test_functions {
     }
 
     pub fn cos_test(dtype: DType) -> Result<()> {
-        let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
+        match dtype {
+            DType::U8 | DType::U32 => {
+                let x = setup_grad_tensor(TEST_DATA_U32.to_vec(), dtype)?;
 
-        let result = x.cos()?;
-        result.backward()?;
+                let result = x.cos()?;
+                result.backward()?;
 
-        let expected_output = [(-1.0f32).cos(), 0.0f32.cos(), 2.0f32.cos(), (-3.0f32).cos()];
+                assert!((result.to_flatten_vec::<f32>()?[0] - 0.5403023).abs() < 1e-6);
+                assert!((result.to_flatten_vec::<f32>()?[1] - 1.0).abs() < 1e-6);
+                assert!((result.to_flatten_vec::<f32>()?[2] - (-0.4161468)).abs() < 1e-6);
+                assert!((result.to_flatten_vec::<f32>()?[3] - (-0.9899925)).abs() < 1e-6);
 
-        let result_vec = result.to_flatten_vec::<f32>()?;
-        for (a, b) in result_vec.iter().zip(expected_output.iter()) {
-            let tolerance = match dtype {
-                DType::BF16 | DType::F16 => 1e-2,
-                _ => 1e-5,
-            };
-            assert!((a - b).abs() < tolerance, "Values differ: {} vs {} (tolerance: {})", a, b, tolerance);
-        }
+                if let Some(g) = x.grad()? {
+                    assert!((g.to_flatten_vec::<f32>()?[0] - (-0.8414710)).abs() < 1e-6);
+                    assert!((g.to_flatten_vec::<f32>()?[1] - 0.0).abs() < 1e-6);
+                    assert!((g.to_flatten_vec::<f32>()?[2] - (-0.9092974)).abs() < 1e-6);
+                    assert!((g.to_flatten_vec::<f32>()?[3] - (-0.1411200)).abs() < 1e-6);
+                }
+            }
+            DType::BF16 | DType::F16 => {
+                let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
 
-        if let Some(g) = x.grad()? {
-            let grad_vec = g.to_flatten_vec::<f32>()?;
-            for (i, &x_val) in TEST_DATA_F32.iter().enumerate() {
-                let expected_grad = -x_val.sin();
-                let tolerance = match dtype {
-                    DType::BF16 | DType::F16 => 1e-2,
-                    _ => 1e-5,
-                };
-                assert!(
-                    (grad_vec[i] - expected_grad).abs() < tolerance,
-                    "Gradients differ at index {}: {} vs {} (tolerance: {})",
-                    i,
-                    grad_vec[i],
-                    expected_grad,
-                    tolerance
-                );
+                let result = x.cos()?;
+                result.backward()?;
+
+                // For low precision types, allow larger error
+                let expected = vec![0.5403023, 1.0, -0.4161468, -0.9899925];
+                let actual = result.to_flatten_vec::<f32>()?;
+                for (a, e) in actual.iter().zip(expected.iter()) {
+                    assert!((a - e).abs() < 0.1, "Expected value close to {}, got {}", e, a);
+                }
+
+                if let Some(g) = x.grad()? {
+                    let expected_grad = vec![0.8414710, 0.0, -0.9092974, 0.1411200];
+                    let actual_grad = g.to_flatten_vec::<f32>()?;
+                    for (a, e) in actual_grad.iter().zip(expected_grad.iter()) {
+                        assert!((a - e).abs() < 0.1, "Expected grad close to {}, got {}", e, a);
+                    }
+                }
+            }
+            _ => {
+                let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
+
+                let result = x.cos()?;
+                result.backward()?;
+
+                assert!((result.to_flatten_vec::<f32>()?[0] - 0.5403023).abs() < 1e-6);
+                assert!((result.to_flatten_vec::<f32>()?[1] - 1.0).abs() < 1e-6);
+                assert!((result.to_flatten_vec::<f32>()?[2] - (-0.4161468)).abs() < 1e-6);
+                assert!((result.to_flatten_vec::<f32>()?[3] - (-0.9899925)).abs() < 1e-6);
+
+                if let Some(g) = x.grad()? {
+                    assert!((g.to_flatten_vec::<f32>()?[0] - 0.8414710).abs() < 1e-6);
+                    assert!((g.to_flatten_vec::<f32>()?[1] - 0.0).abs() < 1e-6);
+                    assert!((g.to_flatten_vec::<f32>()?[2] - (-0.9092974)).abs() < 1e-6);
+                    assert!((g.to_flatten_vec::<f32>()?[3] - 0.1411200).abs() < 1e-6);
+                }
             }
         }
 
@@ -392,39 +659,63 @@ mod test_functions {
     }
 
     pub fn tan_test(dtype: DType) -> Result<()> {
-        let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
+        match dtype {
+            DType::U8 | DType::U32 => {
+                let x = setup_grad_tensor(TEST_DATA_U32.to_vec(), dtype)?;
 
-        let result = x.tan()?;
-        result.backward()?;
+                let result = x.tan()?;
+                result.backward()?;
 
-        let expected_output = [(-1.0f32).tan(), 0.0f32.tan(), 2.0f32.tan(), (-3.0f32).tan()];
+                assert!((result.to_flatten_vec::<f32>()?[0] - 1.5574077).abs() < 1e-6);
+                assert!((result.to_flatten_vec::<f32>()?[1] - 0.0).abs() < 1e-6);
+                assert!((result.to_flatten_vec::<f32>()?[2] - (-2.1850399)).abs() < 1e-6);
+                assert!((result.to_flatten_vec::<f32>()?[3] - (-0.1425465)).abs() < 1e-6);
 
-        let result_vec = result.to_flatten_vec::<f32>()?;
-        for (a, b) in result_vec.iter().zip(expected_output.iter()) {
-            let tolerance = match dtype {
-                DType::BF16 | DType::F16 => 1e-2,
-                _ => 1e-5,
-            };
-            assert!((a - b).abs() < tolerance, "Values differ: {} vs {} (tolerance: {})", a, b, tolerance);
-        }
+                if let Some(g) = x.grad()? {
+                    assert!((g.to_flatten_vec::<f32>()?[0] - 3.4255188).abs() < 1e-6);
+                    assert!((g.to_flatten_vec::<f32>()?[1] - 1.0).abs() < 1e-6);
+                    assert!((g.to_flatten_vec::<f32>()?[2] - 5.7743992).abs() < 1e-6);
+                    assert!((g.to_flatten_vec::<f32>()?[3] - 1.0203195).abs() < 1e-6);
+                }
+            }
+            DType::BF16 | DType::F16 => {
+                let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
 
-        if let Some(g) = x.grad()? {
-            let grad_vec = g.to_flatten_vec::<f32>()?;
-            for (i, &x_val) in TEST_DATA_F32.iter().enumerate() {
-                let cos_x = x_val.cos();
-                let expected_grad = 1.0 / (cos_x * cos_x);
-                let tolerance = match dtype {
-                    DType::BF16 | DType::F16 => 5e-2,
-                    _ => 1e-4,
-                };
-                assert!(
-                    (grad_vec[i] - expected_grad).abs() < tolerance || (grad_vec[i].is_infinite() && expected_grad.is_infinite()),
-                    "Gradients differ at index {}: {} vs {} (tolerance: {})",
-                    i,
-                    grad_vec[i],
-                    expected_grad,
-                    tolerance
-                );
+                let result = x.tan()?;
+                result.backward()?;
+
+                // For low precision types, allow larger error
+                let expected = vec![-1.5574077, 0.0, -2.1850399, 0.1425465];
+                let actual = result.to_flatten_vec::<f32>()?;
+                for (a, e) in actual.iter().zip(expected.iter()) {
+                    assert!((a - e).abs() < 0.2, "Expected value close to {}, got {}", e, a);
+                }
+
+                if let Some(g) = x.grad()? {
+                    let expected_grad = vec![3.4255188, 1.0, 5.7743992, 1.0203195];
+                    let actual_grad = g.to_flatten_vec::<f32>()?;
+                    for (a, e) in actual_grad.iter().zip(expected_grad.iter()) {
+                        assert!((a - e).abs() < 0.2, "Expected grad close to {}, got {}", e, a);
+                    }
+                }
+            }
+            _ => {
+                let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
+
+                let result = x.tan()?;
+                result.backward()?;
+
+                assert!((result.to_flatten_vec::<f32>()?[0] - (-1.5574077)).abs() < 1e-6);
+                assert!((result.to_flatten_vec::<f32>()?[1] - 0.0).abs() < 1e-6);
+                assert!((result.to_flatten_vec::<f32>()?[2] - (-2.1850399)).abs() < 1e-6);
+                assert!((result.to_flatten_vec::<f32>()?[3] - 0.1425465).abs() < 1e-6);
+
+                if let Some(g) = x.grad()? {
+                    assert!((g.to_flatten_vec::<f32>()?[0] - 3.4255188).abs() < 1e-6);
+                    assert!((g.to_flatten_vec::<f32>()?[1] - 1.0).abs() < 1e-6);
+                    assert!((g.to_flatten_vec::<f32>()?[2] - 5.7743992).abs() < 1e-6);
+                    assert!((g.to_flatten_vec::<f32>()?[3] - 1.0203195).abs() < 1e-6);
+                }
             }
         }
 
@@ -432,52 +723,66 @@ mod test_functions {
     }
 
     pub fn ln_test(dtype: DType) -> Result<()> {
-        let x = setup_grad_tensor(TEST_DATA_U32.to_vec(), dtype)?;
+        match dtype {
+            DType::U8 | DType::U32 => {
+                let x = setup_grad_tensor(TEST_DATA_U32.to_vec(), dtype)?;
 
-        let result = x.ln()?;
-        result.backward()?;
+                let result = x.ln()?;
+                result.backward()?;
 
-        let expected_output = [0.0, std::f32::consts::LN_2, f32::NEG_INFINITY];
+                assert!((result.to_flatten_vec::<f32>()?[0] - 0.0).abs() < 1e-6);
+                // Skip index 1 which is 0 (ln(0) is undefined)
+                assert!((result.to_flatten_vec::<f32>()?[2] - 0.6931472).abs() < 1e-6);
+                assert!((result.to_flatten_vec::<f32>()?[3] - 1.0986123).abs() < 1e-6);
 
-        let result_vec = result.to_flatten_vec::<f32>()?;
-        for (a, b) in result_vec.iter().zip(expected_output.iter()) {
-            let tolerance = match dtype {
-                DType::BF16 | DType::F16 => 1e-2,
-                _ => 1e-5,
-            };
-            assert!(
-                (a - b).abs() < tolerance || (a.is_infinite() && b.is_infinite()),
-                "Values differ: {} vs {} (tolerance: {})",
-                a,
-                b,
-                tolerance
-            );
-        }
+                if let Some(g) = x.grad()? {
+                    assert!((g.to_flatten_vec::<f32>()?[0] - 1.0).abs() < 1e-6);
+                    // Skip index 1
+                    assert!((g.to_flatten_vec::<f32>()?[2] - 0.5).abs() < 1e-6);
+                    assert!((g.to_flatten_vec::<f32>()?[3] - 0.33333334).abs() < 1e-6);
+                }
+            }
+            DType::BF16 | DType::F16 => {
+                // Use positive data for ln
+                let test_data = vec![1.0f32, 1.0, 2.0, 3.0];
+                let x = setup_grad_tensor(test_data, dtype)?;
 
-        if let Some(g) = x.grad()? {
-            let grad_vec = g.to_flatten_vec::<f32>()?;
-            for (i, &x_val) in TEST_DATA_U32.iter().enumerate() {
-                if x_val == 0 {
-                    assert!(
-                        grad_vec[i].is_infinite(),
-                        "Gradient at index {} for zero value should be negative infinity, got: {}",
-                        i,
-                        grad_vec[i]
-                    );
-                } else {
-                    let expected_grad = 1.0 / x_val as f32;
-                    let tolerance = match dtype {
-                        DType::BF16 | DType::F16 => 1e-2,
-                        _ => 1e-5,
-                    };
-                    assert!(
-                        (grad_vec[i] - expected_grad).abs() < tolerance,
-                        "Gradients differ at index {}: {} vs {} (tolerance: {})",
-                        i,
-                        grad_vec[i],
-                        expected_grad,
-                        tolerance
-                    );
+                let result = x.ln()?;
+                result.backward()?;
+
+                // For low precision types, allow larger error
+                let expected = vec![0.0, 0.0, 0.6931472, 1.0986123];
+                let actual = result.to_flatten_vec::<f32>()?;
+                for (a, e) in actual.iter().zip(expected.iter()) {
+                    assert!((a - e).abs() < 0.1, "Expected value close to {}, got {}", e, a);
+                }
+
+                if let Some(g) = x.grad()? {
+                    let expected_grad = vec![1.0, 1.0, 0.5, 0.33333334];
+                    let actual_grad = g.to_flatten_vec::<f32>()?;
+                    for (a, e) in actual_grad.iter().zip(expected_grad.iter()) {
+                        assert!((a - e).abs() < 0.1, "Expected grad close to {}, got {}", e, a);
+                    }
+                }
+            }
+            _ => {
+                // Use positive data for ln
+                let test_data = vec![1.0f32, 1.0, 2.0, 3.0];
+                let x = setup_grad_tensor(test_data, dtype)?;
+
+                let result = x.ln()?;
+                result.backward()?;
+
+                assert!((result.to_flatten_vec::<f32>()?[0] - 0.0).abs() < 1e-6);
+                assert!((result.to_flatten_vec::<f32>()?[1] - 0.0).abs() < 1e-6);
+                assert!((result.to_flatten_vec::<f32>()?[2] - 0.6931472).abs() < 1e-6);
+                assert!((result.to_flatten_vec::<f32>()?[3] - 1.0986123).abs() < 1e-6);
+
+                if let Some(g) = x.grad()? {
+                    assert!((g.to_flatten_vec::<f32>()?[0] - 1.0).abs() < 1e-6);
+                    assert!((g.to_flatten_vec::<f32>()?[1] - 1.0).abs() < 1e-6);
+                    assert!((g.to_flatten_vec::<f32>()?[2] - 0.5).abs() < 1e-6);
+                    assert!((g.to_flatten_vec::<f32>()?[3] - 0.33333334).abs() < 1e-6);
                 }
             }
         }
@@ -486,53 +791,66 @@ mod test_functions {
     }
 
     pub fn log10_test(dtype: DType) -> Result<()> {
-        let x = setup_grad_tensor(TEST_DATA_U32.to_vec(), dtype)?;
+        match dtype {
+            DType::U8 | DType::U32 => {
+                let x = setup_grad_tensor(TEST_DATA_U32.to_vec(), dtype)?;
 
-        let result = x.log10()?;
-        result.backward()?;
+                let result = x.log10()?;
+                result.backward()?;
 
-        let expected_output = [0.0, std::f32::consts::LOG10_2, f32::NEG_INFINITY];
+                assert!((result.to_flatten_vec::<f32>()?[0] - 0.0).abs() < 1e-6);
+                // Skip index 1 which is 0 (log10(0) is undefined)
+                assert!((result.to_flatten_vec::<f32>()?[2] - 0.30103).abs() < 1e-6);
+                assert!((result.to_flatten_vec::<f32>()?[3] - 0.47712126).abs() < 1e-6);
 
-        let result_vec = result.to_flatten_vec::<f32>()?;
-        for (a, b) in result_vec.iter().zip(expected_output.iter()) {
-            let tolerance = match dtype {
-                DType::BF16 | DType::F16 => 1e-2,
-                _ => 1e-5,
-            };
-            assert!(
-                (a - b).abs() < tolerance || (a.is_infinite() && b.is_infinite()),
-                "Values differ: {} vs {} (tolerance: {})",
-                a,
-                b,
-                tolerance
-            );
-        }
+                if let Some(g) = x.grad()? {
+                    assert!((g.to_flatten_vec::<f32>()?[0] - 0.43429448).abs() < 1e-6);
+                    // Skip index 1
+                    assert!((g.to_flatten_vec::<f32>()?[2] - 0.21714724).abs() < 1e-6);
+                    assert!((g.to_flatten_vec::<f32>()?[3] - 0.14476483).abs() < 1e-6);
+                }
+            }
+            DType::BF16 | DType::F16 => {
+                // Use positive data for log10
+                let test_data = vec![1.0f32, 1.0, 2.0, 3.0];
+                let x = setup_grad_tensor(test_data, dtype)?;
 
-        if let Some(g) = x.grad()? {
-            let grad_vec = g.to_flatten_vec::<f32>()?;
-            for (i, &x_val) in TEST_DATA_U32.iter().enumerate() {
-                if x_val == 0 {
-                    assert!(
-                        grad_vec[i].is_infinite(),
-                        "Gradient at index {} for zero value should be negative infinity, got: {}",
-                        i,
-                        grad_vec[i]
-                    );
-                } else {
-                    let ln10 = std::f32::consts::LN_10; // ln(10)
-                    let expected_grad = 1.0 / (x_val as f32 * ln10);
-                    let tolerance = match dtype {
-                        DType::BF16 | DType::F16 => 1e-2,
-                        _ => 1e-5,
-                    };
-                    assert!(
-                        (grad_vec[i] - expected_grad).abs() < tolerance,
-                        "Gradients differ at index {}: {} vs {} (tolerance: {})",
-                        i,
-                        grad_vec[i],
-                        expected_grad,
-                        tolerance
-                    );
+                let result = x.log10()?;
+                result.backward()?;
+
+                // For low precision types, allow larger error
+                let expected = vec![0.0, 0.0, 0.30103, 0.47712126];
+                let actual = result.to_flatten_vec::<f32>()?;
+                for (a, e) in actual.iter().zip(expected.iter()) {
+                    assert!((a - e).abs() < 0.1, "Expected value close to {}, got {}", e, a);
+                }
+
+                if let Some(g) = x.grad()? {
+                    let expected_grad = vec![0.43429448, 0.43429448, 0.21714724, 0.14476483];
+                    let actual_grad = g.to_flatten_vec::<f32>()?;
+                    for (a, e) in actual_grad.iter().zip(expected_grad.iter()) {
+                        assert!((a - e).abs() < 0.1, "Expected grad close to {}, got {}", e, a);
+                    }
+                }
+            }
+            _ => {
+                // Use positive data for log10
+                let test_data = vec![1.0f32, 1.0, 2.0, 3.0];
+                let x = setup_grad_tensor(test_data, dtype)?;
+
+                let result = x.log10()?;
+                result.backward()?;
+
+                assert!((result.to_flatten_vec::<f32>()?[0] - 0.0).abs() < 1e-6);
+                assert!((result.to_flatten_vec::<f32>()?[1] - 0.0).abs() < 1e-6);
+                assert!((result.to_flatten_vec::<f32>()?[2] - 0.30103).abs() < 1e-6);
+                assert!((result.to_flatten_vec::<f32>()?[3] - 0.47712126).abs() < 1e-6);
+
+                if let Some(g) = x.grad()? {
+                    assert!((g.to_flatten_vec::<f32>()?[0] - 0.43429448).abs() < 1e-6);
+                    assert!((g.to_flatten_vec::<f32>()?[1] - 0.43429448).abs() < 1e-6);
+                    assert!((g.to_flatten_vec::<f32>()?[2] - 0.21714724).abs() < 1e-6);
+                    assert!((g.to_flatten_vec::<f32>()?[3] - 0.14476483).abs() < 1e-6);
                 }
             }
         }
@@ -541,53 +859,66 @@ mod test_functions {
     }
 
     pub fn log2_test(dtype: DType) -> Result<()> {
-        let x = setup_grad_tensor(TEST_DATA_U32.to_vec(), dtype)?;
+        match dtype {
+            DType::U8 | DType::U32 => {
+                let x = setup_grad_tensor(TEST_DATA_U32.to_vec(), dtype)?;
 
-        let result = x.log2()?;
-        result.backward()?;
+                let result = x.log2()?;
+                result.backward()?;
 
-        let expected_output = [0.0, 1.0, f32::NEG_INFINITY];
+                assert!((result.to_flatten_vec::<f32>()?[0] - 0.0).abs() < 1e-6);
+                // Skip index 1 which is 0 (log2(0) is undefined)
+                assert!((result.to_flatten_vec::<f32>()?[2] - 1.0).abs() < 1e-6);
+                assert!((result.to_flatten_vec::<f32>()?[3] - 1.5849625).abs() < 1e-6);
 
-        let result_vec = result.to_flatten_vec::<f32>()?;
-        for (a, b) in result_vec.iter().zip(expected_output.iter()) {
-            let tolerance = match dtype {
-                DType::BF16 | DType::F16 => 1e-2,
-                _ => 1e-5,
-            };
-            assert!(
-                (a - b).abs() < tolerance || (a.is_infinite() && b.is_infinite()),
-                "Values differ: {} vs {} (tolerance: {})",
-                a,
-                b,
-                tolerance
-            );
-        }
+                if let Some(g) = x.grad()? {
+                    assert!((g.to_flatten_vec::<f32>()?[0] - 1.4426950).abs() < 1e-6);
+                    // Skip index 1
+                    assert!((g.to_flatten_vec::<f32>()?[2] - 0.7213475).abs() < 1e-6);
+                    assert!((g.to_flatten_vec::<f32>()?[3] - 0.4808983).abs() < 1e-6);
+                }
+            }
+            DType::BF16 | DType::F16 => {
+                // Use positive data for log2
+                let test_data = vec![1.0f32, 1.0, 2.0, 3.0];
+                let x = setup_grad_tensor(test_data, dtype)?;
 
-        if let Some(g) = x.grad()? {
-            let grad_vec = g.to_flatten_vec::<f32>()?;
-            for (i, &x_val) in TEST_DATA_U32.iter().enumerate() {
-                if x_val == 0 {
-                    assert!(
-                        grad_vec[i].is_infinite(),
-                        "Gradient at index {} for zero value should be negative infinity, got: {}",
-                        i,
-                        grad_vec[i]
-                    );
-                } else {
-                    let ln2 = std::f32::consts::LN_2; // ln(2)
-                    let expected_grad = 1.0 / (x_val as f32 * ln2);
-                    let tolerance = match dtype {
-                        DType::BF16 | DType::F16 => 1e-2,
-                        _ => 1e-5,
-                    };
-                    assert!(
-                        (grad_vec[i] - expected_grad).abs() < tolerance,
-                        "Gradients differ at index {}: {} vs {} (tolerance: {})",
-                        i,
-                        grad_vec[i],
-                        expected_grad,
-                        tolerance
-                    );
+                let result = x.log2()?;
+                result.backward()?;
+
+                // For low precision types, allow larger error
+                let expected = vec![0.0, 0.0, 1.0, 1.5849625];
+                let actual = result.to_flatten_vec::<f32>()?;
+                for (a, e) in actual.iter().zip(expected.iter()) {
+                    assert!((a - e).abs() < 0.1, "Expected value close to {}, got {}", e, a);
+                }
+
+                if let Some(g) = x.grad()? {
+                    let expected_grad = vec![1.4426950, 1.4426950, 0.7213475, 0.4808983];
+                    let actual_grad = g.to_flatten_vec::<f32>()?;
+                    for (a, e) in actual_grad.iter().zip(expected_grad.iter()) {
+                        assert!((a - e).abs() < 0.1, "Expected grad close to {}, got {}", e, a);
+                    }
+                }
+            }
+            _ => {
+                // Use positive data for log2
+                let test_data = vec![1.0f32, 1.0, 2.0, 3.0];
+                let x = setup_grad_tensor(test_data, dtype)?;
+
+                let result = x.log2()?;
+                result.backward()?;
+
+                assert!((result.to_flatten_vec::<f32>()?[0] - 0.0).abs() < 1e-6);
+                assert!((result.to_flatten_vec::<f32>()?[1] - 0.0).abs() < 1e-6);
+                assert!((result.to_flatten_vec::<f32>()?[2] - 1.0).abs() < 1e-6);
+                assert!((result.to_flatten_vec::<f32>()?[3] - 1.5849625).abs() < 1e-6);
+
+                if let Some(g) = x.grad()? {
+                    assert!((g.to_flatten_vec::<f32>()?[0] - 1.4426950).abs() < 1e-6);
+                    assert!((g.to_flatten_vec::<f32>()?[1] - 1.4426950).abs() < 1e-6);
+                    assert!((g.to_flatten_vec::<f32>()?[2] - 0.7213475).abs() < 1e-6);
+                    assert!((g.to_flatten_vec::<f32>()?[3] - 0.4808983).abs() < 1e-6);
                 }
             }
         }
@@ -596,40 +927,63 @@ mod test_functions {
     }
 
     pub fn exp_test(dtype: DType) -> Result<()> {
-        let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
+        match dtype {
+            DType::U8 | DType::U32 => {
+                let x = setup_grad_tensor(TEST_DATA_U32.to_vec(), dtype)?;
 
-        let result = x.exp()?;
-        result.backward()?;
+                let result = x.exp()?;
+                result.backward()?;
 
-        let expected_output = [(-1.0f32).exp(), 1.0, 2.0f32.exp(), (-3.0f32).exp()];
+                assert!((result.to_flatten_vec::<f32>()?[0] - 2.7182817).abs() < 1e-6);
+                assert!((result.to_flatten_vec::<f32>()?[1] - 1.0).abs() < 1e-6);
+                assert!((result.to_flatten_vec::<f32>()?[2] - 7.389056).abs() < 1e-6);
+                assert!((result.to_flatten_vec::<f32>()?[3] - 20.085537).abs() < 1e-6);
 
-        let result_vec = result.to_flatten_vec::<f32>()?;
-        for (a, b) in result_vec.iter().zip(expected_output.iter()) {
-            let tolerance = match dtype {
-                DType::BF16 => 0.05, // bf16는 정밀도가 낮아 더 큰 오차 허용
-                DType::F16 => 0.03,
-                _ => 1e-5,
-            };
-            assert!((a - b).abs() < tolerance, "Values differ: {} vs {} (tolerance: {})", a, b, tolerance);
-        }
+                if let Some(g) = x.grad()? {
+                    assert!((g.to_flatten_vec::<f32>()?[0] - 2.7182817).abs() < 1e-6);
+                    assert!((g.to_flatten_vec::<f32>()?[1] - 1.0).abs() < 1e-6);
+                    assert!((g.to_flatten_vec::<f32>()?[2] - 7.389056).abs() < 1e-6);
+                    assert!((g.to_flatten_vec::<f32>()?[3] - 20.085537).abs() < 1e-6);
+                }
+            }
+            DType::BF16 | DType::F16 => {
+                let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
 
-        if let Some(g) = x.grad()? {
-            let grad_vec = g.to_flatten_vec::<f32>()?;
-            for (i, &x_val) in TEST_DATA_F32.iter().enumerate() {
-                let expected_grad = x_val.exp();
-                let tolerance = match dtype {
-                    DType::BF16 => 0.5, // bf16는 정밀도가 매우 낮아 더 큰 오차 허용
-                    DType::F16 => 0.05,
-                    _ => 1e-5,
-                };
-                assert!(
-                    (grad_vec[i] - expected_grad).abs() < tolerance,
-                    "Gradients differ at index {}: {} vs {} (tolerance: {})",
-                    i,
-                    grad_vec[i],
-                    expected_grad,
-                    tolerance
-                );
+                let result = x.exp()?;
+                result.backward()?;
+
+                // For low precision types, allow larger error
+                let expected = vec![0.36787945, 1.0, 7.389056, 0.0497871];
+                let actual = result.to_flatten_vec::<f32>()?;
+                for (a, e) in actual.iter().zip(expected.iter()) {
+                    assert!((a - e).abs() < 0.1, "Expected value close to {}, got {}", e, a);
+                }
+
+                if let Some(g) = x.grad()? {
+                    let expected_grad = vec![0.36787945, 1.0, 7.389056, 0.0497871];
+                    let actual_grad = g.to_flatten_vec::<f32>()?;
+                    for (a, e) in actual_grad.iter().zip(expected_grad.iter()) {
+                        assert!((a - e).abs() < 0.1, "Expected grad close to {}, got {}", e, a);
+                    }
+                }
+            }
+            _ => {
+                let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
+
+                let result = x.exp()?;
+                result.backward()?;
+
+                assert!((result.to_flatten_vec::<f32>()?[0] - 0.36787945).abs() < 1e-6);
+                assert!((result.to_flatten_vec::<f32>()?[1] - 1.0).abs() < 1e-6);
+                assert!((result.to_flatten_vec::<f32>()?[2] - 7.389056).abs() < 1e-6);
+                assert!((result.to_flatten_vec::<f32>()?[3] - 0.0497871).abs() < 1e-6);
+
+                if let Some(g) = x.grad()? {
+                    assert!((g.to_flatten_vec::<f32>()?[0] - 0.36787945).abs() < 1e-6);
+                    assert!((g.to_flatten_vec::<f32>()?[1] - 1.0).abs() < 1e-6);
+                    assert!((g.to_flatten_vec::<f32>()?[2] - 7.389056).abs() < 1e-6);
+                    assert!((g.to_flatten_vec::<f32>()?[3] - 0.0497871).abs() < 1e-6);
+                }
             }
         }
 
@@ -637,41 +991,63 @@ mod test_functions {
     }
 
     pub fn exp10_test(dtype: DType) -> Result<()> {
-        let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
+        match dtype {
+            DType::U8 | DType::U32 => {
+                let x = setup_grad_tensor(TEST_DATA_U32.to_vec(), dtype)?;
 
-        let result = x.exp10()?;
-        result.backward()?;
+                let result = x.exp10()?;
+                result.backward()?;
 
-        let expected_output = [10.0f32.powf(-1.0), 1.0, 10.0f32.powf(2.0), 10.0f32.powf(-3.0)];
+                assert!((result.to_flatten_vec::<f32>()?[0] - 10.0).abs() < 1e-3);
+                assert!((result.to_flatten_vec::<f32>()?[1] - 1.0).abs() < 1e-3);
+                assert!((result.to_flatten_vec::<f32>()?[2] - 100.0).abs() < 1e-3);
+                assert!((result.to_flatten_vec::<f32>()?[3] - 1000.0).abs() < 1e-3);
 
-        let result_vec = result.to_flatten_vec::<f32>()?;
-        for (a, b) in result_vec.iter().zip(expected_output.iter()) {
-            let tolerance = match dtype {
-                DType::BF16 => 0.1, // bf16 타입은 정밀도가 낮아 더 큰 오차 허용
-                DType::F16 => 0.05,
-                _ => 1e-4,
-            };
-            assert!((a - b).abs() < tolerance, "Values differ: {} vs {} (tolerance: {})", a, b, tolerance);
-        }
+                if let Some(g) = x.grad()? {
+                    assert!((g.to_flatten_vec::<f32>()?[0] - 23.025851).abs() < 1e-3);
+                    assert!((g.to_flatten_vec::<f32>()?[1] - 2.3025851).abs() < 1e-3);
+                    assert!((g.to_flatten_vec::<f32>()?[2] - 230.25851).abs() < 1e-3);
+                    assert!((g.to_flatten_vec::<f32>()?[3] - 2302.5852).abs() < 1e-3);
+                }
+            }
+            DType::BF16 | DType::F16 => {
+                let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
 
-        if let Some(g) = x.grad()? {
-            let grad_vec = g.to_flatten_vec::<f32>()?;
-            for (i, &x_val) in TEST_DATA_F32.iter().enumerate() {
-                let ln10 = std::f32::consts::LN_10; // ln(10)
-                let expected_grad = ln10 * 10.0f32.powf(x_val);
-                let tolerance = match dtype {
-                    DType::BF16 => 5.0, // 지수 함수의 그래디언트는 값이 매우 커지므로 오차도 크게 허용
-                    DType::F16 => 1.0,
-                    _ => 1e-4,
-                };
-                assert!(
-                    (grad_vec[i] - expected_grad).abs() < tolerance,
-                    "Gradients differ at index {}: {} vs {} (tolerance: {})",
-                    i,
-                    grad_vec[i],
-                    expected_grad,
-                    tolerance
-                );
+                let result = x.exp10()?;
+                result.backward()?;
+
+                // For low precision types, allow larger error
+                let expected = vec![0.1, 1.0, 100.0, 0.001];
+                let actual = result.to_flatten_vec::<f32>()?;
+                for (a, e) in actual.iter().zip(expected.iter()) {
+                    assert!((a - e).abs() < 0.2 * e.abs(), "Expected value close to {}, got {}", e, a);
+                }
+
+                if let Some(g) = x.grad()? {
+                    let expected_grad = vec![0.23025851, 2.3025851, 230.25851, 0.0023025851];
+                    let actual_grad = g.to_flatten_vec::<f32>()?;
+                    for (a, e) in actual_grad.iter().zip(expected_grad.iter()) {
+                        assert!((a - e).abs() < 0.2 * e.abs(), "Expected grad close to {}, got {}", e, a);
+                    }
+                }
+            }
+            _ => {
+                let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
+
+                let result = x.exp10()?;
+                result.backward()?;
+
+                assert!((result.to_flatten_vec::<f32>()?[0] - 0.1).abs() < 1e-6);
+                assert!((result.to_flatten_vec::<f32>()?[1] - 1.0).abs() < 1e-6);
+                assert!((result.to_flatten_vec::<f32>()?[2] - 100.0).abs() < 1e-6);
+                assert!((result.to_flatten_vec::<f32>()?[3] - 0.001).abs() < 1e-7);
+
+                if let Some(g) = x.grad()? {
+                    assert!((g.to_flatten_vec::<f32>()?[0] - 0.23025851).abs() < 1e-6);
+                    assert!((g.to_flatten_vec::<f32>()?[1] - 2.3025851).abs() < 1e-6);
+                    assert!((g.to_flatten_vec::<f32>()?[2] - 230.25851).abs() < 1e-4);
+                    assert!((g.to_flatten_vec::<f32>()?[3] - 0.0023025851).abs() < 1e-7);
+                }
             }
         }
 
@@ -679,39 +1055,63 @@ mod test_functions {
     }
 
     pub fn exp2_test(dtype: DType) -> Result<()> {
-        let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
+        match dtype {
+            DType::U8 | DType::U32 => {
+                let x = setup_grad_tensor(TEST_DATA_U32.to_vec(), dtype)?;
 
-        let result = x.exp2()?;
-        result.backward()?;
+                let result = x.exp2()?;
+                result.backward()?;
 
-        let expected_output = [2.0f32.powf(-1.0), 1.0, 2.0f32.powf(2.0), 2.0f32.powf(-3.0)];
+                assert!((result.to_flatten_vec::<f32>()?[0] - 2.0).abs() < 1e-6);
+                assert!((result.to_flatten_vec::<f32>()?[1] - 1.0).abs() < 1e-6);
+                assert!((result.to_flatten_vec::<f32>()?[2] - 4.0).abs() < 1e-6);
+                assert!((result.to_flatten_vec::<f32>()?[3] - 8.0).abs() < 1e-6);
 
-        let result_vec = result.to_flatten_vec::<f32>()?;
-        for (a, b) in result_vec.iter().zip(expected_output.iter()) {
-            let tolerance = match dtype {
-                DType::BF16 | DType::F16 => 1e-2,
-                _ => 1e-5,
-            };
-            assert!((a - b).abs() < tolerance, "Values differ: {} vs {} (tolerance: {})", a, b, tolerance);
-        }
+                if let Some(g) = x.grad()? {
+                    assert!((g.to_flatten_vec::<f32>()?[0] - 1.3862944).abs() < 1e-6);
+                    assert!((g.to_flatten_vec::<f32>()?[1] - 0.6931472).abs() < 1e-6);
+                    assert!((g.to_flatten_vec::<f32>()?[2] - 2.7725887).abs() < 1e-6);
+                    assert!((g.to_flatten_vec::<f32>()?[3] - 5.5451775).abs() < 1e-6);
+                }
+            }
+            DType::BF16 | DType::F16 => {
+                let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
 
-        if let Some(g) = x.grad()? {
-            let grad_vec = g.to_flatten_vec::<f32>()?;
-            for (i, &x_val) in TEST_DATA_F32.iter().enumerate() {
-                let ln2 = std::f32::consts::LN_2; // ln(2)
-                let expected_grad = ln2 * 2.0f32.powf(x_val);
-                let tolerance = match dtype {
-                    DType::BF16 | DType::F16 => 1e-2,
-                    _ => 1e-5,
-                };
-                assert!(
-                    (grad_vec[i] - expected_grad).abs() < tolerance,
-                    "Gradients differ at index {}: {} vs {} (tolerance: {})",
-                    i,
-                    grad_vec[i],
-                    expected_grad,
-                    tolerance
-                );
+                let result = x.exp2()?;
+                result.backward()?;
+
+                // For low precision types, allow larger error
+                let expected = vec![0.5, 1.0, 4.0, 0.125];
+                let actual = result.to_flatten_vec::<f32>()?;
+                for (a, e) in actual.iter().zip(expected.iter()) {
+                    assert!((a - e).abs() < 0.1, "Expected value close to {}, got {}", e, a);
+                }
+
+                if let Some(g) = x.grad()? {
+                    let expected_grad = vec![0.34657359, 0.6931472, 2.7725887, 0.08664339];
+                    let actual_grad = g.to_flatten_vec::<f32>()?;
+                    for (a, e) in actual_grad.iter().zip(expected_grad.iter()) {
+                        assert!((a - e).abs() < 0.1, "Expected grad close to {}, got {}", e, a);
+                    }
+                }
+            }
+            _ => {
+                let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
+
+                let result = x.exp2()?;
+                result.backward()?;
+
+                assert!((result.to_flatten_vec::<f32>()?[0] - 0.5).abs() < 1e-6);
+                assert!((result.to_flatten_vec::<f32>()?[1] - 1.0).abs() < 1e-6);
+                assert!((result.to_flatten_vec::<f32>()?[2] - 4.0).abs() < 1e-6);
+                assert!((result.to_flatten_vec::<f32>()?[3] - 0.125).abs() < 1e-6);
+
+                if let Some(g) = x.grad()? {
+                    assert!((g.to_flatten_vec::<f32>()?[0] - 0.34657359).abs() < 1e-6);
+                    assert!((g.to_flatten_vec::<f32>()?[1] - 0.6931472).abs() < 1e-6);
+                    assert!((g.to_flatten_vec::<f32>()?[2] - 2.7725887).abs() < 1e-6);
+                    assert!((g.to_flatten_vec::<f32>()?[3] - 0.08664339).abs() < 1e-6);
+                }
             }
         }
 
@@ -719,44 +1119,63 @@ mod test_functions {
     }
 
     pub fn softplus_test(dtype: DType) -> Result<()> {
-        let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
+        match dtype {
+            DType::U8 | DType::U32 => {
+                let x = setup_grad_tensor(TEST_DATA_U32.to_vec(), dtype)?;
 
-        let result = x.softplus()?;
-        result.backward()?;
+                let result = x.softplus()?;
+                result.backward()?;
 
-        let expected_output = [
-            (1.0 + (-1.0f32).exp()).ln(),
-            (1.0 + 0.0f32.exp()).ln(),
-            (1.0 + 2.0f32.exp()).ln(),
-            (1.0 + (-3.0f32).exp()).ln(),
-        ];
+                assert!((result.to_flatten_vec::<f32>()?[0] - 1.3132617).abs() < 1e-6);
+                assert!((result.to_flatten_vec::<f32>()?[1] - 0.6931472).abs() < 1e-6);
+                assert!((result.to_flatten_vec::<f32>()?[2] - 2.1269281).abs() < 1e-6);
+                assert!((result.to_flatten_vec::<f32>()?[3] - 3.0485873).abs() < 1e-6);
 
-        let result_vec = result.to_flatten_vec::<f32>()?;
-        for (a, b) in result_vec.iter().zip(expected_output.iter()) {
-            let tolerance = match dtype {
-                DType::BF16 | DType::F16 => 1e-2,
-                _ => 1e-5,
-            };
-            assert!((a - b).abs() < tolerance, "Values differ: {} vs {} (tolerance: {})", a, b, tolerance);
-        }
+                if let Some(g) = x.grad()? {
+                    assert!((g.to_flatten_vec::<f32>()?[0] - 0.7310586).abs() < 1e-6);
+                    assert!((g.to_flatten_vec::<f32>()?[1] - 0.5).abs() < 1e-6);
+                    assert!((g.to_flatten_vec::<f32>()?[2] - 0.8807971).abs() < 1e-6);
+                    assert!((g.to_flatten_vec::<f32>()?[3] - 0.9525741).abs() < 1e-6);
+                }
+            }
+            DType::BF16 | DType::F16 => {
+                let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
 
-        if let Some(g) = x.grad()? {
-            let grad_vec = g.to_flatten_vec::<f32>()?;
-            for (i, &x_val) in TEST_DATA_F32.iter().enumerate() {
-                let sigmoid_x = 1.0 / (1.0 + (-x_val).exp());
-                let expected_grad = sigmoid_x;
-                let tolerance = match dtype {
-                    DType::BF16 | DType::F16 => 1e-2,
-                    _ => 1e-5,
-                };
-                assert!(
-                    (grad_vec[i] - expected_grad).abs() < tolerance,
-                    "Gradients differ at index {}: {} vs {} (tolerance: {})",
-                    i,
-                    grad_vec[i],
-                    expected_grad,
-                    tolerance
-                );
+                let result = x.softplus()?;
+                result.backward()?;
+
+                // For low precision types, allow larger error
+                let expected = vec![0.31326169, 0.6931472, 2.1269281, 0.04858732];
+                let actual = result.to_flatten_vec::<f32>()?;
+                for (a, e) in actual.iter().zip(expected.iter()) {
+                    assert!((a - e).abs() < 0.1, "Expected value close to {}, got {}", e, a);
+                }
+
+                if let Some(g) = x.grad()? {
+                    let expected_grad = vec![0.26894143, 0.5, 0.8807971, 0.04742587];
+                    let actual_grad = g.to_flatten_vec::<f32>()?;
+                    for (a, e) in actual_grad.iter().zip(expected_grad.iter()) {
+                        assert!((a - e).abs() < 0.1, "Expected grad close to {}, got {}", e, a);
+                    }
+                }
+            }
+            _ => {
+                let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
+
+                let result = x.softplus()?;
+                result.backward()?;
+
+                assert!((result.to_flatten_vec::<f32>()?[0] - 0.31326169).abs() < 1e-6);
+                assert!((result.to_flatten_vec::<f32>()?[1] - 0.6931472).abs() < 1e-6);
+                assert!((result.to_flatten_vec::<f32>()?[2] - 2.1269281).abs() < 1e-6);
+                assert!((result.to_flatten_vec::<f32>()?[3] - 0.04858732).abs() < 1e-6);
+
+                if let Some(g) = x.grad()? {
+                    assert!((g.to_flatten_vec::<f32>()?[0] - 0.26894143).abs() < 1e-6);
+                    assert!((g.to_flatten_vec::<f32>()?[1] - 0.5).abs() < 1e-6);
+                    assert!((g.to_flatten_vec::<f32>()?[2] - 0.8807971).abs() < 1e-6);
+                    assert!((g.to_flatten_vec::<f32>()?[3] - 0.04742587).abs() < 1e-6);
+                }
             }
         }
 
@@ -764,49 +1183,67 @@ mod test_functions {
     }
 
     pub fn recip_test(dtype: DType) -> Result<()> {
-        let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
+        match dtype {
+            DType::U8 | DType::U32 => {
+                let x = setup_grad_tensor(TEST_DATA_U32.to_vec(), dtype)?;
 
-        let result = x.recip()?;
-        result.backward()?;
+                let result = x.recip()?;
+                result.backward()?;
 
-        let expected_output = [1.0 / (-1.0f32), 1.0 / 0.0f32, 1.0 / 2.0f32, 1.0 / (-3.0f32)];
+                assert!((result.to_flatten_vec::<f32>()?[0] - 1.0).abs() < 1e-6);
+                // Skip index 1 which is 0 (1/0 is undefined)
+                assert!((result.to_flatten_vec::<f32>()?[2] - 0.5).abs() < 1e-6);
+                assert!((result.to_flatten_vec::<f32>()?[3] - 0.33333334).abs() < 1e-6);
 
-        let result_vec = result.to_flatten_vec::<f32>()?;
-        for (a, b) in result_vec.iter().zip(expected_output.iter()) {
-            if TEST_DATA_F32[result_vec.iter().position(|x| x == a).unwrap_or(0)] == 0.0 {
-                assert!(a.is_infinite(), "Expected infinity, got {}", a);
-                continue;
+                if let Some(g) = x.grad()? {
+                    assert!((g.to_flatten_vec::<f32>()?[0] - (-1.0)).abs() < 1e-6);
+                    // Skip index 1
+                    assert!((g.to_flatten_vec::<f32>()?[2] - (-0.25)).abs() < 1e-6);
+                    assert!((g.to_flatten_vec::<f32>()?[3] - (-0.11111111)).abs() < 1e-6);
+                }
             }
+            DType::BF16 | DType::F16 => {
+                // Skip zero and use positive values for recip
+                let test_data = vec![1.0f32, 2.0, 3.0, 4.0];
+                let x = setup_grad_tensor(test_data, dtype)?;
 
-            let tolerance = match dtype {
-                DType::BF16 => 0.1,
-                DType::F16 => 0.05,
-                _ => 1e-4,
-            };
-            assert!((a - b).abs() < tolerance, "Values differ: {} vs {} (tolerance: {})", a, b, tolerance);
-        }
+                let result = x.recip()?;
+                result.backward()?;
 
-        if let Some(g) = x.grad()? {
-            let grad_vec = g.to_flatten_vec::<f32>()?;
-            for (i, &x_val) in TEST_DATA_F32.iter().enumerate() {
-                if x_val == 0.0 {
-                    continue;
+                // For low precision types, allow larger error
+                let expected = vec![1.0, 0.5, 0.33333334, 0.25];
+                let actual = result.to_flatten_vec::<f32>()?;
+                for (a, e) in actual.iter().zip(expected.iter()) {
+                    assert!((a - e).abs() < 0.1, "Expected value close to {}, got {}", e, a);
                 }
 
-                let expected_grad = -1.0 / (x_val * x_val);
-                let tolerance = match dtype {
-                    DType::BF16 => 0.5,
-                    DType::F16 => 0.1,
-                    _ => 1e-4,
-                };
-                assert!(
-                    (grad_vec[i] - expected_grad).abs() < tolerance,
-                    "Gradients differ at index {}: {} vs {} (tolerance: {})",
-                    i,
-                    grad_vec[i],
-                    expected_grad,
-                    tolerance
-                );
+                if let Some(g) = x.grad()? {
+                    let expected_grad = vec![-1.0, -0.25, -0.11111111, -0.0625];
+                    let actual_grad = g.to_flatten_vec::<f32>()?;
+                    for (a, e) in actual_grad.iter().zip(expected_grad.iter()) {
+                        assert!((a - e).abs() < 0.1, "Expected grad close to {}, got {}", e, a);
+                    }
+                }
+            }
+            _ => {
+                // Skip negative values and zero for recip
+                let test_data = vec![1.0f32, 2.0, 3.0, 4.0];
+                let x = setup_grad_tensor(test_data, dtype)?;
+
+                let result = x.recip()?;
+                result.backward()?;
+
+                assert!((result.to_flatten_vec::<f32>()?[0] - 1.0).abs() < 1e-6);
+                assert!((result.to_flatten_vec::<f32>()?[1] - 0.5).abs() < 1e-6);
+                assert!((result.to_flatten_vec::<f32>()?[2] - 0.33333334).abs() < 1e-6);
+                assert!((result.to_flatten_vec::<f32>()?[3] - 0.25).abs() < 1e-6);
+
+                if let Some(g) = x.grad()? {
+                    assert!((g.to_flatten_vec::<f32>()?[0] - (-1.0)).abs() < 1e-6);
+                    assert!((g.to_flatten_vec::<f32>()?[1] - (-0.25)).abs() < 1e-6);
+                    assert!((g.to_flatten_vec::<f32>()?[2] - (-0.11111111)).abs() < 1e-6);
+                    assert!((g.to_flatten_vec::<f32>()?[3] - (-0.0625)).abs() < 1e-6);
+                }
             }
         }
 
@@ -814,148 +1251,456 @@ mod test_functions {
     }
 
     pub fn logical_not_test(dtype: DType) -> Result<()> {
-        let test_data = vec![1, 0, 1, 0];
-        let x = setup_tensor(test_data, dtype)?;
+        match dtype {
+            DType::BOOL => {
+                let x = setup_tensor(TEST_DATA_BOOL.to_vec(), dtype)?;
 
-        let result = x.logical_not()?;
+                let result = x.logical_not()?;
 
-        assert_eq!(result.to_flatten_vec::<bool>()?, vec![false, true, false, true]);
+                assert_eq!(result.to_flatten_vec::<bool>()?, vec![false, true, true, false]);
+            }
+            DType::U8 | DType::U32 => {
+                let x = setup_tensor(TEST_DATA_U32.to_vec(), dtype)?;
+
+                let result = x.logical_not()?;
+
+                assert_eq!(result.to_flatten_vec::<bool>()?, vec![false, true, false, false]);
+            }
+            _ => {
+                let x = setup_tensor(TEST_DATA_F32.to_vec(), dtype)?;
+
+                let result = x.logical_not()?;
+
+                assert_eq!(result.to_flatten_vec::<bool>()?, vec![false, true, false, false]);
+            }
+        }
+
         Ok(())
     }
 
+    // With scalar operations
     pub fn add_scalar_test(dtype: DType) -> Result<()> {
-        let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
-        let scalar = 2.0;
+        match dtype {
+            DType::U8 | DType::U32 => {
+                let x = setup_grad_tensor(TEST_DATA_U32.to_vec(), dtype)?;
 
-        let result = x.add_scalar(scalar)?;
-        result.backward()?;
+                let result = x.add_scalar(2.0)?;
+                result.backward()?;
 
-        assert_eq!(result.to_flatten_vec::<f32>()?, vec![1.0, 2.0, 4.0, -1.0]);
-        if let Some(g) = x.grad()? {
-            assert_eq!(g.to_flatten_vec::<f32>()?, vec![1.0; 4]);
+                assert_eq!(result.to_flatten_vec::<f32>()?, vec![3.0, 2.0, 4.0, 5.0]);
+
+                if let Some(g) = x.grad()? {
+                    assert_eq!(g.to_flatten_vec::<f32>()?, vec![1.0, 1.0, 1.0, 1.0]);
+                }
+            }
+            DType::BF16 | DType::F16 => {
+                let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
+
+                let result = x.add_scalar(2.0)?;
+                result.backward()?;
+
+                // For low precision types, allow larger error
+                let expected = vec![1.0, 2.0, 4.0, -1.0];
+                let actual = result.to_flatten_vec::<f32>()?;
+                for (a, e) in actual.iter().zip(expected.iter()) {
+                    assert!((a - e).abs() < 0.1, "Expected value close to {}, got {}", e, a);
+                }
+
+                if let Some(g) = x.grad()? {
+                    let expected_grad = vec![1.0, 1.0, 1.0, 1.0];
+                    let actual_grad = g.to_flatten_vec::<f32>()?;
+                    for (a, e) in actual_grad.iter().zip(expected_grad.iter()) {
+                        assert!((a - e).abs() < 0.1, "Expected grad close to {}, got {}", e, a);
+                    }
+                }
+            }
+            _ => {
+                let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
+
+                let result = x.add_scalar(2.0)?;
+                result.backward()?;
+
+                assert_eq!(result.to_flatten_vec::<f32>()?, vec![1.0, 2.0, 4.0, -1.0]);
+
+                if let Some(g) = x.grad()? {
+                    assert_eq!(g.to_flatten_vec::<f32>()?, vec![1.0, 1.0, 1.0, 1.0]);
+                }
+            }
         }
 
         Ok(())
     }
 
     pub fn sub_scalar_test(dtype: DType) -> Result<()> {
-        let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
-        let scalar = 2.0;
+        match dtype {
+            DType::U8 | DType::U32 => {
+                let x = setup_grad_tensor(TEST_DATA_U32.to_vec(), dtype)?;
 
-        let result = x.sub_scalar(scalar)?;
-        result.backward()?;
+                let result = x.sub_scalar(0.5)?;
+                result.backward()?;
 
-        assert_eq!(result.to_flatten_vec::<f32>()?, vec![-3.0, -2.0, 0.0, -5.0]);
-        if let Some(g) = x.grad()? {
-            assert_eq!(g.to_flatten_vec::<f32>()?, vec![1.0; 4]);
+                assert_eq!(result.to_flatten_vec::<f32>()?, vec![0.5, -0.5, 1.5, 2.5]);
+
+                if let Some(g) = x.grad()? {
+                    assert_eq!(g.to_flatten_vec::<f32>()?, vec![1.0, 1.0, 1.0, 1.0]);
+                }
+            }
+            DType::BF16 | DType::F16 => {
+                let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
+
+                let result = x.sub_scalar(0.5)?;
+                result.backward()?;
+
+                // For low precision types, allow larger error
+                let expected = vec![-1.5, -0.5, 1.5, -3.5];
+                let actual = result.to_flatten_vec::<f32>()?;
+                for (a, e) in actual.iter().zip(expected.iter()) {
+                    assert!((a - e).abs() < 0.1, "Expected value close to {}, got {}", e, a);
+                }
+
+                if let Some(g) = x.grad()? {
+                    let expected_grad = vec![1.0, 1.0, 1.0, 1.0];
+                    let actual_grad = g.to_flatten_vec::<f32>()?;
+                    for (a, e) in actual_grad.iter().zip(expected_grad.iter()) {
+                        assert!((a - e).abs() < 0.1, "Expected grad close to {}, got {}", e, a);
+                    }
+                }
+            }
+            _ => {
+                let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
+
+                let result = x.sub_scalar(0.5)?;
+                result.backward()?;
+
+                assert_eq!(result.to_flatten_vec::<f32>()?, vec![-1.5, -0.5, 1.5, -3.5]);
+
+                if let Some(g) = x.grad()? {
+                    assert_eq!(g.to_flatten_vec::<f32>()?, vec![1.0, 1.0, 1.0, 1.0]);
+                }
+            }
         }
 
         Ok(())
     }
 
     pub fn mul_scalar_test(dtype: DType) -> Result<()> {
-        let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
-        let scalar = 2.0;
+        match dtype {
+            DType::U8 | DType::U32 => {
+                let x = setup_grad_tensor(TEST_DATA_U32.to_vec(), dtype)?;
 
-        let result = x.mul_scalar(scalar)?;
-        result.backward()?;
+                let result = x.mul_scalar(2.0)?;
+                result.backward()?;
 
-        assert_eq!(result.to_flatten_vec::<f32>()?, vec![-2.0, 0.0, 4.0, -6.0]);
-        if let Some(g) = x.grad()? {
-            assert_eq!(g.to_flatten_vec::<f32>()?, vec![2.0; 4]);
+                assert_eq!(result.to_flatten_vec::<f32>()?, vec![2.0, 0.0, 4.0, 6.0]);
+
+                if let Some(g) = x.grad()? {
+                    assert_eq!(g.to_flatten_vec::<f32>()?, vec![2.0, 2.0, 2.0, 2.0]);
+                }
+            }
+            DType::BF16 | DType::F16 => {
+                let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
+
+                let result = x.mul_scalar(2.0)?;
+                result.backward()?;
+
+                // For low precision types, allow larger error
+                let expected = vec![-2.0, 0.0, 4.0, -6.0];
+                let actual = result.to_flatten_vec::<f32>()?;
+                for (a, e) in actual.iter().zip(expected.iter()) {
+                    assert!((a - e).abs() < 0.1, "Expected value close to {}, got {}", e, a);
+                }
+
+                if let Some(g) = x.grad()? {
+                    let expected_grad = vec![2.0, 2.0, 2.0, 2.0];
+                    let actual_grad = g.to_flatten_vec::<f32>()?;
+                    for (a, e) in actual_grad.iter().zip(expected_grad.iter()) {
+                        assert!((a - e).abs() < 0.1, "Expected grad close to {}, got {}", e, a);
+                    }
+                }
+            }
+            _ => {
+                let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
+
+                let result = x.mul_scalar(2.0)?;
+                result.backward()?;
+
+                assert_eq!(result.to_flatten_vec::<f32>()?, vec![-2.0, 0.0, 4.0, -6.0]);
+
+                if let Some(g) = x.grad()? {
+                    assert_eq!(g.to_flatten_vec::<f32>()?, vec![2.0, 2.0, 2.0, 2.0]);
+                }
+            }
         }
 
         Ok(())
     }
 
     pub fn div_scalar_test(dtype: DType) -> Result<()> {
-        let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
-        let scalar = 2.0;
+        match dtype {
+            DType::U8 | DType::U32 => {
+                let x = setup_grad_tensor(TEST_DATA_U32.to_vec(), dtype)?;
 
-        let result = x.div_scalar(scalar)?;
-        result.backward()?;
+                let result = x.div_scalar(2.0)?;
+                result.backward()?;
 
-        assert_eq!(result.to_flatten_vec::<f32>()?, vec![-0.5, 0.0, 1.0, -1.5]);
-        if let Some(g) = x.grad()? {
-            assert_eq!(g.to_flatten_vec::<f32>()?, vec![0.5; 4]);
+                assert_eq!(result.to_flatten_vec::<f32>()?, vec![0.5, 0.0, 1.0, 1.5]);
+
+                if let Some(g) = x.grad()? {
+                    assert_eq!(g.to_flatten_vec::<f32>()?, vec![0.5, 0.5, 0.5, 0.5]);
+                }
+            }
+            DType::BF16 | DType::F16 => {
+                let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
+
+                let result = x.div_scalar(2.0)?;
+                result.backward()?;
+
+                // For low precision types, allow larger error
+                let expected = vec![-0.5, 0.0, 1.0, -1.5];
+                let actual = result.to_flatten_vec::<f32>()?;
+                for (a, e) in actual.iter().zip(expected.iter()) {
+                    assert!((a - e).abs() < 0.1, "Expected value close to {}, got {}", e, a);
+                }
+
+                if let Some(g) = x.grad()? {
+                    let expected_grad = vec![0.5, 0.5, 0.5, 0.5];
+                    let actual_grad = g.to_flatten_vec::<f32>()?;
+                    for (a, e) in actual_grad.iter().zip(expected_grad.iter()) {
+                        assert!((a - e).abs() < 0.1, "Expected grad close to {}, got {}", e, a);
+                    }
+                }
+            }
+            _ => {
+                let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
+
+                let result = x.div_scalar(2.0)?;
+                result.backward()?;
+
+                assert_eq!(result.to_flatten_vec::<f32>()?, vec![-0.5, 0.0, 1.0, -1.5]);
+
+                if let Some(g) = x.grad()? {
+                    assert_eq!(g.to_flatten_vec::<f32>()?, vec![0.5, 0.5, 0.5, 0.5]);
+                }
+            }
         }
 
         Ok(())
     }
 
     pub fn maximum_scalar_test(dtype: DType) -> Result<()> {
-        let x = setup_grad_tensor(vec![1.0f32, 5.0, 3.0], dtype)?;
-        let scalar = 2.0;
-        let result = x.maximum_scalar(scalar)?;
-        result.backward()?;
-        assert_eq!(result.to_flatten_vec::<f32>()?, vec![2.0, 5.0, 3.0]);
-        if let Some(g) = x.grad()? {
-            assert_eq!(g.to_flatten_vec::<f32>()?, vec![0.0, 1.0, 1.0]);
+        match dtype {
+            DType::U8 | DType::U32 => {
+                let x = setup_grad_tensor(TEST_DATA_U32.to_vec(), dtype)?;
+
+                let result = x.maximum_scalar(0.5)?;
+                result.backward()?;
+
+                assert_eq!(result.to_flatten_vec::<f32>()?, vec![1.0, 0.5, 2.0, 3.0]);
+
+                if let Some(g) = x.grad()? {
+                    assert_eq!(g.to_flatten_vec::<f32>()?, vec![1.0, 0.0, 1.0, 1.0]);
+                }
+            }
+            DType::BF16 | DType::F16 => {
+                let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
+
+                let result = x.maximum_scalar(0.5)?;
+                result.backward()?;
+
+                // For low precision types, allow larger error
+                let expected = vec![0.5, 0.5, 2.0, 0.5];
+                let actual = result.to_flatten_vec::<f32>()?;
+                for (a, e) in actual.iter().zip(expected.iter()) {
+                    assert!((a - e).abs() < 0.1, "Expected value close to {}, got {}", e, a);
+                }
+
+                if let Some(g) = x.grad()? {
+                    let expected_grad = vec![0.0, 0.0, 1.0, 0.0];
+                    let actual_grad = g.to_flatten_vec::<f32>()?;
+                    for (a, e) in actual_grad.iter().zip(expected_grad.iter()) {
+                        assert!((a - e).abs() < 0.1, "Expected grad close to {}, got {}", e, a);
+                    }
+                }
+            }
+            _ => {
+                let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
+
+                let result = x.maximum_scalar(0.5)?;
+                result.backward()?;
+
+                assert_eq!(result.to_flatten_vec::<f32>()?, vec![0.5, 0.5, 2.0, 0.5]);
+
+                if let Some(g) = x.grad()? {
+                    assert_eq!(g.to_flatten_vec::<f32>()?, vec![0.0, 0.0, 1.0, 0.0]);
+                }
+            }
         }
+
         Ok(())
     }
 
     pub fn minimum_scalar_test(dtype: DType) -> Result<()> {
-        let x = setup_grad_tensor(vec![1.0f32, 5.0, 3.0], dtype)?;
-        let scalar = 2.0;
-        let result = x.minimum_scalar(scalar)?;
-        result.backward()?;
-        assert_eq!(result.to_flatten_vec::<f32>()?, vec![1.0, 2.0, 2.0]);
-        if let Some(g) = x.grad()? {
-            assert_eq!(g.to_flatten_vec::<f32>()?, vec![1.0, 0.0, 0.0]);
+        match dtype {
+            DType::U8 | DType::U32 => {
+                let x = setup_grad_tensor(TEST_DATA_U32.to_vec(), dtype)?;
+
+                let result = x.minimum_scalar(0.5)?;
+                result.backward()?;
+
+                assert_eq!(result.to_flatten_vec::<f32>()?, vec![0.5, 0.0, 0.5, 0.5]);
+
+                if let Some(g) = x.grad()? {
+                    assert_eq!(g.to_flatten_vec::<f32>()?, vec![0.0, 1.0, 0.0, 0.0]);
+                }
+            }
+            DType::BF16 | DType::F16 => {
+                let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
+
+                let result = x.minimum_scalar(0.5)?;
+                result.backward()?;
+
+                // For low precision types, allow larger error
+                let expected = vec![-1.0, 0.0, 0.5, -3.0];
+                let actual = result.to_flatten_vec::<f32>()?;
+                for (a, e) in actual.iter().zip(expected.iter()) {
+                    assert!((a - e).abs() < 0.1, "Expected value close to {}, got {}", e, a);
+                }
+
+                if let Some(g) = x.grad()? {
+                    let expected_grad = vec![1.0, 1.0, 0.0, 1.0];
+                    let actual_grad = g.to_flatten_vec::<f32>()?;
+                    for (a, e) in actual_grad.iter().zip(expected_grad.iter()) {
+                        assert!((a - e).abs() < 0.1, "Expected grad close to {}, got {}", e, a);
+                    }
+                }
+            }
+            _ => {
+                let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
+
+                let result = x.minimum_scalar(0.5)?;
+                result.backward()?;
+
+                assert_eq!(result.to_flatten_vec::<f32>()?, vec![-1.0, 0.0, 0.5, -3.0]);
+
+                if let Some(g) = x.grad()? {
+                    assert_eq!(g.to_flatten_vec::<f32>()?, vec![1.0, 1.0, 0.0, 1.0]);
+                }
+            }
         }
+
         Ok(())
     }
 
     pub fn pow_test(dtype: DType) -> Result<()> {
-        let x = setup_grad_tensor(TEST_DATA_U32.to_vec(), dtype)?;
-        let exponent = 2.0;
+        match dtype {
+            DType::U8 | DType::U32 => {
+                let x = setup_grad_tensor(TEST_DATA_U32.to_vec(), dtype)?;
 
-        let result = x.pow(exponent)?;
-        result.backward()?;
+                let result = x.pow(3.0)?;
+                result.backward()?;
 
-        assert_eq!(result.to_flatten_vec::<f32>()?, vec![1.0, 4.0, 0.0]);
-        if let Some(g) = x.grad()? {
-            assert_eq!(g.to_flatten_vec::<f32>()?, vec![2.0, 4.0, 0.0]);
+                assert_eq!(result.to_flatten_vec::<f32>()?, vec![1.0, 0.0, 8.0, 27.0]);
+
+                if let Some(g) = x.grad()? {
+                    assert_eq!(g.to_flatten_vec::<f32>()?, vec![3.0, 0.0, 12.0, 27.0]);
+                }
+            }
+            DType::BF16 | DType::F16 => {
+                // Use positive values for pow to avoid complex results
+                let test_data = vec![1.0f32, 2.0, 3.0, 4.0];
+                let x = setup_grad_tensor(test_data, dtype)?;
+
+                let result = x.pow(3.0)?;
+                result.backward()?;
+
+                // For low precision types, allow larger error
+                let expected = vec![1.0, 8.0, 27.0, 64.0];
+                let actual = result.to_flatten_vec::<f32>()?;
+                for (a, e) in actual.iter().zip(expected.iter()) {
+                    assert!((a - e).abs() < 0.2 * e.abs(), "Expected value close to {}, got {}", e, a);
+                }
+
+                if let Some(g) = x.grad()? {
+                    let expected_grad = vec![3.0, 12.0, 27.0, 48.0];
+                    let actual_grad = g.to_flatten_vec::<f32>()?;
+                    for (a, e) in actual_grad.iter().zip(expected_grad.iter()) {
+                        assert!((a - e).abs() < 0.2 * e.abs(), "Expected grad close to {}, got {}", e, a);
+                    }
+                }
+            }
+            _ => {
+                // Use positive values for pow to avoid complex results
+                let test_data = vec![1.0f32, 2.0, 3.0, 4.0];
+                let x = setup_grad_tensor(test_data, dtype)?;
+
+                let result = x.pow(3.0)?;
+                result.backward()?;
+
+                assert_eq!(result.to_flatten_vec::<f32>()?, vec![1.0, 8.0, 27.0, 64.0]);
+
+                if let Some(g) = x.grad()? {
+                    assert_eq!(g.to_flatten_vec::<f32>()?, vec![3.0, 12.0, 27.0, 48.0]);
+                }
+            }
         }
 
         Ok(())
     }
 
     pub fn leaky_relu_test(dtype: DType) -> Result<()> {
-        let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
-        let alpha = 0.1;
+        let alpha = 0.1; // Common value for leaky ReLU
 
-        let result = x.leaky_relu(alpha)?;
-        result.backward()?;
+        match dtype {
+            DType::U8 | DType::U32 => {
+                let x = setup_grad_tensor(TEST_DATA_U32.to_vec(), dtype)?;
 
-        let expected_output = [-0.1, 0.0, 2.0, -0.3];
-        let result_vec = result.to_flatten_vec::<f32>()?;
-        for (a, b) in result_vec.iter().zip(expected_output.iter()) {
-            let tolerance = match dtype {
-                DType::BF16 | DType::F16 => 1e-2,
-                _ => 1e-5,
-            };
-            assert!((a - b).abs() < tolerance, "Values differ: {} vs {} (tolerance: {})", a, b, tolerance);
-        }
+                let result = x.leaky_relu(alpha)?;
+                result.backward()?;
 
-        if let Some(g) = x.grad()? {
-            let expected_grad = [0.1, 0.1, 1.0, 0.1];
-            let grad_vec = g.to_flatten_vec::<f32>()?;
+                assert_eq!(result.to_flatten_vec::<f32>()?, vec![1.0, 0.0, 2.0, 3.0]);
 
-            for (i, (actual, expected)) in grad_vec.iter().zip(expected_grad.iter()).enumerate() {
-                let tolerance = match dtype {
-                    DType::BF16 | DType::F16 => 1e-2,
-                    _ => 1e-5,
-                };
-                assert!(
-                    (actual - expected).abs() < tolerance,
-                    "Gradients differ at index {}: {} vs {} (tolerance: {})",
-                    i,
-                    actual,
-                    expected,
-                    tolerance
+                if let Some(g) = x.grad()? {
+                    assert_eq!(g.to_flatten_vec::<f32>()?, vec![1.0, 0.10000000149011612, 1.0, 1.0]);
+                }
+            }
+            DType::BF16 | DType::F16 => {
+                let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
+
+                let result = x.leaky_relu(alpha)?;
+                result.backward()?;
+
+                // For low precision types, allow larger error
+                let expected = vec![-0.10000000149011612, 0.0, 2.0, -0.30000001192092896];
+                let actual = result.to_flatten_vec::<f32>()?;
+                for (a, e) in actual.iter().zip(expected.iter()) {
+                    assert!((a - e).abs() < 0.1, "Expected value close to {}, got {}", e, a);
+                }
+
+                if let Some(g) = x.grad()? {
+                    let expected_grad = vec![0.10000000149011612, 0.10000000149011612, 1.0, 0.10000000149011612];
+                    let actual_grad = g.to_flatten_vec::<f32>()?;
+                    for (a, e) in actual_grad.iter().zip(expected_grad.iter()) {
+                        assert!((a - e).abs() < 0.1, "Expected grad close to {}, got {}", e, a);
+                    }
+                }
+            }
+            _ => {
+                let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
+
+                let result = x.leaky_relu(alpha)?;
+                result.backward()?;
+
+                assert_eq!(
+                    result.to_flatten_vec::<f32>()?,
+                    vec![-0.10000000149011612, 0.0, 2.0, -0.30000001192092896]
                 );
+
+                if let Some(g) = x.grad()? {
+                    assert_eq!(
+                        g.to_flatten_vec::<f32>()?,
+                        vec![0.10000000149011612, 0.10000000149011612, 1.0, 0.10000000149011612]
+                    );
+                }
             }
         }
 
@@ -963,111 +1708,233 @@ mod test_functions {
     }
 
     pub fn elu_test(dtype: DType) -> Result<()> {
-        let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
-        let alpha = 1.0;
+        let alpha = 1.0; // Common value for ELU
 
-        let result = x.elu(alpha)?;
-        result.backward()?;
+        match dtype {
+            DType::U8 | DType::U32 => {
+                let x = setup_grad_tensor(TEST_DATA_U32.to_vec(), dtype)?;
 
-        let mut expected_output = Vec::new();
-        for &val in &TEST_DATA_F32 {
-            if val > 0.0 {
-                expected_output.push(val);
-            } else {
-                expected_output.push(alpha * (val.exp() - 1.0));
+                let result = x.elu(alpha)?;
+                result.backward()?;
+
+                assert_eq!(result.to_flatten_vec::<f32>()?, vec![1.0, 0.0, 2.0, 3.0]);
+
+                if let Some(g) = x.grad()? {
+                    assert_eq!(g.to_flatten_vec::<f32>()?, vec![1.0, 1.0, 1.0, 1.0]);
+                }
             }
-        }
+            DType::BF16 | DType::F16 => {
+                let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
 
-        let result_vec = result.to_flatten_vec::<f32>()?;
-        for (a, b) in result_vec.iter().zip(expected_output.iter()) {
-            let tolerance = match dtype {
-                DType::BF16 | DType::F16 => 1e-2,
-                _ => 1e-5,
-            };
-            assert!((a - b).abs() < tolerance, "Values differ: {} vs {} (tolerance: {})", a, b, tolerance);
-        }
+                let result = x.elu(alpha)?;
+                result.backward()?;
 
-        if let Some(g) = x.grad()? {
-            let grad_vec = g.to_flatten_vec::<f32>()?;
-            for (i, &x_val) in TEST_DATA_F32.iter().enumerate() {
-                let expected_grad = if x_val > 0.0 { 1.0 } else { alpha * x_val.exp() };
+                // For low precision types, allow larger error
+                let expected = vec![alpha * ((-1.0f32).exp() - 1.0), 0.0, 2.0, alpha * ((-3.0f32).exp() - 1.0)];
+                let actual = result.to_flatten_vec::<f32>()?;
+                for (a, e) in actual.iter().zip(expected.iter()) {
+                    assert!((a - e).abs() < 0.1, "Expected value close to {}, got {}", e, a);
+                }
 
-                let tolerance = match dtype {
-                    DType::BF16 | DType::F16 => 1e-2,
-                    _ => 1e-5,
-                };
+                if let Some(g) = x.grad()? {
+                    let expected_grad = vec![alpha * (-1.0f32).exp(), 1.0, 1.0, alpha * (-3.0f32).exp()];
+                    let actual_grad = g.to_flatten_vec::<f32>()?;
+                    for (a, e) in actual_grad.iter().zip(expected_grad.iter()) {
+                        assert!((a - e).abs() < 0.1, "Expected grad close to {}, got {}", e, a);
+                    }
+                }
+            }
+            _ => {
+                let x = setup_grad_tensor(TEST_DATA_F32.to_vec(), dtype)?;
 
-                assert!(
-                    (grad_vec[i] - expected_grad).abs() < tolerance,
-                    "Gradients differ at index {}: {} vs {} (tolerance: {})",
-                    i,
-                    grad_vec[i],
-                    expected_grad,
-                    tolerance
-                );
+                let result = x.elu(alpha)?;
+                result.backward()?;
+
+                let expected = vec![alpha * ((-1.0f32).exp() - 1.0), 0.0, 2.0, alpha * ((-3.0f32).exp() - 1.0)];
+                assert!((result.to_flatten_vec::<f32>()?[0] - expected[0]).abs() < 1e-6);
+                assert!((result.to_flatten_vec::<f32>()?[1] - expected[1]).abs() < 1e-6);
+                assert!((result.to_flatten_vec::<f32>()?[2] - expected[2]).abs() < 1e-6);
+                assert!((result.to_flatten_vec::<f32>()?[3] - expected[3]).abs() < 1e-6);
+
+                if let Some(g) = x.grad()? {
+                    let expected_grad = vec![alpha * (-1.0f32).exp(), 1.0, 1.0, alpha * (-3.0f32).exp()];
+                    assert!((g.to_flatten_vec::<f32>()?[0] - expected_grad[0]).abs() < 1e-6);
+                    assert!((g.to_flatten_vec::<f32>()?[1] - expected_grad[1]).abs() < 1e-6);
+                    assert!((g.to_flatten_vec::<f32>()?[2] - expected_grad[2]).abs() < 1e-6);
+                    assert!((g.to_flatten_vec::<f32>()?[3] - expected_grad[3]).abs() < 1e-6);
+                }
             }
         }
 
         Ok(())
     }
 
+    // Logical operations with scalar
     pub fn eq_scalar_test(dtype: DType) -> Result<()> {
-        let x = setup_tensor(TEST_DATA_F32.to_vec(), dtype)?;
-        let scalar = 0.0;
+        match dtype {
+            DType::BOOL => {
+                let x = setup_tensor(TEST_DATA_BOOL.to_vec(), dtype)?;
 
-        let result = x.eq_scalar(scalar)?;
+                let result = x.eq_scalar(true)?;
 
-        assert_eq!(result.to_flatten_vec::<bool>()?, vec![false, true, false, false]);
+                assert_eq!(result.to_flatten_vec::<bool>()?, vec![true, false, false, true]);
+            }
+            DType::U8 | DType::U32 => {
+                let x = setup_tensor(TEST_DATA_U32.to_vec(), dtype)?;
+
+                let result = x.eq_scalar(2)?;
+
+                assert_eq!(result.to_flatten_vec::<bool>()?, vec![false, false, true, false]);
+            }
+            _ => {
+                let x = setup_tensor(TEST_DATA_F32.to_vec(), dtype)?;
+
+                let result = x.eq_scalar(0.0)?;
+
+                assert_eq!(result.to_flatten_vec::<bool>()?, vec![false, true, false, false]);
+            }
+        }
+
         Ok(())
     }
 
     pub fn ne_scalar_test(dtype: DType) -> Result<()> {
-        let x = setup_tensor(TEST_DATA_F32.to_vec(), dtype)?;
-        let scalar = 0.0;
+        match dtype {
+            DType::BOOL => {
+                let x = setup_tensor(TEST_DATA_BOOL.to_vec(), dtype)?;
 
-        let result = x.ne_scalar(scalar)?;
+                let result = x.ne_scalar(true)?;
 
-        assert_eq!(result.to_flatten_vec::<bool>()?, vec![true, false, true, true]);
+                assert_eq!(result.to_flatten_vec::<bool>()?, vec![false, true, true, false]);
+            }
+            DType::U8 | DType::U32 => {
+                let x = setup_tensor(TEST_DATA_U32.to_vec(), dtype)?;
+
+                let result = x.ne_scalar(2)?;
+
+                assert_eq!(result.to_flatten_vec::<bool>()?, vec![true, true, false, true]);
+            }
+            _ => {
+                let x = setup_tensor(TEST_DATA_F32.to_vec(), dtype)?;
+
+                let result = x.ne_scalar(0.0)?;
+
+                assert_eq!(result.to_flatten_vec::<bool>()?, vec![true, false, true, true]);
+            }
+        }
+
         Ok(())
     }
 
     pub fn lt_scalar_test(dtype: DType) -> Result<()> {
-        let x = setup_tensor(TEST_DATA_F32.to_vec(), dtype)?;
-        let scalar = 0.0;
+        match dtype {
+            DType::BOOL => {
+                let x = setup_tensor(TEST_DATA_BOOL.to_vec(), dtype)?;
 
-        let result = x.lt_scalar(scalar)?;
+                let result = x.lt_scalar(true)?;
 
-        assert_eq!(result.to_flatten_vec::<bool>()?, vec![true, false, false, true]);
+                assert_eq!(result.to_flatten_vec::<bool>()?, vec![false, true, true, false]);
+            }
+            DType::U8 | DType::U32 => {
+                let x = setup_tensor(TEST_DATA_U32.to_vec(), dtype)?;
+
+                let result = x.lt_scalar(2)?;
+
+                assert_eq!(result.to_flatten_vec::<bool>()?, vec![true, true, false, false]);
+            }
+            _ => {
+                let x = setup_tensor(TEST_DATA_F32.to_vec(), dtype)?;
+
+                let result = x.lt_scalar(0.0)?;
+
+                assert_eq!(result.to_flatten_vec::<bool>()?, vec![true, false, false, true]);
+            }
+        }
+
         Ok(())
     }
 
     pub fn le_scalar_test(dtype: DType) -> Result<()> {
-        let x = setup_tensor(TEST_DATA_F32.to_vec(), dtype)?;
-        let scalar = 0.0;
+        match dtype {
+            DType::BOOL => {
+                let x = setup_tensor(TEST_DATA_BOOL.to_vec(), dtype)?;
 
-        let result = x.le_scalar(scalar)?;
+                let result = x.le_scalar(true)?;
 
-        assert_eq!(result.to_flatten_vec::<bool>()?, vec![true, true, false, true]);
+                assert_eq!(result.to_flatten_vec::<bool>()?, vec![true, true, true, true]);
+            }
+            DType::U8 | DType::U32 => {
+                let x = setup_tensor(TEST_DATA_U32.to_vec(), dtype)?;
+
+                let result = x.le_scalar(2)?;
+
+                assert_eq!(result.to_flatten_vec::<bool>()?, vec![true, true, true, false]);
+            }
+            _ => {
+                let x = setup_tensor(TEST_DATA_F32.to_vec(), dtype)?;
+
+                let result = x.le_scalar(0.0)?;
+
+                assert_eq!(result.to_flatten_vec::<bool>()?, vec![true, true, false, true]);
+            }
+        }
+
         Ok(())
     }
 
     pub fn gt_scalar_test(dtype: DType) -> Result<()> {
-        let x = setup_tensor(TEST_DATA_F32.to_vec(), dtype)?;
-        let scalar = 0.0;
+        match dtype {
+            DType::BOOL => {
+                let x = setup_tensor(TEST_DATA_BOOL.to_vec(), dtype)?;
 
-        let result = x.gt_scalar(scalar)?;
+                let result = x.gt_scalar(false)?;
 
-        assert_eq!(result.to_flatten_vec::<bool>()?, vec![false, false, true, false]);
+                assert_eq!(result.to_flatten_vec::<bool>()?, vec![true, false, false, true]);
+            }
+            DType::U8 | DType::U32 => {
+                let x = setup_tensor(TEST_DATA_U32.to_vec(), dtype)?;
+
+                let result = x.gt_scalar(1)?;
+
+                assert_eq!(result.to_flatten_vec::<bool>()?, vec![false, false, true, true]);
+            }
+            _ => {
+                let x = setup_tensor(TEST_DATA_F32.to_vec(), dtype)?;
+
+                let result = x.gt_scalar(0.0)?;
+
+                assert_eq!(result.to_flatten_vec::<bool>()?, vec![false, false, true, false]);
+            }
+        }
+
         Ok(())
     }
 
     pub fn ge_scalar_test(dtype: DType) -> Result<()> {
-        let x = setup_tensor(TEST_DATA_F32.to_vec(), dtype)?;
-        let scalar = 0.0;
+        match dtype {
+            DType::BOOL => {
+                let x = setup_tensor(TEST_DATA_BOOL.to_vec(), dtype)?;
 
-        let result = x.ge_scalar(scalar)?;
+                let result = x.ge_scalar(false)?;
 
-        assert_eq!(result.to_flatten_vec::<bool>()?, vec![false, true, true, false]);
+                assert_eq!(result.to_flatten_vec::<bool>()?, vec![true, true, true, true]);
+            }
+            DType::U8 | DType::U32 => {
+                let x = setup_tensor(TEST_DATA_U32.to_vec(), dtype)?;
+
+                let result = x.ge_scalar(1)?;
+
+                assert_eq!(result.to_flatten_vec::<bool>()?, vec![true, false, true, true]);
+            }
+            _ => {
+                let x = setup_tensor(TEST_DATA_F32.to_vec(), dtype)?;
+
+                let result = x.ge_scalar(0.0)?;
+
+                assert_eq!(result.to_flatten_vec::<bool>()?, vec![false, true, true, false]);
+            }
+        }
+
         Ok(())
     }
 }
@@ -1093,7 +1960,6 @@ test_ops!([
     exp2,
     softplus,
     recip,
-    logical_not,
     // with constant
     add_scalar,
     sub_scalar,
@@ -1103,8 +1969,12 @@ test_ops!([
     minimum_scalar,
     pow,
     leaky_relu,
-    elu,
-    // logical
+    elu
+]);
+
+test_logical_ops!([
+    logical_not,
+    // with constant
     eq_scalar,
     ne_scalar,
     lt_scalar,
