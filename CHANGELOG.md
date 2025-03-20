@@ -21,6 +21,7 @@
 - Added softmax function [[f39cbdf](https://github.com/miniex/maidenx/commit/f39cbdf)]
 - Added broadcast_like function [[b2f4d4e](https://github.com/miniex/maidenx/commit/b2f4d4e)]
 - Added log function with ln alias [[b4259f0](https://github.com/miniex/maidenx/commit/b4259f0)]
+- Enjoy boolean support for scalar comparison operations, enhancing flexibility in your computations. [[316dd26](https://github.com/miniex/maidenx/commit/316dd26)]
 
 ### Improvements
 - Optimized im2col and col2im CUDA kernels [[a01cca5](https://github.com/miniex/maidenx/commit/a01cca5)]
