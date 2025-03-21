@@ -258,6 +258,10 @@ impl Tensor {
         crate::utils::indexing::get_index(self, &indices)
     }
 
+    pub fn index_put(&mut self, indices: &[usize], src: &Tensor) -> Result<()> {
+        utils::indexing::index_put(self, indices, src)
+    }
+
     // iterator
 
     pub fn index_iter(&self) -> Result<TensorIterator> {

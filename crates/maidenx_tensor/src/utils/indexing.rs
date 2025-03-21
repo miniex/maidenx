@@ -1,8 +1,133 @@
+#![allow(clippy::needless_range_loop)]
+
 use crate::Tensor;
 use maidenx_core::{
     error::{Error, Result},
     scalar::Scalar,
 };
+
+pub fn index_put(dest: &mut Tensor, indices: &[usize], src: &Tensor) -> Result<()> {
+    // Validate that the indices specify a valid position in the destination tensor
+    if indices.len() > dest.ndim() {
+        return Err(Error::InvalidArgument(format!(
+            "Indices length ({}) exceeds destination tensor dimensions ({})",
+            indices.len(),
+            dest.ndim()
+        )));
+    }
+
+    // Check if we are indexing a subset of dimensions
+    let remaining_dims = dest.ndim() - indices.len();
+
+    // If we're not indexing all dimensions, the source tensor should match
+    // the remaining dimensions of the destination
+    if remaining_dims > 0 {
+        // Get the shape of the remaining dimensions in the destination tensor
+        let mut dest_remaining_shape = Vec::with_capacity(remaining_dims);
+        for i in indices.len()..dest.ndim() {
+            dest_remaining_shape.push(dest.dim_size(i).unwrap_or(0));
+        }
+
+        // Check if source tensor shape matches the remaining dimensions
+        if src.ndim() != remaining_dims {
+            return Err(Error::InvalidArgument(format!(
+                "Source tensor dimensions ({}) don't match destination's remaining dimensions ({})",
+                src.ndim(),
+                remaining_dims
+            )));
+        }
+
+        for i in 0..remaining_dims {
+            if src.dim_size(i).unwrap_or(0) != dest_remaining_shape[i] {
+                return Err(Error::InvalidArgument(format!(
+                    "Dimension mismatch at index {}: source has size {}, destination expects {}",
+                    i,
+                    src.dim_size(i).unwrap_or(0),
+                    dest_remaining_shape[i]
+                )));
+            }
+        }
+
+        // Calculate the base offset in the destination tensor
+        let mut base_offset = 0;
+        for (dim, &idx) in indices.iter().enumerate() {
+            let dim_size = dest.dim_size(dim).unwrap_or(0);
+            if idx >= dim_size {
+                return Err(Error::IndexOutOfBounds { index: idx, size: dim_size });
+            }
+            base_offset += idx * dest.strides()[dim];
+        }
+
+        fn copy_elements(
+            src: &Tensor,
+            dest: &mut Tensor,
+            base_offset: usize,
+            base_dims: usize,
+            curr_indices: &mut Vec<usize>,
+            curr_dim: usize,
+        ) -> Result<()> {
+            if curr_dim == src.ndim() {
+                let mut dest_flat_idx = base_offset;
+                for dim in 0..curr_indices.len() {
+                    dest_flat_idx += curr_indices[dim] * dest.strides()[base_dims + dim];
+                }
+
+                // Calculate the source flat index
+                let mut src_flat_idx = src.offset();
+                for dim in 0..curr_indices.len() {
+                    src_flat_idx += curr_indices[dim] * src.strides()[dim];
+                }
+
+                // Read from source and write to destination
+                let value = src.buffer().read_scalar(src_flat_idx)?;
+                dest.with_buffer_mut(|buffer| buffer.write_scalar(dest_flat_idx, value))?;
+
+                return Ok(());
+            }
+
+            // Recursively iterate through all possible values for the current dimension
+            let dim_size = src.dim_size(curr_dim).unwrap_or(0);
+            for i in 0..dim_size {
+                curr_indices.push(i);
+                copy_elements(src, dest, base_offset, base_dims, curr_indices, curr_dim + 1)?;
+                curr_indices.pop();
+            }
+
+            Ok(())
+        }
+
+        let mut curr_indices = Vec::new();
+        copy_elements(src, dest, base_offset + dest.offset(), indices.len(), &mut curr_indices, 0)?;
+    } else {
+        // If we're indexing all dimensions (or the destination is 1D)
+        // We can simply set the scalar value from the source
+        if src.ndim() == 0 {
+            // Source is a scalar
+            let scalar = src.buffer().read_scalar(src.offset())?;
+            set_index(dest, indices, scalar)?;
+        } else if src.size() > 0 {
+            // Source is a 1D tensor or has flattened elements that we need to copy over
+            let dest_dim = indices[0];
+            if dest_dim + src.size() > dest.size() {
+                return Err(Error::InvalidArgument(format!(
+                    "Source tensor size ({}) exceeds available space in destination starting at index {} (available: {})",
+                    src.size(),
+                    dest_dim,
+                    dest.size() - dest_dim
+                )));
+            }
+
+            // Copy each element from source to the destination
+            for i in 0..src.size() {
+                let value = src.buffer().read_scalar(src.offset() + i * src.strides()[0])?;
+                let dest_idx = vec![dest_dim + i]; // For a 1D tensor
+                set_index(dest, &dest_idx, value)?;
+            }
+        }
+    }
+
+    Ok(())
+}
 
 pub fn select_dim(src: &Tensor, dim: impl Into<Scalar>, index: impl Into<Scalar>) -> Result<Tensor> {
     let dim_i32 = dim.into().as_i32();

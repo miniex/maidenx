@@ -162,6 +162,7 @@ Blank: Upcoming support
 |            | `set`              | ✓ | ✓ |
 |            | `select`           | ✓ | ✓ |
 |            | `item`             | ✓ | ✓ |
+|            | `index_put`        | ✓ | ✓ |
 
 <br/>
 
