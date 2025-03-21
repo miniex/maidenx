@@ -548,6 +548,100 @@ impl Tensor {
 
         Ok(result)
     }
+
+    pub fn norm(&self, p: impl Into<Scalar>, dim: impl Into<Scalar>, keep_dim: bool) -> Result<Self> {
+        let p_f32 = p.into().as_f32();
+        let dim_i32 = dim.into().as_i32();
+        let dim: usize = if dim_i32 < 0 {
+            (self.ndim() as i32 + dim_i32) as usize
+        } else {
+            dim_i32 as usize
+        };
+
+        let shape: Vec<usize> = self.shape().to_vec();
+        if dim >= shape.len() {
+            return Err(Error::DimensionOutOfBounds {
+                dim: dim as i32,
+                ndim: self.ndim(),
+            });
+        }
+
+        if p_f32 == 1.0 {
+            let abs_input = self.abs()?;
+            let result = abs_input.sum(dim, keep_dim)?;
+
+            Ok(result)
+        } else if p_f32 == 2.0 {
+            let squared = self.square()?;
+            let sum_squared = squared.sum(dim, keep_dim)?;
+            let result = sum_squared.sqrt()?;
+
+            Ok(result)
+        } else {
+            let abs_input = self.abs()?;
+            let pow_input = abs_input.pow(p_f32)?;
+            let sum_result = pow_input.sum(dim, keep_dim)?;
+            let result = sum_result.pow(1.0 / p_f32)?;
+
+            Ok(result)
+        }
+    }
+
+    pub fn norm_all(&self, p: impl Into<Scalar>) -> Result<Tensor> {
+        let p_f32 = p.into().as_f32();
+
+        if p_f32 == 1.0 {
+            self.abs()?.sum_all()
+        } else if p_f32 == 2.0 {
+            let squared = self.pow(2.0)?;
+            let sum_squared = squared.sum_all()?;
+            sum_squared.sqrt()
+        } else {
+            let abs_values = self.abs()?;
+            let pow_values = abs_values.pow(p_f32)?;
+            let sum_result = pow_values.sum_all()?;
+            sum_result.pow(1.0 / p_f32)
+        }
+    }
+
+    pub fn var(&self, dim: impl Into<Scalar>, keep_dim: bool, unbiased: bool) -> Result<Self> {
+        let dim_i32 = dim.into().as_i32();
+        let dim: usize = if dim_i32 < 0 {
+            (self.ndim() as i32 + dim_i32) as usize
+        } else {
+            dim_i32 as usize
+        };
+
+        let shape: Vec<usize> = self.shape().to_vec();
+        if dim >= shape.len() {
+            return Err(Error::DimensionOutOfBounds {
+                dim: dim as i32,
+                ndim: self.ndim(),
+            });
+        }
+
+        let target_dtype = if self.dtype().is_int() { DType::F32 } else { self.dtype() };
+        let input = promote_tensor(self, target_dtype)?;
+
+        let mean = input.mean(dim, true)?;
+        let centered = input.sub(&mean)?;
+        let squared_diff = centered.pow(2.0)?;
+        let sum_squared_diff = squared_diff.sum(dim, keep_dim)?;
+
+        let n = input.shape()[dim] as f32;
+        let divisor = if unbiased { n - 1.0 } else { n };
+
+        let result = sum_squared_diff.div_scalar(divisor)?;
+
+        Ok(result)
+    }
+
+    pub fn std(&self, dim: impl Into<Scalar>, keep_dim: bool, unbiased: bool) -> Result<Tensor> {
+        let var_result = self.var(dim, keep_dim, unbiased)?;
+        let result = var_result.sqrt()?;
+
+        Ok(result)
+    }
 }
 
 fn prepare_metadata(tensor: &Tensor, dim: usize) -> Vec<usize> {

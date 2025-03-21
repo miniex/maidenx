@@ -113,7 +113,13 @@ Blank: Upcoming support
 |            | `mean_all`         | ✓ | ✓ | ✓ |
 |            | `fold`             | ✓ | ✓ | ✓ |
 |            | `max`              | ✓ | ✓ | ✓ | 
+|            | `max_all`          | ✓ | ✓ | ✓ | 
 |            | `min`              | ✓ | ✓ | ✓ | 
+|            | `min_all`          | ✓ | ✓ | ✓ | 
+|            | `norm`             | ✓ | ✓ | ✓ | 
+|            | `norm_all`         | ✓ | ✓ | ✓ | 
+|            | `std`              | ✓ | ✓ | ✓ | 
+|            | `var`              | ✓ | ✓ | ✓ | 
 | **Transform Operations** |
 | view operations |
 |            | `view`             | ✓ | ✓ | ✓ |

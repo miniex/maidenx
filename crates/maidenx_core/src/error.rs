@@ -44,6 +44,7 @@ pub enum Error {
         index: usize,
         size: usize,
     },
+    ConversionError(String),
     //
     Internal {
         message: String,
@@ -93,6 +94,9 @@ impl fmt::Display for Error {
             }
             Self::IndexOutOfBounds { index, size } => {
                 write!(f, "Index out of bounds: index {} is out of bounds for tensor with size {}", index, size)
+            }
+            Self::ConversionError(msg) => {
+                write!(f, "Type conversion error: {}", msg)
             }
             Self::Internal { message } => {
                 write!(f, "Internal error: {}", message)
