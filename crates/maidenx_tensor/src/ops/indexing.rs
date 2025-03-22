@@ -246,7 +246,7 @@ impl Tensor {
             }
         }
 
-        let mut output = Tensor::zeros_like(index)?;
+        let mut output = Tensor::zeros_with_spec(index.shape(), self.device(), self.dtype())?;
 
         let mut index_vec = vec![0; self.ndim()];
         let mut output_vec = vec![0; output.ndim()];
