@@ -19,7 +19,7 @@ impl Tensor {
         T: TensorAdapter,
     {
         let device = get_default_device();
-        let dtype = get_default_dtype();
+        let dtype = data.dtype();
 
         Self::new_with_spec(data, device, dtype)
     }
