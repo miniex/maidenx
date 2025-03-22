@@ -39,6 +39,14 @@ where
 mod test_functions {
     use super::*;
 
+    pub fn index_put_inplace_test(dtype: DType) -> Result<()> {
+        let mut x = setup_tensor(vec![3.0f32, 4.0, 5.0, 9.0, 7.0, 3.0], dtype)?;
+        let y = setup_tensor(vec![1.0f32, 2.0], dtype)?;
+        x.index_put_(&[3], &y)?;
+        assert_eq!(x.to_flatten_vec::<f32>()?, vec![3.0f32, 4.0, 5.0, 1.0, 2.0, 3.0]);
+        Ok(())
+    }
+
     pub fn gather_test(dtype: DType) -> Result<()> {
         let input = setup_grad_tensor(vec![1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0], dtype)?.reshape(&[2, 3])?;
         let index = setup_tensor(vec![0i32, 2, 1, 0, 2, 1], DType::I32)?.reshape(&[2, 3])?;
@@ -85,6 +93,7 @@ mod test_functions {
 }
 
 test_ops_without_8byte!([
+    index_put_inplace,
     gather,
     // inplace
     scatter_add_inplace

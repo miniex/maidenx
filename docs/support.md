@@ -141,6 +141,7 @@ Blank: Upcoming support
 |            | `pad_with_reflection`  | ✓ | ✓ | ✓ |
 |            | `pad_with_replication` | ✓ | ✓ | ✓ |
 | **Indexing Operations** |
+|            | `index_put_`       | ✗ | ✓ | ✓ |
 |            | `gather`           | ✓ | ✓ | ✓ |
 |            | `scatter_add_`     | ✗ | ✓ | ✓ |
 | **NN Layer Aliases** |
@@ -162,7 +163,6 @@ Blank: Upcoming support
 |            | `set`              | ✓ | ✓ |
 |            | `select`           | ✓ | ✓ |
 |            | `item`             | ✓ | ✓ |
-|            | `index_put`        | ✓ | ✓ |
 
 <br/>
 

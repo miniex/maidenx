@@ -51,14 +51,3 @@ fn selcet() -> Result<()> {
 
     Ok(())
 }
-
-#[test]
-fn index_put() -> Result<()> {
-    let mut x = setup_tensor(vec![3.0f32, 4.0, 5.0, 9.0, 7.0, 3.0])?;
-    let y = setup_tensor(vec![1.0f32, 2.0])?;
-
-    x.index_put(&[3], &y)?;
-
-    assert_eq!(x.to_flatten_vec::<f32>()?, vec![3.0f32, 4.0, 5.0, 1.0, 2.0, 3.0]);
-    Ok(())
-}
