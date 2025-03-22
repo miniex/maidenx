@@ -4,6 +4,8 @@ use crate::{
     dtype::DType,
     error::{Error, Result},
 };
+#[cfg(feature = "cuda")]
+use maidenx_cuda::cuda_memcpy_d2h;
 use std::{ffi::c_void, ptr};
 
 pub struct CpuBuffer {
@@ -54,8 +56,18 @@ impl Buffer for CpuBuffer {
         if self.dtype() != other.dtype() {
             return Err(Error::InvalidArgument("DType mismatch".into()));
         }
-        ptr::copy_nonoverlapping(other.as_ptr() as *const u8, self.data.as_mut_ptr(), self.data.len());
-        Ok(())
+
+        match other.device() {
+            Device::CPU => {
+                ptr::copy_nonoverlapping(other.as_ptr() as *const u8, self.data.as_mut_ptr(), self.data.len());
+                Ok(())
+            }
+            #[cfg(feature = "cuda")]
+            Device::CUDA(_) => {
+                cuda_memcpy_d2h(self.data.as_mut_ptr() as *mut c_void, other.as_ptr(), self.data.len());
+                Ok(())
+            }
+        }
     }
 
     unsafe fn copy_from_host(&mut self, src: *const c_void, size_in_bytes: usize) -> Result<()> {
