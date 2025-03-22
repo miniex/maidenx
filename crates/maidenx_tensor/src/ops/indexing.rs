@@ -1,10 +1,101 @@
-use crate::{utils::indexing::set_index, Tensor};
+use crate::{
+    utils::indexing::{add_at_index, set_index},
+    Tensor, TensorNode,
+};
 use maidenx_core::{
     error::{Error, Result},
     scalar::Scalar,
 };
 
 impl Tensor {
+    pub fn index(&self, indices: &Tensor) -> Result<Self> {
+        self.index_select(0, indices)
+    }
+
+    pub fn index_select(&self, dim: impl Into<Scalar>, indices: &Tensor) -> Result<Self> {
+        let dim_i32 = dim.into().as_i32();
+        let dim_usize: usize = if dim_i32 < 0 {
+            (self.ndim() as i32 + dim_i32) as usize
+        } else {
+            dim_i32 as usize
+        };
+
+        if dim_usize >= self.ndim() {
+            return Err(Error::DimensionOutOfBounds {
+                dim: dim_i32,
+                ndim: self.ndim(),
+            });
+        }
+
+        if !indices.dtype().is_int() {
+            return Err(Error::InvalidArgument(format!(
+                "Expected indices tensor with integer dtype, got {}",
+                indices.dtype()
+            )));
+        }
+
+        let mut output_shape = self.shape().to_vec();
+        output_shape[dim_usize] = indices.size();
+
+        let mut result = Self::zeros_with_spec(&output_shape, self.device(), self.dtype())?;
+
+        for (i, idx_pos) in (0..indices.size()).enumerate() {
+            let idx = indices.get(&[idx_pos])?.as_i32();
+
+            if idx < 0 || idx >= self.shape()[dim_usize] as i32 {
+                return Err(Error::IndexOutOfBounds {
+                    index: idx as usize,
+                    size: self.shape()[dim_usize],
+                });
+            }
+
+            let src_slice = self.slice(dim_usize, idx as usize, Some((idx as usize) + 1), 1)?;
+
+            let mut dst_slice = result.slice(dim_usize, i, Some(i + 1), 1)?;
+
+            for idx_tuple in src_slice.index_iter()? {
+                let value = src_slice.get(&idx_tuple)?;
+                dst_slice.set(&idx_tuple, value)?;
+            }
+        }
+
+        if self.requires_grad() {
+            result.with_grad()?;
+
+            let orig_shape = self.shape().to_vec();
+            let orig_dim = dim_usize;
+            let indices_clone = indices.clone();
+
+            let backward_fn = Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> {
+                let mut grad_self = Tensor::zeros_with_spec(&orig_shape, grad_out.device(), grad_out.dtype())?;
+
+                for (i, idx_pos) in (0..indices_clone.size()).enumerate() {
+                    let idx = indices_clone.get(&[idx_pos])?.as_i32() as usize;
+
+                    let grad_out_slice = grad_out.slice(orig_dim, i, Some(i + 1), 1)?;
+
+                    for pos in grad_out_slice.index_iter()? {
+                        let mut self_pos = pos.clone();
+                        self_pos[orig_dim] = idx;
+
+                        let value = grad_out_slice.get(&pos)?;
+                        add_at_index(&mut grad_self, &self_pos, value)?;
+                    }
+                }
+
+                let grad_indices = Tensor::zeros_like(&indices_clone)?;
+
+                Ok(vec![grad_self, grad_indices])
+            });
+
+            let node = TensorNode::new("index_select".to_string(), vec![self.clone(), indices.clone()], Some(backward_fn));
+
+            result.node = Some(node);
+        }
+
+        Ok(result)
+    }
+
     #[allow(clippy::needless_range_loop)]
     pub fn index_put_(&mut self, indices: &[usize], src: &Tensor) -> Result<()> {
         // Validate that the indices specify a valid position in the selfination tensor

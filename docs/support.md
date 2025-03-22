@@ -136,11 +136,13 @@ Blank: Upcoming support
 |            | `broadcast_like`   | ✓ | ✓ | ✓ |
 |            | `broadcast_left`   | ✓ | ✓ | ✓ |
 | **Padding Operations** |
-|            | `pad`                  | ✓ | ✓ | ✓ |
-|            | `pad_with_constant`    | ✓ | ✓ | ✓ |
-|            | `pad_with_reflection`  | ✓ | ✓ | ✓ |
-|            | `pad_with_replication` | ✓ | ✓ | ✓ |
+|            | `pad`                                | ✓ | ✓ | ✓ |
+|            | `pad_with_constant`                  | ✓ | ✓ | ✓ |
+|            | `pad_with_reflection`                | ✓ | ✓ | ✓ |
+|            | `pad_with_replication`               | ✓ | ✓ | ✓ |
 | **Indexing Operations** |
+|            | `index` (dim 0 index_select alias)   | ✓ | ✓ | ✓ |
+|            | `index_select`     | ✓ | ✓ | ✓ |
 |            | `index_put_`       | ✗ | ✓ | ✓ |
 |            | `gather`           | ✓ | ✓ | ✓ |
 |            | `scatter_add_`     | ✗ | ✓ | ✓ |

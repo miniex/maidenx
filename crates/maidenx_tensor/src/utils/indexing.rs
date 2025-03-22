@@ -90,7 +90,7 @@ pub fn set_index(src: &mut Tensor, indices: &[usize], data: impl Into<Scalar>) -
     flat_idx += src.offset();
 
     let scalar = data.into();
-    src.with_buffer_mut(|buffer| buffer.write_scalar(flat_idx, scalar))
+    src.buffer_mut().write_scalar(flat_idx, scalar)
 }
 
 pub fn add_at_index(src: &mut Tensor, indices: &[usize], data: impl Into<Scalar>) -> Result<()> {
@@ -136,5 +136,5 @@ pub fn add_at_index(src: &mut Tensor, indices: &[usize], data: impl Into<Scalar>
         maidenx_core::dtype::DType::F16 => Scalar::from(current_value.as_f16() + add_value.as_f16()),
     };
 
-    src.with_buffer_mut(|buffer| buffer.write_scalar(flat_idx, new_value))
+    src.buffer_mut().write_scalar(flat_idx, new_value)
 }

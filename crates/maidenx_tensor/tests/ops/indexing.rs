@@ -39,6 +39,59 @@ where
 mod test_functions {
     use super::*;
 
+    pub fn index_select_test(dtype: DType) -> Result<()> {
+        // Test 1: Basic index_select along dimension 0
+        let input = setup_grad_tensor(vec![1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0], dtype)?.reshape(&[2, 3])?;
+        let indices = setup_tensor(vec![0i64, 0, 1], DType::I64)?;
+        let result = input.index_select(0, &indices)?;
+
+        assert_eq!(result.shape(), &[3, 3]);
+        assert_eq!(result.to_flatten_vec::<f32>()?, vec![1.0, 2.0, 3.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
+
+        result.backward()?;
+        if let Some(g) = input.grad()? {
+            assert_eq!(g.shape(), input.shape());
+
+            let grad_vec = g.to_flatten_vec::<f32>()?;
+            assert_eq!(grad_vec[0], 2.0);
+            assert_eq!(grad_vec[1], 2.0);
+            assert_eq!(grad_vec[2], 2.0);
+            assert_eq!(grad_vec[3], 1.0);
+            assert_eq!(grad_vec[4], 1.0);
+            assert_eq!(grad_vec[5], 1.0);
+        }
+
+        // Test 2: index_select along dimension 1
+        let input2 = setup_grad_tensor(vec![1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0], dtype)?.reshape(&[2, 3])?;
+        let indices2 = setup_tensor(vec![0i64, 2], DType::I64)?;
+        let result2 = input2.index_select(1, &indices2)?;
+
+        // Check shape and values
+        assert_eq!(result2.shape(), &[2, 2]);
+        assert_eq!(result2.to_flatten_vec::<f32>()?, vec![1.0, 3.0, 4.0, 6.0]);
+
+        // Test 3: index_select with negative dimension
+        let input3 = setup_tensor(vec![1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0], dtype)?.reshape(&[2, 3])?;
+        let indices3 = setup_tensor(vec![1i64, 2], DType::I64)?;
+        let result3 = input3.index_select(-1, &indices3)?; // -1 refers to last dimension (1)
+
+        assert_eq!(result3.shape(), &[2, 2]);
+        assert_eq!(result3.to_flatten_vec::<f32>()?, vec![2.0, 3.0, 5.0, 6.0]);
+
+        // Test 4: Using index method (embedding-like functionality)
+        let embeddings = setup_tensor(vec![1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0], dtype)?.reshape(&[3, 3])?;
+        let indices4 = setup_tensor(vec![2i64, 0, 1, 2], DType::I64)?;
+        let result4 = embeddings.index(&indices4)?;
+
+        assert_eq!(result4.shape(), &[4, 3]);
+        assert_eq!(
+            result4.to_flatten_vec::<f32>()?,
+            vec![7.0, 8.0, 9.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0]
+        );
+
+        Ok(())
+    }
+
     pub fn index_put_inplace_test(dtype: DType) -> Result<()> {
         let mut x = setup_tensor(vec![3.0f32, 4.0, 5.0, 9.0, 7.0, 3.0], dtype)?;
         let y = setup_tensor(vec![1.0f32, 2.0], dtype)?;
@@ -93,6 +146,7 @@ mod test_functions {
 }
 
 test_ops_without_8byte!([
+    index_select,
     index_put_inplace,
     gather,
     // inplace
