@@ -99,6 +99,14 @@ impl Tensor {
         Arc::as_ref(&self.data.buffer)
     }
 
+    // Don't use it!!
+    pub fn buffer_mut(&mut self) -> &mut dyn Buffer {
+        unsafe {
+            let buffer_ptr = Arc::as_ptr(&self.data.buffer) as *mut dyn Buffer;
+            &mut *buffer_ptr
+        }
+    }
+
     fn buffer_clone(&self) -> Result<Arc<dyn Buffer>> {
         let src_buffer = self.buffer();
         let device = src_buffer.device();
@@ -233,6 +241,10 @@ impl Tensor {
     }
 
     // utils
+
+    pub fn any(&self) -> Result<bool> {
+        utils::logical::any_true(self)
+    }
 
     pub fn get(&self, indices: &[usize]) -> Result<Scalar> {
         utils::indexing::get_index(self, indices)

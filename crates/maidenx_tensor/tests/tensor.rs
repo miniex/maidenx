@@ -23,6 +23,23 @@ where
 }
 
 #[test]
+fn any() -> Result<()> {
+    let x = setup_tensor(vec![false, false, true, false, false])?;
+    assert!(x.any()?);
+
+    let y = setup_tensor(vec![false, false, false, false, false])?;
+    assert!(!y.any()?);
+
+    let z = setup_tensor(vec![0.0f32, 0.0, 0.0, 1.0, 0.0])?;
+    assert!(z.any()?);
+
+    let w = setup_tensor(vec![0.0f32, 0.0, 0.0, 0.0, 0.0])?;
+    assert!(!w.any()?);
+
+    Ok(())
+}
+
+#[test]
 fn get() -> Result<()> {
     let x = setup_tensor(vec![3.0f32, 4.0, 5.0, 9.0, 7.0, 3.0])?;
     let scalar = x.get(&[4])?;

@@ -161,6 +161,7 @@ Blank: Upcoming support
 |            | `is_contiguous`    | ✓ | ✓ |
 |            | `contiguous`       | ✓ | ✓ |
 |            | `to_flatten_vec`   | ✓ | ✓ |
+|            | `any`              | ✓ | ✓ |
 |            | `get`              | ✓ | ✓ |
 |            | `set`              | ✓ | ✓ |
 |            | `select`           | ✓ | ✓ |
