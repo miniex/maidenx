@@ -32,6 +32,7 @@ impl Tensor {
                     result.set(&indices, value)?;
                 }
             }
+            #[cfg(feature = "cuda")]
             Device::CUDA(device_id) => {
                 let temp = self.to_device(Device::CPU)?;
                 let contiguous_temp = temp.contiguous()?;
