@@ -12,6 +12,84 @@ impl Tensor {
         self.index_select(0, indices)
     }
 
+    pub fn index_add_(&mut self, dim: impl Into<Scalar>, indices: &Tensor, src: &Tensor) -> Result<()> {
+        let dim_i32 = dim.into().as_i32();
+        let dim_usize: usize = if dim_i32 < 0 {
+            (self.ndim() as i32 + dim_i32) as usize
+        } else {
+            dim_i32 as usize
+        };
+
+        if dim_usize >= self.ndim() {
+            return Err(Error::DimensionOutOfBounds {
+                dim: dim_i32,
+                ndim: self.ndim(),
+            });
+        }
+
+        if !indices.dtype().is_int() {
+            return Err(Error::InvalidArgument(format!(
+                "Expected indices tensor with integer dtype, got {}",
+                indices.dtype()
+            )));
+        }
+
+        if src.ndim() != self.ndim() {
+            return Err(Error::InvalidArgument(format!(
+                "Source tensor must have same number of dimensions as self, got {} and {}",
+                src.ndim(),
+                self.ndim()
+            )));
+        }
+
+        for d in 0..self.ndim() {
+            if d != dim_usize && self.shape()[d] != src.shape()[d] {
+                return Err(Error::InvalidArgument(format!(
+                    "Source tensor dimension {} must match self dimension {}, got {} and {}",
+                    d,
+                    d,
+                    src.shape()[d],
+                    self.shape()[d]
+                )));
+            }
+        }
+
+        if src.shape()[dim_usize] != indices.size() {
+            return Err(Error::InvalidArgument(format!(
+                "Source tensor dimension {} should match indices size, got {} and {}",
+                dim_usize,
+                src.shape()[dim_usize],
+                indices.size()
+            )));
+        }
+
+        for (i, idx_pos) in (0..indices.size()).enumerate() {
+            let idx = indices.get(&[idx_pos])?.as_i32();
+
+            if idx < 0 || idx >= self.shape()[dim_usize] as i32 {
+                return Err(Error::IndexOutOfBounds {
+                    index: idx as usize,
+                    size: self.shape()[dim_usize],
+                });
+            }
+
+            let src_slice = src.slice(dim_usize, i, Some(i + 1), 1)?;
+
+            let target_slice = self.slice(dim_usize, idx as usize, Some((idx as usize) + 1), 1)?;
+
+            for idx_tuple in src_slice.index_iter()? {
+                let value = src_slice.get(&idx_tuple)?;
+
+                let curr_value = target_slice.get(&idx_tuple)?;
+
+                let mut target_slice = self.slice(dim_usize, idx as usize, Some((idx as usize) + 1), 1)?;
+                target_slice.set(&idx_tuple, curr_value + value)?;
+            }
+        }
+
+        Ok(())
+    }
+
     pub fn index_select(&self, dim: impl Into<Scalar>, indices: &Tensor) -> Result<Self> {
         let dim_i32 = dim.into().as_i32();
         let dim_usize: usize = if dim_i32 < 0 {

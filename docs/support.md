@@ -142,6 +142,7 @@ Blank: Upcoming support
 |            | `pad_with_replication`               | ✓ | ✓ | ✓ |
 | **Indexing Operations** |
 |            | `index` (dim 0 index_select alias)   | ✓ | ✓ | ✓ |
+|            | `index_add_`       | ✗ | ✓ | ✓ |
 |            | `index_select`     | ✓ | ✓ | ✓ |
 |            | `index_put_`       | ✗ | ✓ | ✓ |
 |            | `bincount`         | ✓ | ✓ | ✓ |

@@ -39,6 +39,37 @@ where
 mod test_functions {
     use super::*;
 
+    pub fn index_add_inplace_test(dtype: DType) -> Result<()> {
+        let mut input = setup_tensor(vec![1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0], dtype)?.reshape(&[2, 3])?;
+        let indices = setup_tensor(vec![0i64, 1], DType::I64)?;
+        let src = setup_tensor(vec![10.0f32, 20.0, 30.0, 40.0, 50.0, 60.0], dtype)?.reshape(&[2, 3])?;
+
+        input.index_add_(0, &indices, &src)?;
+
+        assert_eq!(input.shape(), &[2, 3]);
+        assert_eq!(input.to_flatten_vec::<f32>()?, vec![11.0, 22.0, 33.0, 44.0, 55.0, 66.0]);
+
+        let mut input2 = setup_tensor(vec![1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0], dtype)?.reshape(&[2, 3])?;
+        let indices2 = setup_tensor(vec![0i64, 2], DType::I64)?;
+        let src2 = setup_tensor(vec![10.0f32, 30.0, 40.0, 60.0], dtype)?.reshape(&[2, 2])?;
+
+        input2.index_add_(1, &indices2, &src2)?;
+
+        assert_eq!(input2.shape(), &[2, 3]);
+        assert_eq!(input2.to_flatten_vec::<f32>()?, vec![11.0, 2.0, 33.0, 44.0, 5.0, 66.0]);
+
+        let mut input3 = setup_tensor(vec![1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0], dtype)?.reshape(&[2, 3])?;
+        let indices3 = setup_tensor(vec![1i64, 2], DType::I64)?;
+        let src3 = setup_tensor(vec![20.0f32, 30.0, 50.0, 60.0], dtype)?.reshape(&[2, 2])?;
+
+        input3.index_add_(-1, &indices3, &src3)?;
+
+        assert_eq!(input3.shape(), &[2, 3]);
+        assert_eq!(input3.to_flatten_vec::<f32>()?, vec![1.0, 22.0, 33.0, 4.0, 55.0, 66.0]);
+
+        Ok(())
+    }
+
     pub fn index_select_test(dtype: DType) -> Result<()> {
         // Test 1: Basic index_select along dimension 0
         let input = setup_grad_tensor(vec![1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0], dtype)?.reshape(&[2, 3])?;
@@ -178,6 +209,7 @@ mod test_functions {
 }
 
 test_ops_without_8byte!([
+    index_add_inplace,
     index_select,
     index_put_inplace,
     gather,
