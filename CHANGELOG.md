@@ -1,5 +1,32 @@
 # MaidenX Changelog
 
+## Version 0.1.3
+
+### New Features
+
+#### Neural Network
+- Added Embedding layer with support for padding and gradient scaling [[71915be](https://github.com/miniex/maidenx/commit/71915be)]
+
+#### Tensor Operations
+- Added tensor reduction operations including norm, variance, and standard deviation [[0076a86](https://github.com/miniex/maidenx/commit/0076a86)]
+- Implemented stride and offset support for padding operations to handle non-contiguous tensors [[d52daa9](https://github.com/miniex/maidenx/commit/d52daa9)]
+
+#### Indexing Operations
+- Added index_select and index_add_ functions to enhance tensor indexing capabilities [[aaebba8](https://github.com/miniex/maidenx/commit/aaebba8)]
+- Added bincount operation for efficient counting of occurrences in tensors [[222d9e4](https://github.com/miniex/maidenx/commit/222d9e4)]
+
+#### Data Types
+- Added support for u16, u64, and i16 data types for more flexibility in tensor operations [[7bb020c](https://github.com/miniex/maidenx/commit/7bb020c)]
+
+### Improvements
+- Enhanced performance of the contiguous operation for CUDA tensors [[#6](https://github.com/miniex/maidenx/issues/6), [68b342f](https://github.com/miniex/maidenx/commit/68b342f)]
+- Unified type promotion across all tensor operations, enhancing compatibility and reducing errors [[316dd26](https://github.com/miniex/maidenx/commit/316dd26)]
+
+### Fixes
+- Fixed gather operation to ensure the output uses the source tensor's data type [[91128cd](https://github.com/miniex/maidenx/commit/91128cd)]
+- Fixed alignment issues in CPU kernels to match the CUDA implementation [[040e2f1](https://github.com/miniex/maidenx/commit/040e2f1)]
+- Fixed overflow issues in read/write_scalar operations for u8 and i8 tensor types [[#5](https://github.com/miniex/maidenx/issues/5), [fd901bc](https://github.com/miniex/maidenx/commit/fd901bc)]
+
 ## Version 0.1.2
 
 ### New Features
