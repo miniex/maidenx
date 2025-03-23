@@ -1,5 +1,5 @@
 use crate::Tensor;
-use maidenx_core::error::Result;
+use maidenx_core::{device::Device, error::Result};
 
 impl Tensor {
     pub fn is_contiguous(&self) -> bool {
@@ -25,9 +25,18 @@ impl Tensor {
 
         let mut result = Self::empty_like(self)?;
 
-        for indices in self.index_iter()? {
-            let value = self.get(&indices)?;
-            result.set(&indices, value)?;
+        match self.device() {
+            Device::CPU => {
+                for indices in self.index_iter()? {
+                    let value = self.get(&indices)?;
+                    result.set(&indices, value)?;
+                }
+            }
+            Device::CUDA(device_id) => {
+                let temp = self.to_device(Device::CPU)?;
+                let contiguous_temp = temp.contiguous()?;
+                result = contiguous_temp.to_device(Device::CUDA(device_id))?;
+            }
         }
 
         Ok(result)
