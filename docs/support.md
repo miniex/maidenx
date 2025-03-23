@@ -14,11 +14,11 @@ Blank: Upcoming support
 | 64-bit floating point | `maidenx::float64` |
 | boolean | `maidenx::bool` |
 | 8-bit integer (unsigned) | `maidenx::uint8` |
-| 16-bit integer (unsigned) | not supported |
+| 16-bit integer (unsigned) | `maidenx::uint16` |
 | 32-bit integer (unsigned) | `maidenx::uint32` |
-| 64-bit integer (unsigned) | not supported |
+| 64-bit integer (unsigned) | `maidenx::uint64` |
 | 8-bit integer (signed) | `maidenx::int8` |
-| 16-bit integer (signed) | not supported |
+| 16-bit integer (signed) | `maidenx::int16` |
 | 32-bit integer (signed) | `maidenx::int32` |
 | 64-bit integer (signed) | `maidenx::int64` |
 

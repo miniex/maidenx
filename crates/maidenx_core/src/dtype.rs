@@ -10,8 +10,11 @@ pub const float32: DType = DType::F32;
 pub const float64: DType = DType::F64;
 pub const bool: DType = DType::BOOL;
 pub const uint8: DType = DType::U8;
+pub const uint16: DType = DType::U16;
 pub const uint32: DType = DType::U32;
+pub const uint64: DType = DType::U64;
 pub const int8: DType = DType::I8;
+pub const int16: DType = DType::I16;
 pub const int32: DType = DType::I32;
 pub const int64: DType = DType::I64;
 
@@ -23,8 +26,11 @@ pub enum DType {
     F64,
     BOOL,
     U8,
+    U16,
     U32,
+    U64,
     I8,
+    I16,
     I32,
     I64,
 }
@@ -44,8 +50,11 @@ impl DType {
             Self::F64 => "f64",
             Self::BOOL => "bool",
             Self::U8 => "u8",
+            Self::U16 => "u16",
             Self::U32 => "u32",
+            Self::U64 => "u64",
             Self::I8 => "i8",
+            Self::I16 => "i16",
             Self::I32 => "i32",
             Self::I64 => "i64",
         }
@@ -59,8 +68,11 @@ impl DType {
             Self::F64 => 8,
             Self::BOOL => 1,
             Self::U8 => 1,
+            Self::U16 => 2,
             Self::U32 => 4,
+            Self::U64 => 8,
             Self::I8 => 1,
+            Self::I16 => 2,
             Self::I32 => 4,
             Self::I64 => 8,
         }
@@ -69,7 +81,7 @@ impl DType {
     #[allow(clippy::match_like_matches_macro)]
     pub fn is_uint(&self) -> bool {
         match self {
-            Self::U8 | Self::U32 => true,
+            Self::U8 | Self::U16 | Self::U32 | Self::U64 => true,
             _ => false,
         }
     }
@@ -81,14 +93,14 @@ impl DType {
     pub fn is_int(&self) -> bool {
         match self {
             Self::BF16 | Self::F16 | Self::F32 | Self::F64 | Self::BOOL => false,
-            Self::U8 | Self::U32 | Self::I8 | Self::I32 | Self::I64 => true,
+            Self::U8 | Self::U16 | Self::U32 | Self::U64 | Self::I8 | Self::I16 | Self::I32 | Self::I64 => true,
         }
     }
 
     pub fn is_float(&self) -> bool {
         match self {
             Self::BF16 | Self::F16 | Self::F32 | Self::F64 => true,
-            Self::BOOL | Self::U8 | Self::U32 | Self::I8 | Self::I32 | Self::I64 => false,
+            Self::BOOL | Self::U8 | Self::U16 | Self::U32 | Self::U64 | Self::I8 | Self::I16 | Self::I32 | Self::I64 => false,
         }
     }
 
@@ -124,15 +136,27 @@ impl DType {
             }
             Self::U8 => {
                 let val = *ptr;
-                Scalar::from(val as i32)
+                Scalar::from(val)
+            }
+            Self::U16 => {
+                let val = *(ptr as *const u16);
+                Scalar::from(val)
             }
             Self::U32 => {
                 let val = *(ptr as *const u32);
                 Scalar::from(val as i32)
             }
+            Self::U64 => {
+                let val = *(ptr as *const u64);
+                Scalar::from(val)
+            }
             Self::I8 => {
                 let val = *(ptr as *const i8);
-                Scalar::from(val as i32)
+                Scalar::from(val)
+            }
+            Self::I16 => {
+                let val = *(ptr as *const i16);
+                Scalar::from(val)
             }
             Self::I32 => {
                 let val = *(ptr as *const i32);
@@ -173,13 +197,22 @@ impl DType {
                 *(ptr as *mut bool) = value.as_bool();
             }
             Self::U8 => {
-                *ptr = value.as_i32() as u8;
+                *ptr = value.as_u8();
+            }
+            Self::U16 => {
+                *(ptr as *mut u16) = value.as_u16();
             }
             Self::U32 => {
-                *(ptr as *mut u32) = value.as_i32() as u32;
+                *(ptr as *mut u32) = value.as_u32();
+            }
+            Self::U64 => {
+                *(ptr as *mut u64) = value.as_u64();
             }
             Self::I8 => {
-                *(ptr as *mut i8) = value.as_i32() as i8;
+                *(ptr as *mut i8) = value.as_i8();
+            }
+            Self::I16 => {
+                *(ptr as *mut i16) = value.as_i16();
             }
             Self::I32 => {
                 *(ptr as *mut i32) = value.as_i32();

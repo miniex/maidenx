@@ -111,6 +111,7 @@ unary_op!(neg_f32, f32, |x: f32| -x);
 unary_op!(neg_f64, f64, |x: f64| -x);
 unary_op!(neg_bool, bool, |x: bool| !x);
 unary_op!(neg_i8, i8, |x: i8| -x);
+unary_op!(neg_i16, i16, |x: i16| -x);
 unary_op!(neg_i32, i32, |x: i32| -x);
 unary_op!(neg_i64, i64, |x: i64| -x);
 unary_op!(neg_f16, f16, |x: f16| -x);
@@ -120,6 +121,7 @@ unary_op!(abs_f32, f32, |x: f32| x.abs());
 unary_op!(abs_f64, f64, |x: f64| x.abs());
 unary_op!(abs_bool, bool, |x: bool| x);
 unary_op!(abs_i8, i8, |x: i8| x.abs());
+unary_op!(abs_i16, i16, |x: i16| x.abs());
 unary_op!(abs_i32, i32, |x: i32| x.abs());
 unary_op!(abs_i64, i64, |x: i64| x.abs());
 unary_op!(abs_f16, f16, |x: f16| f16::from_f32(x.to_f32().abs()));
@@ -141,8 +143,17 @@ unary_op!(sign_f64, f64, |x| if x > 0.0 {
 });
 unary_op!(sign_bool, bool, |x: bool| x);
 unary_op!(sign_u8, u8, |x| if x > 0 { 1 } else { 0 });
+unary_op!(sign_u16, u16, |x| if x > 0 { 1 } else { 0 });
 unary_op!(sign_u32, u32, |x| if x > 0 { 1 } else { 0 });
+unary_op!(sign_u64, u64, |x| if x > 0 { 1 } else { 0 });
 unary_op!(sign_i8, i8, |x| if x > 0 {
+    1
+} else if x < 0 {
+    -1
+} else {
+    0
+});
+unary_op!(sign_i16, i16, |x| if x > 0 {
     1
 } else if x < 0 {
     -1
@@ -182,8 +193,11 @@ unary_op!(square_f32, f32, |x: f32| x * x);
 unary_op!(square_f64, f64, |x: f64| x * x);
 unary_op!(square_bool, bool, |x: bool| x);
 unary_op!(square_u8, u8, |x: u8| x * x);
+unary_op!(square_u16, u16, |x: u16| x * x);
 unary_op!(square_u32, u32, |x: u32| x * x);
+unary_op!(square_u64, u64, |x: u64| x * x);
 unary_op!(square_i8, i8, |x: i8| x * x);
+unary_op!(square_i16, i16, |x: i16| x * x);
 unary_op!(square_i32, i32, |x: i32| x * x);
 unary_op!(square_i64, i64, |x: i64| x * x);
 unary_op!(square_f16, f16, |x: f16| x * x);
@@ -193,8 +207,11 @@ unary_op!(sqrt_f32, f32, |x: f32| x.sqrt());
 unary_op!(sqrt_f64, f64, |x: f64| x.sqrt());
 unary_op!(sqrt_bool, bool, |x: bool| x);
 unary_op!(sqrt_u8, u8, |x: u8| (x as f32).sqrt() as u8);
+unary_op!(sqrt_u16, u16, |x: u16| (x as f32).sqrt() as u16);
 unary_op!(sqrt_u32, u32, |x: u32| (x as f32).sqrt() as u32);
+unary_op!(sqrt_u64, u64, |x: u64| (x as f32).sqrt() as u64);
 unary_op!(sqrt_i8, i8, |x: i8| (x.abs() as f32).sqrt() as i8);
+unary_op!(sqrt_i16, i16, |x: i16| (x.abs() as f32).sqrt() as i16);
 unary_op!(sqrt_i32, i32, |x: i32| (x.abs() as f32).sqrt() as i32);
 unary_op!(sqrt_i64, i64, |x: i64| (x.abs() as f64).sqrt() as i64);
 unary_op!(sqrt_f16, f16, |x: f16| f16::from_f32(x.to_f32().sqrt()));
@@ -325,8 +342,11 @@ unary_op_output!(logical_not_f32, f32, bool, |x: f32| x == 0.0);
 unary_op_output!(logical_not_f64, f64, bool, |x: f64| x == 0.0);
 unary_op_output!(logical_not_bool, bool, bool, |x: bool| !x);
 unary_op_output!(logical_not_u8, u8, bool, |x: u8| x == 0);
+unary_op_output!(logical_not_u16, u16, bool, |x: u16| x == 0);
 unary_op_output!(logical_not_u32, u32, bool, |x: u32| x == 0);
+unary_op_output!(logical_not_u64, u64, bool, |x: u64| x == 0);
 unary_op_output!(logical_not_i8, i8, bool, |x: i8| x == 0);
+unary_op_output!(logical_not_i16, i16, bool, |x: i16| x == 0);
 unary_op_output!(logical_not_i32, i32, bool, |x: i32| x == 0);
 unary_op_output!(logical_not_i64, i64, bool, |x: i64| x == 0);
 unary_op_output!(logical_not_f16, f16, bool, |x: f16| x == f16::from_f32(0.0));
@@ -337,8 +357,11 @@ unary_op_with_constant!(add_scalar_f32, f32, |x, c| x + c);
 unary_op_with_constant!(add_scalar_f64, f64, |x, c| x + c);
 unary_op_with_constant!(add_scalar_bool, bool, |x, c| x || c);
 unary_op_with_constant!(add_scalar_u8, u8, |x: u8, c| x.saturating_add(c));
+unary_op_with_constant!(add_scalar_u16, u16, |x: u16, c| x.saturating_add(c));
 unary_op_with_constant!(add_scalar_u32, u32, |x: u32, c| x.saturating_add(c));
+unary_op_with_constant!(add_scalar_u64, u64, |x: u64, c| x.saturating_add(c));
 unary_op_with_constant!(add_scalar_i8, i8, |x: i8, c| x.saturating_add(c));
+unary_op_with_constant!(add_scalar_i16, i16, |x: i16, c| x.saturating_add(c));
 unary_op_with_constant!(add_scalar_i32, i32, |x: i32, c| x.saturating_add(c));
 unary_op_with_constant!(add_scalar_i64, i64, |x: i64, c| x.saturating_add(c));
 unary_op_with_constant!(add_scalar_f16, f16, |x, c| x + c);
@@ -348,8 +371,11 @@ unary_op_with_constant!(sub_scalar_f32, f32, |x, c| x - c);
 unary_op_with_constant!(sub_scalar_f64, f64, |x, c| x - c);
 unary_op_with_constant!(sub_scalar_bool, bool, |x, c| x ^ c);
 unary_op_with_constant!(sub_scalar_u8, u8, |x: u8, c| x.saturating_sub(c));
+unary_op_with_constant!(sub_scalar_u16, u16, |x: u16, c| x.saturating_sub(c));
 unary_op_with_constant!(sub_scalar_u32, u32, |x: u32, c| x.saturating_sub(c));
+unary_op_with_constant!(sub_scalar_u64, u64, |x: u64, c| x.saturating_sub(c));
 unary_op_with_constant!(sub_scalar_i8, i8, |x: i8, c| x.saturating_sub(c));
+unary_op_with_constant!(sub_scalar_i16, i16, |x: i16, c| x.saturating_sub(c));
 unary_op_with_constant!(sub_scalar_i32, i32, |x: i32, c| x.saturating_sub(c));
 unary_op_with_constant!(sub_scalar_i64, i64, |x: i64, c| x.saturating_sub(c));
 unary_op_with_constant!(sub_scalar_f16, f16, |x, c| x - c);
@@ -359,8 +385,11 @@ unary_op_with_constant!(mul_scalar_f32, f32, |x, c| x * c);
 unary_op_with_constant!(mul_scalar_f64, f64, |x, c| x * c);
 unary_op_with_constant!(mul_scalar_bool, bool, |x, c| x && c);
 unary_op_with_constant!(mul_scalar_u8, u8, |x: u8, c| x.saturating_mul(c));
+unary_op_with_constant!(mul_scalar_u16, u16, |x: u16, c| x.saturating_mul(c));
 unary_op_with_constant!(mul_scalar_u32, u32, |x: u32, c| x.saturating_mul(c));
+unary_op_with_constant!(mul_scalar_u64, u64, |x: u64, c| x.saturating_mul(c));
 unary_op_with_constant!(mul_scalar_i8, i8, |x: i8, c| x.saturating_mul(c));
+unary_op_with_constant!(mul_scalar_i16, i16, |x: i16, c| x.saturating_mul(c));
 unary_op_with_constant!(mul_scalar_i32, i32, |x: i32, c| x.saturating_mul(c));
 unary_op_with_constant!(mul_scalar_i64, i64, |x: i64, c| x.saturating_mul(c));
 unary_op_with_constant!(mul_scalar_f16, f16, |x, c| x * c);
@@ -412,11 +441,29 @@ unary_op_with_constant!(div_scalar_u8, u8, |x: u8, c: u8| if c < 1 {
 } else {
     x.saturating_div(c)
 });
+unary_op_with_constant!(div_scalar_u16, u16, |x: u16, c: u16| if c < 1 {
+    if x == 0 {
+        0
+    } else {
+        u16::MAX
+    }
+} else {
+    x.saturating_div(c)
+});
 unary_op_with_constant!(div_scalar_u32, u32, |x: u32, c: u32| if c < 1 {
     if x == 0 {
         0
     } else {
         u32::MAX
+    }
+} else {
+    x.saturating_div(c)
+});
+unary_op_with_constant!(div_scalar_u64, u64, |x: u64, c: u64| if c < 1 {
+    if x == 0 {
+        0
+    } else {
+        u64::MAX
     }
 } else {
     x.saturating_div(c)
@@ -428,6 +475,17 @@ unary_op_with_constant!(div_scalar_i8, i8, |x: i8, c: i8| if c == 0 {
         i8::MIN
     } else {
         i8::MAX
+    }
+} else {
+    x.saturating_div(c)
+});
+unary_op_with_constant!(div_scalar_i16, i16, |x: i16, c: i16| if c == 0 {
+    if x == 0 {
+        0
+    } else if x < 0 {
+        i16::MIN
+    } else {
+        i16::MAX
     }
 } else {
     x.saturating_div(c)
@@ -461,8 +519,11 @@ unary_op_with_constant!(maximum_scalar_f32, f32, |x: f32, c| x.max(c));
 unary_op_with_constant!(maximum_scalar_f64, f64, |x: f64, c| x.max(c));
 unary_op_with_constant!(maximum_scalar_bool, bool, |x, c| x | c);
 unary_op_with_constant!(maximum_scalar_u8, u8, |x: u8, c: u8| x.max(c));
+unary_op_with_constant!(maximum_scalar_u16, u16, |x: u16, c: u16| x.max(c));
 unary_op_with_constant!(maximum_scalar_u32, u32, |x: u32, c: u32| x.max(c));
+unary_op_with_constant!(maximum_scalar_u64, u64, |x: u64, c: u64| x.max(c));
 unary_op_with_constant!(maximum_scalar_i8, i8, |x: i8, c: i8| x.max(c));
+unary_op_with_constant!(maximum_scalar_i16, i16, |x: i16, c: i16| x.max(c));
 unary_op_with_constant!(maximum_scalar_i32, i32, |x: i32, c: i32| x.max(c));
 unary_op_with_constant!(maximum_scalar_i64, i64, |x: i64, c: i64| x.max(c));
 
@@ -472,8 +533,11 @@ unary_op_with_constant!(minimum_scalar_f32, f32, |x: f32, c| x.min(c));
 unary_op_with_constant!(minimum_scalar_f64, f64, |x: f64, c| x.min(c));
 unary_op_with_constant!(minimum_scalar_bool, bool, |x, c| x & c);
 unary_op_with_constant!(minimum_scalar_u8, u8, |x: u8, c: u8| x.min(c));
+unary_op_with_constant!(minimum_scalar_u16, u16, |x: u16, c: u16| x.min(c));
 unary_op_with_constant!(minimum_scalar_u32, u32, |x: u32, c: u32| x.min(c));
+unary_op_with_constant!(minimum_scalar_u64, u64, |x: u64, c: u64| x.min(c));
 unary_op_with_constant!(minimum_scalar_i8, i8, |x: i8, c: i8| x.min(c));
+unary_op_with_constant!(minimum_scalar_i16, i16, |x: i16, c: i16| x.min(c));
 unary_op_with_constant!(minimum_scalar_i32, i32, |x: i32, c: i32| x.min(c));
 unary_op_with_constant!(minimum_scalar_i64, i64, |x: i64, c: i64| x.min(c));
 
@@ -481,8 +545,11 @@ unary_op_with_constant!(pow_f32, f32, |x: f32, c: f32| x.powf(c));
 unary_op_with_constant!(pow_f64, f64, |x: f64, c: f64| x.powf(c));
 unary_op_with_constant!(pow_bool, bool, |x: bool, _c: bool| x);
 unary_op_with_constant!(pow_u8, u8, |x: u8, c: u8| (x as f32).powf(c as f32) as u8);
+unary_op_with_constant!(pow_u16, u16, |x: u16, c: u16| (x as f64).powf(c as f64) as u16);
 unary_op_with_constant!(pow_u32, u32, |x: u32, c: u32| (x as f64).powf(c as f64) as u32);
+unary_op_with_constant!(pow_u64, u64, |x: u64, c: u64| (x as f64).powf(c as f64) as u64);
 unary_op_with_constant!(pow_i8, i8, |x: i8, c: i8| (x as f64).powf(c as f64) as i8);
+unary_op_with_constant!(pow_i16, i16, |x: i16, c: i16| (x as f64).powf(c as f64) as i16);
 unary_op_with_constant!(pow_i32, i32, |x: i32, c: i32| (x as f64).powf(c as f64) as i32);
 unary_op_with_constant!(pow_i64, i64, |x: i64, c: i64| (x as f64).powf(c as f64) as i64);
 unary_op_with_constant!(pow_f16, f16, |x: f16, c: f16| { f16::from_f32(x.to_f32().powf(c.to_f32())) });
@@ -571,6 +638,14 @@ unary_op_with_constant_output!(le_scalar_u8, u8, bool, |x, c| x <= c);
 unary_op_with_constant_output!(gt_scalar_u8, u8, bool, |x, c| x > c);
 unary_op_with_constant_output!(ge_scalar_u8, u8, bool, |x, c| x >= c);
 
+// -- u16
+unary_op_with_constant_output!(eq_scalar_u16, u16, bool, |x, c| x == c);
+unary_op_with_constant_output!(ne_scalar_u16, u16, bool, |x, c| x != c);
+unary_op_with_constant_output!(lt_scalar_u16, u16, bool, |x, c| x < c);
+unary_op_with_constant_output!(le_scalar_u16, u16, bool, |x, c| x <= c);
+unary_op_with_constant_output!(gt_scalar_u16, u16, bool, |x, c| x > c);
+unary_op_with_constant_output!(ge_scalar_u16, u16, bool, |x, c| x >= c);
+
 // -- u32
 unary_op_with_constant_output!(eq_scalar_u32, u32, bool, |x, c| x == c);
 unary_op_with_constant_output!(ne_scalar_u32, u32, bool, |x, c| x != c);
@@ -579,6 +654,14 @@ unary_op_with_constant_output!(le_scalar_u32, u32, bool, |x, c| x <= c);
 unary_op_with_constant_output!(gt_scalar_u32, u32, bool, |x, c| x > c);
 unary_op_with_constant_output!(ge_scalar_u32, u32, bool, |x, c| x >= c);
 
+// -- u64
+unary_op_with_constant_output!(eq_scalar_u64, u64, bool, |x, c| x == c);
+unary_op_with_constant_output!(ne_scalar_u64, u64, bool, |x, c| x != c);
+unary_op_with_constant_output!(lt_scalar_u64, u64, bool, |x, c| x < c);
+unary_op_with_constant_output!(le_scalar_u64, u64, bool, |x, c| x <= c);
+unary_op_with_constant_output!(gt_scalar_u64, u64, bool, |x, c| x > c);
+unary_op_with_constant_output!(ge_scalar_u64, u64, bool, |x, c| x >= c);
+
 // -- i8
 unary_op_with_constant_output!(eq_scalar_i8, i8, bool, |x, c| x == c);
 unary_op_with_constant_output!(ne_scalar_i8, i8, bool, |x, c| x != c);
@@ -586,6 +669,14 @@ unary_op_with_constant_output!(lt_scalar_i8, i8, bool, |x, c| x < c);
 unary_op_with_constant_output!(le_scalar_i8, i8, bool, |x, c| x <= c);
 unary_op_with_constant_output!(gt_scalar_i8, i8, bool, |x, c| x > c);
 unary_op_with_constant_output!(ge_scalar_i8, i8, bool, |x, c| x >= c);
+
+// -- i16
+unary_op_with_constant_output!(eq_scalar_i16, i16, bool, |x, c| x == c);
+unary_op_with_constant_output!(ne_scalar_i16, i16, bool, |x, c| x != c);
+unary_op_with_constant_output!(lt_scalar_i16, i16, bool, |x, c| x < c);
+unary_op_with_constant_output!(le_scalar_i16, i16, bool, |x, c| x <= c);
+unary_op_with_constant_output!(gt_scalar_i16, i16, bool, |x, c| x > c);
+unary_op_with_constant_output!(ge_scalar_i16, i16, bool, |x, c| x >= c);
 
 // -- i32
 unary_op_with_constant_output!(eq_scalar_i32, i32, bool, |x, c| x == c);

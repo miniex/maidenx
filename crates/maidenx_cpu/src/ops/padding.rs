@@ -551,8 +551,11 @@ pad_with_constant_op!(pad_with_constant_f16, f16, f16::from_f32(0.0));
 pad_with_constant_op!(pad_with_constant_f32, f32, 0.0f32);
 pad_with_constant_op!(pad_with_constant_f64, f64, 0.0f64);
 pad_with_constant_op!(pad_with_constant_u8, u8, 0u8);
+pad_with_constant_op!(pad_with_constant_u16, u16, 0u16);
 pad_with_constant_op!(pad_with_constant_u32, u32, 0u32);
+pad_with_constant_op!(pad_with_constant_u64, u64, 0u64);
 pad_with_constant_op!(pad_with_constant_i8, i8, 0i8);
+pad_with_constant_op!(pad_with_constant_i16, i16, 0i16);
 pad_with_constant_op!(pad_with_constant_i32, i32, 0i32);
 pad_with_constant_op!(pad_with_constant_i64, i64, 0i64);
 
@@ -561,8 +564,11 @@ pad_with_reflection_op!(pad_with_reflection_f16, f16, f16::from_f32(0.0));
 pad_with_reflection_op!(pad_with_reflection_f32, f32, 0.0f32);
 pad_with_reflection_op!(pad_with_reflection_f64, f64, 0.0f64);
 pad_with_reflection_op!(pad_with_reflection_u8, u8, 0u8);
+pad_with_reflection_op!(pad_with_reflection_u16, u16, 0u16);
 pad_with_reflection_op!(pad_with_reflection_u32, u32, 0u32);
+pad_with_reflection_op!(pad_with_reflection_u64, u64, 0u64);
 pad_with_reflection_op!(pad_with_reflection_i8, i8, 0i8);
+pad_with_reflection_op!(pad_with_reflection_i16, i16, 0i16);
 pad_with_reflection_op!(pad_with_reflection_i32, i32, 0i32);
 pad_with_reflection_op!(pad_with_reflection_i64, i64, 0i64);
 
@@ -571,8 +577,11 @@ pad_with_replication_op!(pad_with_replication_f16, f16, f16::from_f32(0.0));
 pad_with_replication_op!(pad_with_replication_f32, f32, 0.0f32);
 pad_with_replication_op!(pad_with_replication_f64, f64, 0.0f64);
 pad_with_replication_op!(pad_with_replication_u8, u8, 0u8);
+pad_with_replication_op!(pad_with_replication_u16, u16, 0u16);
 pad_with_replication_op!(pad_with_replication_u32, u32, 0u32);
+pad_with_replication_op!(pad_with_replication_u64, u64, 0u64);
 pad_with_replication_op!(pad_with_replication_i8, i8, 0i8);
+pad_with_replication_op!(pad_with_replication_i16, i16, 0i16);
 pad_with_replication_op!(pad_with_replication_i32, i32, 0i32);
 pad_with_replication_op!(pad_with_replication_i64, i64, 0i64);
 
@@ -582,8 +591,11 @@ pad_with_constant_backward_op!(pad_with_constant_backward_f16, f16, f16::from_f3
 pad_with_constant_backward_op!(pad_with_constant_backward_f32, f32, 0.0f32);
 pad_with_constant_backward_op!(pad_with_constant_backward_f64, f64, 0.0f64);
 pad_with_constant_backward_op!(pad_with_constant_backward_u8, u8, 0u8);
+pad_with_constant_backward_op!(pad_with_constant_backward_u16, u16, 0u16);
 pad_with_constant_backward_op!(pad_with_constant_backward_u32, u32, 0u32);
+pad_with_constant_backward_op!(pad_with_constant_backward_u64, u64, 0u64);
 pad_with_constant_backward_op!(pad_with_constant_backward_i8, i8, 0i8);
+pad_with_constant_backward_op!(pad_with_constant_backward_i16, i16, 0i16);
 pad_with_constant_backward_op!(pad_with_constant_backward_i32, i32, 0i32);
 pad_with_constant_backward_op!(pad_with_constant_backward_i64, i64, 0i64);
 
@@ -592,8 +604,11 @@ pad_with_reflection_backward_op!(pad_with_reflection_backward_f16, f16, f16::fro
 pad_with_reflection_backward_op!(pad_with_reflection_backward_f32, f32, 0.0f32);
 pad_with_reflection_backward_op!(pad_with_reflection_backward_f64, f64, 0.0f64);
 pad_with_reflection_backward_op!(pad_with_reflection_backward_u8, u8, 0u8);
+pad_with_reflection_backward_op!(pad_with_reflection_backward_u16, u16, 0u16);
 pad_with_reflection_backward_op!(pad_with_reflection_backward_u32, u32, 0u32);
+pad_with_reflection_backward_op!(pad_with_reflection_backward_u64, u64, 0u64);
 pad_with_reflection_backward_op!(pad_with_reflection_backward_i8, i8, 0i8);
+pad_with_reflection_backward_op!(pad_with_reflection_backward_i16, i16, 0i16);
 pad_with_reflection_backward_op!(pad_with_reflection_backward_i32, i32, 0i32);
 pad_with_reflection_backward_op!(pad_with_reflection_backward_i64, i64, 0i64);
 
@@ -602,7 +617,10 @@ pad_with_replication_backward_op!(pad_with_replication_backward_f16, f16, f16::f
 pad_with_replication_backward_op!(pad_with_replication_backward_f32, f32, 0.0f32);
 pad_with_replication_backward_op!(pad_with_replication_backward_f64, f64, 0.0f64);
 pad_with_replication_backward_op!(pad_with_replication_backward_u8, u8, 0u8);
+pad_with_replication_backward_op!(pad_with_replication_backward_u16, u16, 0u16);
 pad_with_replication_backward_op!(pad_with_replication_backward_u32, u32, 0u32);
+pad_with_replication_backward_op!(pad_with_replication_backward_u64, u64, 0u64);
 pad_with_replication_backward_op!(pad_with_replication_backward_i8, i8, 0i8);
+pad_with_replication_backward_op!(pad_with_replication_backward_i16, i16, 0i16);
 pad_with_replication_backward_op!(pad_with_replication_backward_i32, i32, 0i32);
 pad_with_replication_backward_op!(pad_with_replication_backward_i64, i64, 0i64);

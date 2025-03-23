@@ -522,11 +522,11 @@ macro_rules! declare_padding_op {
     };
 }
 
-declare_padding_op!(pad_with_constant: constant, [BF16, F16, F32, F64, U8, U32, I8, I32, I64]);
-declare_padding_op!(pad_with_constant_backward: constant_backward, [BF16, F16, F32, F64, U8, U32, I8, I32, I64]);
+declare_padding_op!(pad_with_constant: constant, [BF16, F16, F32, F64, U8, U16, U32, U64, I8, I16, I32, I64]);
+declare_padding_op!(pad_with_constant_backward: constant_backward, [BF16, F16, F32, F64, U8, U16, U32, U64, I8, I16, I32, I64]);
 
-declare_padding_op!(pad_with_reflection: reflection, [BF16, F16, F32, F64, U8, U32, I8, I32, I64]);
-declare_padding_op!(pad_with_reflection_backward: reflection_backward, [BF16, F16, F32, F64, U8, U32, I8, I32, I64]);
+declare_padding_op!(pad_with_reflection: reflection, [BF16, F16, F32, F64, U8, U16, U32, U64, I8, I16, I32, I64]);
+declare_padding_op!(pad_with_reflection_backward: reflection_backward, [BF16, F16, F32, F64, U8, U16, U32, U64, I8, I16, I32, I64]);
 
-declare_padding_op!(pad_with_replication: replication, [BF16, F16, F32, F64, U8, U32, I8, I32, I64]);
-declare_padding_op!(pad_with_replication_backward: replication_backward, [BF16, F16, F32, F64, U8, U32, I8, I32, I64]);
+declare_padding_op!(pad_with_replication: replication, [BF16, F16, F32, F64, U8, U16, U32, U64, I8, I16, I32, I64]);
+declare_padding_op!(pad_with_replication_backward: replication_backward, [BF16, F16, F32, F64, U8, U16, U32, U64, I8, I16, I32, I64]);

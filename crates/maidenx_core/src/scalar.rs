@@ -1,8 +1,7 @@
 use crate::dtype::DType;
 use half::{bf16, f16};
-use std::ops::{Add, Div, Mul, Sub};
-
 use std::fmt;
+use std::ops::{Add, Div, Mul, Sub};
 
 impl fmt::Display for Scalar {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -13,8 +12,11 @@ impl fmt::Display for Scalar {
             Self::F32(v) => write!(f, "{:.8}", v),
             Self::F64(v) => write!(f, "{:.8}", v),
             Self::U8(v) => write!(f, "{}", v),
+            Self::U16(v) => write!(f, "{}", v),
             Self::U32(v) => write!(f, "{}", v),
+            Self::U64(v) => write!(f, "{}", v),
             Self::I8(v) => write!(f, "{}", v),
+            Self::I16(v) => write!(f, "{}", v),
             Self::I32(v) => write!(f, "{}", v),
             Self::I64(v) => write!(f, "{}", v),
         }
@@ -30,8 +32,11 @@ impl fmt::Debug for Scalar {
             Self::F32(v) => write!(f, "Scalar(dtype=F32, value={:.8})", v),
             Self::F64(v) => write!(f, "Scalar(dtype=F64, value={:.8})", v),
             Self::U8(v) => write!(f, "Scalar(dtype=U8, value={})", v),
+            Self::U16(v) => write!(f, "Scalar(dtype=U16, value={})", v),
             Self::U32(v) => write!(f, "Scalar(dtype=U32, value={})", v),
+            Self::U64(v) => write!(f, "Scalar(dtype=U64, value={})", v),
             Self::I8(v) => write!(f, "Scalar(dtype=I8, value={})", v),
+            Self::I16(v) => write!(f, "Scalar(dtype=I16, value={})", v),
             Self::I32(v) => write!(f, "Scalar(dtype=I32, value={})", v),
             Self::I64(v) => write!(f, "Scalar(dtype=I64, value={})", v),
         }
@@ -73,8 +78,11 @@ macro_rules! numeric_variants {
                     DType::F32 => Scalar::F32(self.as_f32()),
                     DType::F64 => Scalar::F64(self.as_f64()),
                     DType::U8 => Scalar::U8(self.as_u8()),
+                    DType::U16 => Scalar::U16(self.as_u16()),
                     DType::U32 => Scalar::U32(self.as_u32()),
+                    DType::U64 => Scalar::U64(self.as_u64()),
                     DType::I8 => Scalar::I8(self.as_i8()),
+                    DType::I16 => Scalar::I16(self.as_i16()),
                     DType::I32 => Scalar::I32(self.as_i32()),
                     DType::I64 => Scalar::I64(self.as_i64()),
                 }
@@ -84,7 +92,7 @@ macro_rules! numeric_variants {
             pub fn is_int(&self) -> bool {
                 match self {
                     Self::BF16(_) | Self::F16(_) | Self::F32(_) | Self::F64(_) | Self::BOOL(_) => false,
-                    Self::U8(_) | Self::U32(_) | Self::I8(_) | Self::I32(_) | Self::I64(_) => true,
+                    Self::U8(_) | Self::U16(_) | Self::U32(_) | Self::U64(_) | Self::I8(_) | Self::I16(_) | Self::I32(_) | Self::I64(_) => true,
                 }
             }
 
@@ -92,7 +100,7 @@ macro_rules! numeric_variants {
             pub fn is_float(&self) -> bool {
                 match self {
                     Self::BF16(_) | Self::F16(_) | Self::F32(_) | Self::F64(_) => true,
-                    Self::BOOL(_) | Self::U8(_) | Self::U32(_) | Self::I8(_) | Self::I32(_) | Self::I64(_) => false,
+                    Self::BOOL(_) | Self::U8(_) | Self::U16(_) | Self::U32(_) | Self::U64(_) | Self::I8(_) | Self::I16(_) | Self::I32(_) | Self::I64(_) => false,
                 }
             }
 
@@ -136,16 +144,19 @@ macro_rules! numeric_variants {
             #[inline]
             pub fn as_bool(&self) -> bool {
                 match *self {
-                    Self::BOOL(x) => x,
-                    Self::U8(x) => x != 0,
-                    Self::I8(x) => x != 0,
-                    Self::U32(x) => x != 0,
-                    Self::I32(x) => x != 0,
-                    Self::I64(x) => x != 0,
-                    Self::F32(x) => x != 0.0,
-                    Self::F64(x) => x != 0.0,
                     Self::BF16(x) => f32::from(x) != 0.0,
                     Self::F16(x) => f32::from(x) != 0.0,
+                    Self::F32(x) => x != 0.0,
+                    Self::F64(x) => x != 0.0,
+                    Self::BOOL(x) => x,
+                    Self::U8(x) => x != 0,
+                    Self::U16(x) => x != 0,
+                    Self::U32(x) => x != 0,
+                    Self::U64(x) => x != 0,
+                    Self::I8(x) => x != 0,
+                    Self::I16(x) => x != 0,
+                    Self::I32(x) => x != 0,
+                    Self::I64(x) => x != 0,
                 }
             }
         }
@@ -237,10 +248,75 @@ macro_rules! numeric_variants {
                             Self::BOOL(a)
                         }
                     },
+                    Self::BF16(a) => Self::BF16(bf16::from_f32(a.to_f32().powi(exp))),
+                    Self::F16(a) => Self::F16(f16::from_f32(a.to_f32().powi(exp))),
                     Self::F32(a) => Self::F32(a.powi(exp)),
                     Self::F64(a) => Self::F64(a.powi(exp)),
-                    Self::F16(a) => Self::F16(f16::from_f32(a.to_f32().powi(exp))),
-                    Self::BF16(a) => Self::BF16(bf16::from_f32(a.to_f32().powi(exp))),
+                    Self::U8(a) => {
+                        if exp == 0 {
+                            Self::U8(1)
+                        } else if exp < 0 {
+                            Self::F32((a as f32).powi(exp))
+                        } else {
+                            let result = (a as u32).pow(exp as u32);
+                            if result <= u8::MAX as u32 {
+                                Self::U8(result as u8)
+                            } else {
+                                Self::F32((a as f32).powi(exp))
+                            }
+                        }
+                    },
+                    Self::U16(a) => {
+                        if exp == 0 {
+                            Self::U16(1)
+                        } else if exp < 0 {
+                            Self::F32((a as f32).powi(exp))
+                        } else {
+                            let result = (a as u32).pow(exp as u32);
+                            if result <= u16::MAX as u32 {
+                                Self::U16(result as u16)
+                            } else {
+                                Self::F32((a as f32).powi(exp))
+                            }
+                        }
+                    },
+                    Self::U32(a) => {
+                        if exp == 0 {
+                            Self::U32(1)
+                        } else if exp < 0 {
+                            Self::F32((a as f32).powi(exp))
+                        } else {
+                            let result = (a as u64).pow(exp as u32);
+                            if result <= u32::MAX as u64 {
+                                Self::U32(result as u32)
+                            } else {
+                                Self::F64((a as f64).powi(exp))
+                            }
+                        }
+                    },
+                    Self::U64(a) => {
+                        if exp == 0 {
+                            Self::U64(1)
+                        } else if exp < 0 {
+                            Self::F64((a as f64).powi(exp))
+                        } else {
+                            let mut result: u64 = 1;
+                            let mut overflow = false;
+                            for _ in 0..exp {
+                                if let Some(r) = result.checked_mul(a) {
+                                    result = r;
+                                } else {
+                                    overflow = true;
+                                    break;
+                                }
+                            }
+                            if overflow {
+                                Self::F64((a as f64).powi(exp))
+                            } else {
+                                Self::U64(result)
+                            }
+                        }
+                    },
                     Self::I8(a) => {
                         if exp == 0 {
                             Self::I8(1)
@@ -250,6 +326,20 @@ macro_rules! numeric_variants {
                             let result = (a as i32).pow(exp as u32);
                             if result >= i8::MIN as i32 && result <= i8::MAX as i32 {
                                 Self::I8(result as i8)
+                            } else {
+                                Self::F32((a as f32).powi(exp))
+                            }
+                        }
+                    },
+                    Self::I16(a) => {
+                        if exp == 0 {
+                            Self::I16(1)
+                        } else if exp < 0 {
+                            Self::F32((a as f32).powi(exp))
+                        } else {
+                            let result = (a as i32).pow(exp as u32);
+                            if result >= i16::MIN as i32 && result <= i16::MAX as i32 {
+                                Self::I16(result as i16)
                             } else {
                                 Self::F32((a as f32).powi(exp))
                             }
@@ -294,34 +384,7 @@ macro_rules! numeric_variants {
                             }
                         }
                     },
-                    Self::U8(a) => {
-                        if exp == 0 {
-                            Self::U8(1)
-                        } else if exp < 0 {
-                            Self::F32((a as f32).powi(exp))
-                        } else {
-                            let result = (a as u32).pow(exp as u32);
-                            if result <= u8::MAX as u32 {
-                                Self::U8(result as u8)
-                            } else {
-                                Self::F32((a as f32).powi(exp))
-                            }
-                        }
-                    },
-                    Self::U32(a) => {
-                        if exp == 0 {
-                            Self::U32(1)
-                        } else if exp < 0 {
-                            Self::F32((a as f32).powi(exp))
-                        } else {
-                            let result = (a as u64).pow(exp as u32);
-                            if result <= u32::MAX as u64 {
-                                Self::U32(result as u32)
-                            } else {
-                                Self::F64((a as f64).powi(exp))
-                            }
-                        }
-                    },
+
                 }
             }
         }
@@ -342,10 +405,19 @@ macro_rules! numeric_variants {
     (@as_f64 U8,  $x:ident) => {
         $x as f64
     };
-    (@as_f64 I8,  $x:ident) => {
+    (@as_f64 U16, $x:ident) => {
         $x as f64
     };
     (@as_f64 U32, $x:ident) => {
+        $x as f64
+    };
+    (@as_f64 U64, $x:ident) => {
+        $x as f64
+    };
+    (@as_f64 I8,  $x:ident) => {
+        $x as f64
+    };
+    (@as_f64 I16, $x:ident) => {
         $x as f64
     };
     (@as_f64 I32, $x:ident) => {
@@ -370,11 +442,20 @@ macro_rules! numeric_variants {
     (@convert U8  => $val:expr) => {
         $val.clamp(0.0, u8::MAX as f64) as u8
     };
-    (@convert I8  => $val:expr) => {
-        $val.clamp(i8::MIN as f64, i8::MAX as f64) as i8
+    (@convert U16 => $val:expr) => {
+        $val.clamp(0.0, u16::MAX as f64) as u16
+    };
+    (@convert U64 => $val:expr) => {
+        $val.clamp(0.0, u64::MAX as f64) as u64
     };
     (@convert U32 => $val:expr) => {
         $val.clamp(0.0, u32::MAX as f64) as u32
+    };
+    (@convert I8  => $val:expr) => {
+        $val.clamp(i8::MIN as f64, i8::MAX as f64) as i8
+    };
+    (@convert I16 => $val:expr) => {
+        $val.clamp(i16::MIN as f64, i16::MAX as f64) as i16
     };
     (@convert I32 => $val:expr) => {
         $val.clamp(i32::MIN as f64, i32::MAX as f64) as i32
@@ -398,11 +479,20 @@ macro_rules! numeric_variants {
     (@sqrt U8, $x:ident) => {
         Scalar::U8((($x as f64).sqrt()).clamp(0.0, u8::MAX as f64) as u8)
     };
-    (@sqrt I8, $x:ident) => {
-        Scalar::I8((($x as f64).sqrt()).clamp(i8::MIN as f64, i8::MAX as f64) as i8)
+    (@sqrt U16, $x:ident) => {
+        Scalar::U16((($x as f64).sqrt()).clamp(0.0, u16::MAX as f64) as u16)
+    };
+    (@sqrt U64, $x:ident) => {
+        Scalar::U64((($x as f64).sqrt()).clamp(0.0, u64::MAX as f64) as u64)
     };
     (@sqrt U32, $x:ident) => {
         Scalar::U32((($x as f64).sqrt()).clamp(0.0, u32::MAX as f64) as u32)
+    };
+    (@sqrt I8, $x:ident) => {
+        Scalar::I8((($x as f64).sqrt()).clamp(i8::MIN as f64, i8::MAX as f64) as i8)
+    };
+    (@sqrt I16, $x:ident) => {
+        Scalar::I16((($x as f64).sqrt()).clamp(i16::MIN as f64, i16::MAX as f64) as i16)
     };
     (@sqrt I32, $x:ident) => {
         Scalar::I32((($x as f64).sqrt()).clamp(i32::MIN as f64, i32::MAX as f64) as i32)
@@ -418,8 +508,11 @@ numeric_variants! {
     F32  => f32,
     F64  => f64,
     U8   => u8,
-    I8   => i8,
+    U16  => u16,
     U32  => u32,
+    U64  => u64,
+    I8   => i8,
+    I16  => i16,
     I32  => i32,
     I64  => i64,
 }

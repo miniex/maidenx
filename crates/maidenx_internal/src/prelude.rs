@@ -4,3 +4,4 @@ pub use crate::core::{
     scalar::Scalar,
 };
 pub use crate::tensor::Tensor;
+pub use crate::{bf16, f16};

@@ -50,7 +50,7 @@ mod test_functions {
 
     pub fn view_test(dtype: DType) -> Result<()> {
         match dtype {
-            DType::U8 | DType::U32 => {
+            DType::U8 | DType::U16 | DType::U32 | DType::U64 => {
                 let x = setup_tensor(TEST_DATA_F32.to_vec(), dtype)?;
                 let viewed = x.view(&[1, 2, 1, 2])?;
 
@@ -84,7 +84,7 @@ mod test_functions {
 
     pub fn squeeze_test(dtype: DType) -> Result<()> {
         match dtype {
-            DType::U8 | DType::U32 => {
+            DType::U8 | DType::U16 | DType::U32 | DType::U64 => {
                 let x = setup_tensor(TEST_DATA_F32.to_vec(), dtype)?.view(&[1, 2, 1, 2])?;
                 let squeezed = x.squeeze(2)?;
 
@@ -118,7 +118,7 @@ mod test_functions {
 
     pub fn squeeze_all_test(dtype: DType) -> Result<()> {
         match dtype {
-            DType::U8 | DType::U32 => {
+            DType::U8 | DType::U16 | DType::U32 | DType::U64 => {
                 let x = setup_tensor(TEST_DATA_F32.to_vec(), dtype)?.view(&[1, 2, 1, 2])?;
                 let squeezed = x.squeeze_all()?;
 
@@ -152,7 +152,7 @@ mod test_functions {
 
     pub fn unsqueeze_test(dtype: DType) -> Result<()> {
         match dtype {
-            DType::U8 | DType::U32 => {
+            DType::U8 | DType::U16 | DType::U32 | DType::U64 => {
                 let x = setup_tensor(TEST_DATA_F32.to_vec(), dtype)?.view(&[2, 2])?;
                 let unsqueezed = x.unsqueeze(1)?;
 
@@ -186,7 +186,7 @@ mod test_functions {
 
     pub fn transpose_test(dtype: DType) -> Result<()> {
         match dtype {
-            DType::U8 | DType::U32 => {
+            DType::U8 | DType::U16 | DType::U32 | DType::U64 => {
                 let matrix_data = vec![vec![1.0, 2.0], vec![3.0, 4.0]];
                 let x = setup_tensor(matrix_data, dtype)?;
                 let transposed = x.transpose(0, 1)?;
@@ -226,7 +226,7 @@ mod test_functions {
 
     pub fn slice_test(dtype: DType) -> Result<()> {
         match dtype {
-            DType::U8 | DType::U32 => {
+            DType::U8 | DType::U16 | DType::U32 | DType::U64 => {
                 let data = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
                 let x = setup_tensor(data.clone(), dtype)?.view(&[2, 3])?;
 
@@ -283,7 +283,7 @@ mod test_functions {
 
     pub fn unfold_test(dtype: DType) -> Result<()> {
         match dtype {
-            DType::U8 | DType::U32 => {
+            DType::U8 | DType::U16 | DType::U32 | DType::U64 => {
                 let data = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
                 let x = setup_tensor(data.clone(), dtype)?.view(&[2, 3])?;
 
@@ -334,7 +334,7 @@ mod test_functions {
 
     pub fn reshape_test(dtype: DType) -> Result<()> {
         match dtype {
-            DType::U8 | DType::U32 => {
+            DType::U8 | DType::U16 | DType::U32 | DType::U64 => {
                 let x = setup_tensor(TEST_DATA_F32.to_vec(), dtype)?;
                 let reshaped = x.reshape(&[2, 2])?;
 
@@ -369,7 +369,7 @@ mod test_functions {
 
     pub fn broadcast_test(dtype: DType) -> Result<()> {
         match dtype {
-            DType::U8 | DType::U32 => {
+            DType::U8 | DType::U16 | DType::U32 | DType::U64 => {
                 let x = setup_tensor(vec![1.0, 2.0], dtype)?;
                 let broadcasted = x.broadcast(&[3, 2])?;
 
@@ -404,7 +404,7 @@ mod test_functions {
 
     pub fn broadcast_left_test(dtype: DType) -> Result<()> {
         match dtype {
-            DType::U8 | DType::U32 => {
+            DType::U8 | DType::U16 | DType::U32 | DType::U64 => {
                 let x = setup_tensor(vec![1.0, 2.0], dtype)?;
                 let broadcasted = x.broadcast_left(&[3, 4])?;
 

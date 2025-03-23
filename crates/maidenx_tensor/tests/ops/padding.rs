@@ -138,7 +138,7 @@ mod test_functions {
             DType::BF16 | DType::F16 => {
                 assert_close_vectors(&padded_data, &expected, 0.1, "Non-zero pad values don't match");
             }
-            DType::I8 | DType::I32 | DType::I64 | DType::U8 | DType::U32 => {
+            DType::I8 | DType::I16 | DType::I32 | DType::I64 | DType::U8 | DType::U16 | DType::U32 | DType::U64 => {
                 let int_expected = vec![1.0, 2.0, 3.0, 4.0, 9.0, 9.0];
                 assert_close_vectors(&padded_data, &int_expected, 0.01, "Non-zero pad values (int types) don't match");
             }

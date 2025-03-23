@@ -423,16 +423,22 @@ __global__ void fill_kernel(T *data, T value, size_t size) {
 SUM_OP(float, sum_f32);
 SUM_OP(double, sum_f64);
 SUM_OP(uint8_t, sum_u8);
+SUM_OP(uint16_t, sum_u16);
 SUM_OP(uint32_t, sum_u32);
+SUM_OP(uint64_t, sum_u64);
 SUM_OP(int8_t, sum_i8);
+SUM_OP(int16_t, sum_i16);
 SUM_OP(int32_t, sum_i32);
 SUM_OP(int64_t, sum_i64);
 
 SUM_TO_SHAPE_OP(float, sum_to_shape_f32);
 SUM_TO_SHAPE_OP(double, sum_to_shape_f64);
 SUM_TO_SHAPE_OP(uint8_t, sum_to_shape_u8);
+SUM_TO_SHAPE_OP(uint16_t, sum_to_shape_u16);
 SUM_TO_SHAPE_OP(uint32_t, sum_to_shape_u32);
+SUM_TO_SHAPE_OP(uint64_t, sum_to_shape_u64);
 SUM_TO_SHAPE_OP(int8_t, sum_to_shape_i8);
+SUM_TO_SHAPE_OP(int16_t, sum_to_shape_i16);
 SUM_TO_SHAPE_OP(int32_t, sum_to_shape_i32);
 SUM_TO_SHAPE_OP(int64_t, sum_to_shape_i64);
 
@@ -442,56 +448,33 @@ MEAN_OP(double, mean_f64);
 FOLD_OP(float, fold_f32);
 FOLD_OP(double, fold_f64);
 FOLD_OP(uint8_t, fold_u8);
+FOLD_OP(uint16_t, fold_u16);
 FOLD_OP(uint32_t, fold_u32);
+FOLD_OP(uint64_t, fold_u64);
 FOLD_OP(int8_t, fold_i8);
+FOLD_OP(int16_t, fold_i16);
 FOLD_OP(int32_t, fold_i32);
 FOLD_OP(int64_t, fold_i64);
-
-// MAX_OP(float, max_f32);
-// MAX_OP(double, max_f64);
-// MAX_OP(uint8_t, max_u8);
-// MAX_OP(uint32_t, max_u32);
-// MAX_OP(int8_t, max_i8);
-// MAX_OP(int32_t, max_i32);
-// MAX_OP(int64_t, max_i64);
-//
-// MIN_OP(float, min_f32);
-// MIN_OP(double, min_f64);
-// MIN_OP(uint8_t, min_u8);
-// MIN_OP(uint32_t, min_u32);
-// MIN_OP(int8_t, min_i8);
-// MIN_OP(int32_t, min_i32);
-// MIN_OP(int64_t, min_i64);
-//
-// // __half
-// SUM_OP(__half, sum_f16);
-// SUM_TO_SHAPE_OP(__half, sum_to_shape_f16);
-// MEAN_OP(__half, mean_f16);
-// FOLD_OP(__half, fold_f16);
-// MAX_OP(__half, max_f16);
-// MIN_OP(__half, min_f16);
-//
-// // __nv_bfloat16
-// SUM_OP(__nv_bfloat16, sum_bf16);
-// SUM_TO_SHAPE_OP(__nv_bfloat16, sum_to_shape_bf16);
-// MEAN_OP(__nv_bfloat16, mean_bf16);
-// FOLD_OP(__nv_bfloat16, fold_bf16);
-// MAX_OP(__nv_bfloat16, max_bf16);
-// MIN_OP(__nv_bfloat16, min_bf16);
 
 MAX_OP(float, max_f32, -FLT_MAX);
 MAX_OP(double, max_f64, -DBL_MAX);
 MAX_OP(uint8_t, max_u8, 0);
+MAX_OP(uint16_t, max_u16, 0);
 MAX_OP(uint32_t, max_u32, 0);
+MAX_OP(uint64_t, max_u64, 0);
 MAX_OP(int8_t, max_i8, INT8_MIN);
+MAX_OP(int16_t, max_i16, INT16_MIN);
 MAX_OP(int32_t, max_i32, INT32_MIN);
 MAX_OP(int64_t, max_i64, INT64_MIN);
 
 MIN_OP(float, min_f32, FLT_MAX);
 MIN_OP(double, min_f64, DBL_MAX);
 MIN_OP(uint8_t, min_u8, UINT8_MAX);
+MIN_OP(uint16_t, min_u16, UINT16_MAX);
 MIN_OP(uint32_t, min_u32, UINT32_MAX);
+MIN_OP(uint64_t, min_u64, UINT64_MAX);
 MIN_OP(int8_t, min_i8, INT8_MAX);
+MIN_OP(int16_t, min_i16, INT16_MAX);
 MIN_OP(int32_t, min_i32, INT32_MAX);
 MIN_OP(int64_t, min_i64, INT64_MAX);
 

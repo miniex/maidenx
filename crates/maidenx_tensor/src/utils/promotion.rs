@@ -5,7 +5,9 @@ use crate::Tensor;
 pub fn get_signed_dtype(dtype: DType) -> DType {
     match dtype {
         DType::U8 => DType::I32,
+        DType::U16 => DType::I32,
         DType::U32 => DType::I64,
+        DType::U64 => DType::I64,
         _ => dtype,
     }
 }
@@ -32,9 +34,13 @@ pub fn get_promoted_dtype(dtype1: DType, dtype2: DType) -> DType {
 
         (_, DType::I64) | (DType::I64, _) => DType::I64,
         (_, DType::I32) | (DType::I32, _) => DType::I32,
+        (_, DType::I16) | (DType::I16, _) => DType::I16,
         (_, DType::I8) | (DType::I8, _) => DType::I8,
+        (_, DType::U64) | (DType::U64, _) => DType::I64,
         (_, DType::U32) | (DType::U32, _) => DType::I64,
+        (_, DType::U16) | (DType::U16, _) => DType::I32,
         (_, DType::U8) | (DType::U8, _) => DType::I32,
+
         _ => dtype1,
     }
 }

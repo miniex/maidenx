@@ -106,12 +106,24 @@ declare_extern_unary_ops! {
         type: u8,
         ops: [sign, square, sqrt; logical_not]
     },
+    U16 => {
+        type: u16,
+        ops: [sign, square, sqrt; logical_not]
+    },
     U32 => {
         type: u32,
         ops: [sign, square, sqrt; logical_not]
     },
+    U64 => {
+        type: u64,
+        ops: [sign, square, sqrt; logical_not]
+    },
     I8 => {
         type: i8,
+        ops: [neg, abs, sign, square, sqrt; logical_not]
+    },
+    I16 => {
+        type: i16,
         ops: [neg, abs, sign, square, sqrt; logical_not]
     },
     I32 => {
@@ -149,12 +161,24 @@ declare_extern_unary_ops_with_constant! {
         type: u8,
         ops: [add_scalar, sub_scalar, mul_scalar, div_scalar, maximum_scalar, minimum_scalar, pow, leaky_relu, elu; eq_scalar, ne_scalar, lt_scalar, le_scalar, gt_scalar, ge_scalar]
     },
+    U16 => {
+        type: u16,
+        ops: [add_scalar, sub_scalar, mul_scalar, div_scalar, maximum_scalar, minimum_scalar, pow, leaky_relu, elu; eq_scalar, ne_scalar, lt_scalar, le_scalar, gt_scalar, ge_scalar]
+    },
     U32 => {
         type: u32,
         ops: [add_scalar, sub_scalar, mul_scalar, div_scalar, maximum_scalar, minimum_scalar, pow, leaky_relu, elu; eq_scalar, ne_scalar, lt_scalar, le_scalar, gt_scalar, ge_scalar]
     },
+    U64 => {
+        type: u64,
+        ops: [add_scalar, sub_scalar, mul_scalar, div_scalar, maximum_scalar, minimum_scalar, pow, leaky_relu, elu; eq_scalar, ne_scalar, lt_scalar, le_scalar, gt_scalar, ge_scalar]
+    },
     I8 => {
         type: i8,
+        ops: [add_scalar, sub_scalar, mul_scalar, div_scalar, maximum_scalar, minimum_scalar, pow, leaky_relu, elu; eq_scalar, ne_scalar, lt_scalar, le_scalar, gt_scalar, ge_scalar]
+    },
+    I16 => {
+        type: i16,
         ops: [add_scalar, sub_scalar, mul_scalar, div_scalar, maximum_scalar, minimum_scalar, pow, leaky_relu, elu; eq_scalar, ne_scalar, lt_scalar, le_scalar, gt_scalar, ge_scalar]
     },
     I32 => {

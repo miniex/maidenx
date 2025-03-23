@@ -49,7 +49,7 @@ mod test_functions {
 
     pub fn neg_test(dtype: DType) -> Result<()> {
         match dtype {
-            DType::U8 | DType::U32 => {
+            DType::U8 | DType::U16 | DType::U32 | DType::U64 => {
                 let x = setup_grad_tensor(TEST_DATA_U32.to_vec(), dtype)?;
 
                 let result = x.neg()?;
@@ -80,7 +80,7 @@ mod test_functions {
 
     pub fn abs_test(dtype: DType) -> Result<()> {
         match dtype {
-            DType::U8 | DType::U32 => {
+            DType::U8 | DType::U16 | DType::U32 | DType::U64 => {
                 let x = setup_grad_tensor(TEST_DATA_U32.to_vec(), dtype)?;
 
                 let result = x.abs()?;
@@ -111,7 +111,7 @@ mod test_functions {
 
     pub fn sign_test(dtype: DType) -> Result<()> {
         match dtype {
-            DType::U8 | DType::U32 => {
+            DType::U8 | DType::U16 | DType::U32 | DType::U64 => {
                 let x = setup_grad_tensor(TEST_DATA_U32.to_vec(), dtype)?;
 
                 let result = x.sign()?;
@@ -134,7 +134,7 @@ mod test_functions {
 
     pub fn square_test(dtype: DType) -> Result<()> {
         match dtype {
-            DType::U8 | DType::U32 => {
+            DType::U8 | DType::U16 | DType::U32 | DType::U64 => {
                 let x = setup_grad_tensor(TEST_DATA_U32.to_vec(), dtype)?;
 
                 let result = x.square()?;
@@ -186,7 +186,7 @@ mod test_functions {
 
     pub fn sqrt_test(dtype: DType) -> Result<()> {
         match dtype {
-            DType::U8 | DType::U32 => {
+            DType::U8 | DType::U16 | DType::U32 | DType::U64 => {
                 let x = setup_grad_tensor(TEST_DATA_U32.to_vec(), dtype)?;
 
                 let result = x.sqrt()?;
@@ -284,7 +284,7 @@ mod test_functions {
 
     pub fn relu_test(dtype: DType) -> Result<()> {
         match dtype {
-            DType::U8 | DType::U32 => {
+            DType::U8 | DType::U16 | DType::U32 | DType::U64 => {
                 let x = setup_grad_tensor(TEST_DATA_U32.to_vec(), dtype)?;
 
                 let result = x.relu()?;
@@ -336,7 +336,7 @@ mod test_functions {
 
     pub fn sigmoid_test(dtype: DType) -> Result<()> {
         match dtype {
-            DType::U8 | DType::U32 => {
+            DType::U8 | DType::U16 | DType::U32 | DType::U64 => {
                 let x = setup_grad_tensor(TEST_DATA_U32.to_vec(), dtype)?;
 
                 let result = x.sigmoid()?;
@@ -400,7 +400,7 @@ mod test_functions {
 
     pub fn tanh_test(dtype: DType) -> Result<()> {
         match dtype {
-            DType::U8 | DType::U32 => {
+            DType::U8 | DType::U16 | DType::U32 | DType::U64 => {
                 let x = setup_grad_tensor(TEST_DATA_U32.to_vec(), dtype)?;
 
                 let result = x.tanh()?;
@@ -464,7 +464,7 @@ mod test_functions {
 
     pub fn gelu_test(dtype: DType) -> Result<()> {
         match dtype {
-            DType::U8 | DType::U32 => {
+            DType::U8 | DType::U16 | DType::U32 | DType::U64 => {
                 let x = setup_grad_tensor(TEST_DATA_U32.to_vec(), dtype)?;
 
                 let result = x.gelu()?;
@@ -532,7 +532,7 @@ mod test_functions {
 
     pub fn sin_test(dtype: DType) -> Result<()> {
         match dtype {
-            DType::U8 | DType::U32 => {
+            DType::U8 | DType::U16 | DType::U32 | DType::U64 => {
                 let x = setup_grad_tensor(TEST_DATA_U32.to_vec(), dtype)?;
 
                 let result = x.sin()?;
@@ -596,7 +596,7 @@ mod test_functions {
 
     pub fn cos_test(dtype: DType) -> Result<()> {
         match dtype {
-            DType::U8 | DType::U32 => {
+            DType::U8 | DType::U16 | DType::U32 | DType::U64 => {
                 let x = setup_grad_tensor(TEST_DATA_U32.to_vec(), dtype)?;
 
                 let result = x.cos()?;
@@ -660,7 +660,7 @@ mod test_functions {
 
     pub fn tan_test(dtype: DType) -> Result<()> {
         match dtype {
-            DType::U8 | DType::U32 => {
+            DType::U8 | DType::U16 | DType::U32 | DType::U64 => {
                 let x = setup_grad_tensor(TEST_DATA_U32.to_vec(), dtype)?;
 
                 let result = x.tan()?;
@@ -724,7 +724,7 @@ mod test_functions {
 
     pub fn ln_test(dtype: DType) -> Result<()> {
         match dtype {
-            DType::U8 | DType::U32 => {
+            DType::U8 | DType::U16 | DType::U32 | DType::U64 => {
                 let x = setup_grad_tensor(TEST_DATA_U32.to_vec(), dtype)?;
 
                 let result = x.ln()?;
@@ -792,7 +792,7 @@ mod test_functions {
 
     pub fn log10_test(dtype: DType) -> Result<()> {
         match dtype {
-            DType::U8 | DType::U32 => {
+            DType::U8 | DType::U16 | DType::U32 | DType::U64 => {
                 let x = setup_grad_tensor(TEST_DATA_U32.to_vec(), dtype)?;
 
                 let result = x.log10()?;
@@ -860,7 +860,7 @@ mod test_functions {
 
     pub fn log2_test(dtype: DType) -> Result<()> {
         match dtype {
-            DType::U8 | DType::U32 => {
+            DType::U8 | DType::U16 | DType::U32 | DType::U64 => {
                 let x = setup_grad_tensor(TEST_DATA_U32.to_vec(), dtype)?;
 
                 let result = x.log2()?;
@@ -928,7 +928,7 @@ mod test_functions {
 
     pub fn exp_test(dtype: DType) -> Result<()> {
         match dtype {
-            DType::U8 | DType::U32 => {
+            DType::U8 | DType::U16 | DType::U32 | DType::U64 => {
                 let x = setup_grad_tensor(TEST_DATA_U32.to_vec(), dtype)?;
 
                 let result = x.exp()?;
@@ -992,7 +992,7 @@ mod test_functions {
 
     pub fn exp10_test(dtype: DType) -> Result<()> {
         match dtype {
-            DType::U8 | DType::U32 => {
+            DType::U8 | DType::U16 | DType::U32 | DType::U64 => {
                 let x = setup_grad_tensor(TEST_DATA_U32.to_vec(), dtype)?;
 
                 let result = x.exp10()?;
@@ -1056,7 +1056,7 @@ mod test_functions {
 
     pub fn exp2_test(dtype: DType) -> Result<()> {
         match dtype {
-            DType::U8 | DType::U32 => {
+            DType::U8 | DType::U16 | DType::U32 | DType::U64 => {
                 let x = setup_grad_tensor(TEST_DATA_U32.to_vec(), dtype)?;
 
                 let result = x.exp2()?;
@@ -1120,7 +1120,7 @@ mod test_functions {
 
     pub fn softplus_test(dtype: DType) -> Result<()> {
         match dtype {
-            DType::U8 | DType::U32 => {
+            DType::U8 | DType::U16 | DType::U32 | DType::U64 => {
                 let x = setup_grad_tensor(TEST_DATA_U32.to_vec(), dtype)?;
 
                 let result = x.softplus()?;
@@ -1184,7 +1184,7 @@ mod test_functions {
 
     pub fn recip_test(dtype: DType) -> Result<()> {
         match dtype {
-            DType::U8 | DType::U32 => {
+            DType::U8 | DType::U16 | DType::U32 | DType::U64 => {
                 let x = setup_grad_tensor(TEST_DATA_U32.to_vec(), dtype)?;
 
                 let result = x.recip()?;
@@ -1259,7 +1259,7 @@ mod test_functions {
 
                 assert_eq!(result.to_flatten_vec::<bool>()?, vec![false, true, true, false]);
             }
-            DType::U8 | DType::U32 => {
+            DType::U8 | DType::U16 | DType::U32 | DType::U64 => {
                 let x = setup_tensor(TEST_DATA_U32.to_vec(), dtype)?;
 
                 let result = x.logical_not()?;
@@ -1281,7 +1281,7 @@ mod test_functions {
     // With scalar operations
     pub fn add_scalar_test(dtype: DType) -> Result<()> {
         match dtype {
-            DType::U8 | DType::U32 => {
+            DType::U8 | DType::U16 | DType::U32 | DType::U64 => {
                 let x = setup_grad_tensor(TEST_DATA_U32.to_vec(), dtype)?;
 
                 let result = x.add_scalar(2.0)?;
@@ -1333,7 +1333,7 @@ mod test_functions {
 
     pub fn sub_scalar_test(dtype: DType) -> Result<()> {
         match dtype {
-            DType::U8 | DType::U32 => {
+            DType::U8 | DType::U16 | DType::U32 | DType::U64 => {
                 let x = setup_grad_tensor(TEST_DATA_U32.to_vec(), dtype)?;
 
                 let result = x.sub_scalar(0.5)?;
@@ -1385,7 +1385,7 @@ mod test_functions {
 
     pub fn mul_scalar_test(dtype: DType) -> Result<()> {
         match dtype {
-            DType::U8 | DType::U32 => {
+            DType::U8 | DType::U16 | DType::U32 | DType::U64 => {
                 let x = setup_grad_tensor(TEST_DATA_U32.to_vec(), dtype)?;
 
                 let result = x.mul_scalar(2.0)?;
@@ -1437,7 +1437,7 @@ mod test_functions {
 
     pub fn div_scalar_test(dtype: DType) -> Result<()> {
         match dtype {
-            DType::U8 | DType::U32 => {
+            DType::U8 | DType::U16 | DType::U32 | DType::U64 => {
                 let x = setup_grad_tensor(TEST_DATA_U32.to_vec(), dtype)?;
 
                 let result = x.div_scalar(2.0)?;
@@ -1489,7 +1489,7 @@ mod test_functions {
 
     pub fn maximum_scalar_test(dtype: DType) -> Result<()> {
         match dtype {
-            DType::U8 | DType::U32 => {
+            DType::U8 | DType::U16 | DType::U32 | DType::U64 => {
                 let x = setup_grad_tensor(TEST_DATA_U32.to_vec(), dtype)?;
 
                 let result = x.maximum_scalar(0.5)?;
@@ -1541,7 +1541,7 @@ mod test_functions {
 
     pub fn minimum_scalar_test(dtype: DType) -> Result<()> {
         match dtype {
-            DType::U8 | DType::U32 => {
+            DType::U8 | DType::U16 | DType::U32 | DType::U64 => {
                 let x = setup_grad_tensor(TEST_DATA_U32.to_vec(), dtype)?;
 
                 let result = x.minimum_scalar(0.5)?;
@@ -1593,7 +1593,7 @@ mod test_functions {
 
     pub fn pow_test(dtype: DType) -> Result<()> {
         match dtype {
-            DType::U8 | DType::U32 => {
+            DType::U8 | DType::U16 | DType::U32 | DType::U64 => {
                 let x = setup_grad_tensor(TEST_DATA_U32.to_vec(), dtype)?;
 
                 let result = x.pow(3.0)?;
@@ -1651,7 +1651,7 @@ mod test_functions {
         let alpha = 0.1; // Common value for leaky ReLU
 
         match dtype {
-            DType::U8 | DType::U32 => {
+            DType::U8 | DType::U16 | DType::U32 | DType::U64 => {
                 let x = setup_grad_tensor(TEST_DATA_U32.to_vec(), dtype)?;
 
                 let result = x.leaky_relu(alpha)?;
@@ -1711,7 +1711,7 @@ mod test_functions {
         let alpha = 1.0; // Common value for ELU
 
         match dtype {
-            DType::U8 | DType::U32 => {
+            DType::U8 | DType::U16 | DType::U32 | DType::U64 => {
                 let x = setup_grad_tensor(TEST_DATA_U32.to_vec(), dtype)?;
 
                 let result = x.elu(alpha)?;
@@ -1779,7 +1779,7 @@ mod test_functions {
 
                 assert_eq!(result.to_flatten_vec::<bool>()?, vec![true, false, false, true]);
             }
-            DType::U8 | DType::U32 => {
+            DType::U8 | DType::U16 | DType::U32 | DType::U64 => {
                 let x = setup_tensor(TEST_DATA_U32.to_vec(), dtype)?;
 
                 let result = x.eq_scalar(2)?;
@@ -1807,7 +1807,7 @@ mod test_functions {
 
                 assert_eq!(result.to_flatten_vec::<bool>()?, vec![false, true, true, false]);
             }
-            DType::U8 | DType::U32 => {
+            DType::U8 | DType::U16 | DType::U32 | DType::U64 => {
                 let x = setup_tensor(TEST_DATA_U32.to_vec(), dtype)?;
 
                 let result = x.ne_scalar(2)?;
@@ -1835,7 +1835,7 @@ mod test_functions {
 
                 assert_eq!(result.to_flatten_vec::<bool>()?, vec![false, true, true, false]);
             }
-            DType::U8 | DType::U32 => {
+            DType::U8 | DType::U16 | DType::U32 | DType::U64 => {
                 let x = setup_tensor(TEST_DATA_U32.to_vec(), dtype)?;
 
                 let result = x.lt_scalar(2)?;
@@ -1863,7 +1863,7 @@ mod test_functions {
 
                 assert_eq!(result.to_flatten_vec::<bool>()?, vec![true, true, true, true]);
             }
-            DType::U8 | DType::U32 => {
+            DType::U8 | DType::U16 | DType::U32 | DType::U64 => {
                 let x = setup_tensor(TEST_DATA_U32.to_vec(), dtype)?;
 
                 let result = x.le_scalar(2)?;
@@ -1891,7 +1891,7 @@ mod test_functions {
 
                 assert_eq!(result.to_flatten_vec::<bool>()?, vec![true, false, false, true]);
             }
-            DType::U8 | DType::U32 => {
+            DType::U8 | DType::U16 | DType::U32 | DType::U64 => {
                 let x = setup_tensor(TEST_DATA_U32.to_vec(), dtype)?;
 
                 let result = x.gt_scalar(1)?;
@@ -1919,7 +1919,7 @@ mod test_functions {
 
                 assert_eq!(result.to_flatten_vec::<bool>()?, vec![true, true, true, true]);
             }
-            DType::U8 | DType::U32 => {
+            DType::U8 | DType::U16 | DType::U32 | DType::U64 => {
                 let x = setup_tensor(TEST_DATA_U32.to_vec(), dtype)?;
 
                 let result = x.ge_scalar(1)?;

@@ -191,4 +191,4 @@ macro_rules! declare_matmul_op {
     };
 }
 
-declare_matmul_op!([BF16, F16, F32, F64, U8, U32, I8, I32, I64]);
+declare_matmul_op!([BF16, F16, F32, F64, U8, U16, U32, U64, I8, I16, I32, I64]);

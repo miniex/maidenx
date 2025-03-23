@@ -86,13 +86,28 @@ macro_rules! test_ops {
                     }
 
                     #[test]
+                    fn u16() -> Result<()> {
+                        test_functions::[<$op _test>](DType::U16)
+                    }
+
+                    #[test]
                     fn u32() -> Result<()> {
                         test_functions::[<$op _test>](DType::U32)
                     }
 
                     #[test]
+                    fn u64() -> Result<()> {
+                        test_functions::[<$op _test>](DType::U64)
+                    }
+
+                    #[test]
                     fn i8() -> Result<()> {
                         test_functions::[<$op _test>](DType::I8)
+                    }
+
+                    #[test]
+                    fn i16() -> Result<()> {
+                        test_functions::[<$op _test>](DType::I16)
                     }
 
                     #[test]
@@ -172,13 +187,28 @@ macro_rules! test_logical_ops {
                     }
 
                     #[test]
+                    fn u16() -> Result<()> {
+                        test_functions::[<$op _test>](DType::U16)
+                    }
+
+                    #[test]
                     fn u32() -> Result<()> {
                         test_functions::[<$op _test>](DType::U32)
                     }
 
                     #[test]
+                    fn u64() -> Result<()> {
+                        test_functions::[<$op _test>](DType::U64)
+                    }
+
+                    #[test]
                     fn i8() -> Result<()> {
                         test_functions::[<$op _test>](DType::I8)
+                    }
+
+                    #[test]
+                    fn i16() -> Result<()> {
+                        test_functions::[<$op _test>](DType::I16)
                     }
 
                     #[test]

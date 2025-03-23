@@ -124,16 +124,19 @@ pub fn add_at_index(src: &mut Tensor, indices: &[usize], data: impl Into<Scalar>
     let current_value = src.buffer().read_scalar(flat_idx)?;
 
     let new_value = match dtype {
-        maidenx_core::dtype::DType::F32 => Scalar::from(current_value.as_f32() + add_value.as_f32()),
-        maidenx_core::dtype::DType::F64 => Scalar::from(current_value.as_f64() + add_value.as_f64()),
-        maidenx_core::dtype::DType::I32 => Scalar::from(current_value.as_i32() + add_value.as_i32()),
-        maidenx_core::dtype::DType::I64 => Scalar::from(current_value.as_i64() + add_value.as_i64()),
-        maidenx_core::dtype::DType::U8 => Scalar::from(current_value.as_u8() + add_value.as_u8()),
-        maidenx_core::dtype::DType::I8 => Scalar::from(current_value.as_i8() + add_value.as_i8()),
-        maidenx_core::dtype::DType::U32 => Scalar::from(current_value.as_u32() + add_value.as_u32()),
-        maidenx_core::dtype::DType::BOOL => Scalar::from(current_value.as_bool() || add_value.as_bool()),
         maidenx_core::dtype::DType::BF16 => Scalar::from(current_value.as_bf16() + add_value.as_bf16()),
         maidenx_core::dtype::DType::F16 => Scalar::from(current_value.as_f16() + add_value.as_f16()),
+        maidenx_core::dtype::DType::F32 => Scalar::from(current_value.as_f32() + add_value.as_f32()),
+        maidenx_core::dtype::DType::F64 => Scalar::from(current_value.as_f64() + add_value.as_f64()),
+        maidenx_core::dtype::DType::BOOL => Scalar::from(current_value.as_bool() || add_value.as_bool()),
+        maidenx_core::dtype::DType::U8 => Scalar::from(current_value.as_u8() + add_value.as_u8()),
+        maidenx_core::dtype::DType::U16 => Scalar::from(current_value.as_u16() + add_value.as_u16()),
+        maidenx_core::dtype::DType::U32 => Scalar::from(current_value.as_u32() + add_value.as_u32()),
+        maidenx_core::dtype::DType::U64 => Scalar::from(current_value.as_u64() + add_value.as_u64()),
+        maidenx_core::dtype::DType::I8 => Scalar::from(current_value.as_i8() + add_value.as_i8()),
+        maidenx_core::dtype::DType::I16 => Scalar::from(current_value.as_i16() + add_value.as_i16()),
+        maidenx_core::dtype::DType::I32 => Scalar::from(current_value.as_i32() + add_value.as_i32()),
+        maidenx_core::dtype::DType::I64 => Scalar::from(current_value.as_i64() + add_value.as_i64()),
     };
 
     src.buffer_mut().write_scalar(flat_idx, new_value)

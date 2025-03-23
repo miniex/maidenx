@@ -219,8 +219,11 @@ impl Tensor {
             DType::F64 => 1.0f64.to_ne_bytes().to_vec(),
             DType::BOOL => vec![1u8],
             DType::U8 => vec![1u8],
+            DType::U16 => 1u16.to_ne_bytes().to_vec(),
             DType::U32 => 1u32.to_ne_bytes().to_vec(),
+            DType::U64 => 1u64.to_ne_bytes().to_vec(),
             DType::I8 => 1i8.to_ne_bytes().to_vec(),
+            DType::I16 => 1i16.to_ne_bytes().to_vec(),
             DType::I32 => 1i32.to_ne_bytes().to_vec(),
             DType::I64 => 1i64.to_ne_bytes().to_vec(),
         };
@@ -278,16 +281,19 @@ impl Tensor {
         };
 
         let value_bytes = match dtype {
-            DType::F32 => scalar_value.as_f32().to_ne_bytes().to_vec(),
-            DType::F64 => scalar_value.as_f64().to_ne_bytes().to_vec(),
             DType::BF16 => bf16::from_f32(scalar_value.as_f32()).to_ne_bytes().to_vec(),
             DType::F16 => f16::from_f32(scalar_value.as_f32()).to_ne_bytes().to_vec(),
+            DType::F32 => scalar_value.as_f32().to_ne_bytes().to_vec(),
+            DType::F64 => scalar_value.as_f64().to_ne_bytes().to_vec(),
+            DType::BOOL => vec![if scalar_value.as_bool() { 1u8 } else { 0u8 }],
+            DType::U8 => (scalar_value.as_u32() as u8).to_ne_bytes().to_vec(),
+            DType::U16 => scalar_value.as_u16().to_ne_bytes().to_vec(),
+            DType::U32 => scalar_value.as_u32().to_ne_bytes().to_vec(),
+            DType::U64 => scalar_value.as_u64().to_ne_bytes().to_vec(),
+            DType::I8 => (scalar_value.as_i32() as i8).to_ne_bytes().to_vec(),
+            DType::I16 => scalar_value.as_i16().to_ne_bytes().to_vec(),
             DType::I32 => scalar_value.as_i32().to_ne_bytes().to_vec(),
             DType::I64 => scalar_value.as_i64().to_ne_bytes().to_vec(),
-            DType::U32 => scalar_value.as_u32().to_ne_bytes().to_vec(),
-            DType::I8 => (scalar_value.as_i32() as i8).to_ne_bytes().to_vec(),
-            DType::U8 => (scalar_value.as_u32() as u8).to_ne_bytes().to_vec(),
-            DType::BOOL => vec![if scalar_value.as_bool() { 1u8 } else { 0u8 }],
         };
 
         let elem_size = dtype.size_in_bytes();
@@ -363,11 +369,15 @@ impl Tensor {
         let step_scalar = step.into();
 
         let (start_val, end_val, step_val) = match dtype {
-            DType::F32 | DType::F16 | DType::BF16 => (start_scalar.as_f32(), end_scalar.as_f32(), step_scalar.as_f32()),
+            DType::BF16 | DType::F16 | DType::F32 => (start_scalar.as_f32(), end_scalar.as_f32(), step_scalar.as_f32()),
             DType::F64 => (start_scalar.as_f64() as f32, end_scalar.as_f64() as f32, step_scalar.as_f64() as f32),
-            DType::I32 | DType::I8 | DType::BOOL => (start_scalar.as_i32() as f32, end_scalar.as_i32() as f32, step_scalar.as_i32() as f32),
+            DType::BOOL | DType::I8 | DType::I16 | DType::I32 => {
+                (start_scalar.as_i32() as f32, end_scalar.as_i32() as f32, step_scalar.as_i32() as f32)
+            }
             DType::I64 => (start_scalar.as_i64() as f32, end_scalar.as_i64() as f32, step_scalar.as_i64() as f32),
-            DType::U32 | DType::U8 => (start_scalar.as_u32() as f32, end_scalar.as_u32() as f32, step_scalar.as_u32() as f32),
+            DType::U8 | DType::U16 | DType::U32 | DType::U64 => {
+                (start_scalar.as_u32() as f32, end_scalar.as_u32() as f32, step_scalar.as_u32() as f32)
+            }
         };
 
         if step_val == 0.0 {
@@ -378,21 +388,56 @@ impl Tensor {
 
         let values: Vec<f32> = (0..count).map(|i| start_val + (i as f32) * step_val).collect();
         match dtype {
+            DType::BF16 | DType::F16 => {
+                let mut tensor = Self::new_with_spec(values, device, DType::F32)?;
+                tensor.with_dtype(dtype)?;
+                Ok(tensor)
+            }
             DType::F32 => Self::new_with_spec(values, device, dtype),
             DType::F64 => {
                 let double_values: Vec<f64> = values.into_iter().map(|v| v as f64).collect();
                 Self::new_with_spec(double_values, device, dtype)
             }
-            DType::I32 => {
-                let int_values: Vec<i32> = values.into_iter().map(|v| v as i32).collect();
-                Self::new_with_spec(int_values, device, dtype)
+            DType::BOOL => {
+                let bool_values: Vec<bool> = values.into_iter().map(|v| v != 0.0).collect();
+                Self::new_with_spec(bool_values, device, dtype)
             }
-            DType::I64 => {
-                let int_values: Vec<i64> = values.into_iter().map(|v| v as i64).collect();
-                Self::new_with_spec(int_values, device, dtype)
+            DType::U8 => {
+                let uint_values: Vec<u8> = values
+                    .into_iter()
+                    .map(|v| {
+                        if v < 0.0 {
+                            0
+                        } else if v > u8::MAX as f32 {
+                            u8::MAX
+                        } else {
+                            v as u8
+                        }
+                    })
+                    .collect();
+                Self::new_with_spec(uint_values, device, dtype)
+            }
+            DType::U16 => {
+                let uint_values: Vec<u16> = values
+                    .into_iter()
+                    .map(|v| {
+                        if v < 0.0 {
+                            0
+                        } else if v > u16::MAX as f32 {
+                            u16::MAX
+                        } else {
+                            v as u16
+                        }
+                    })
+                    .collect();
+                Self::new_with_spec(uint_values, device, dtype)
             }
             DType::U32 => {
                 let uint_values: Vec<u32> = values.into_iter().map(|v| if v < 0.0 { 0 } else { v as u32 }).collect();
+                Self::new_with_spec(uint_values, device, dtype)
+            }
+            DType::U64 => {
+                let uint_values: Vec<u64> = values.into_iter().map(|v| if v < 0.0 { 0 } else { v as u64 }).collect();
                 Self::new_with_spec(uint_values, device, dtype)
             }
             DType::I8 => {
@@ -410,29 +455,28 @@ impl Tensor {
                     .collect();
                 Self::new_with_spec(int_values, device, dtype)
             }
-            DType::U8 => {
-                let uint_values: Vec<u8> = values
+            DType::I16 => {
+                let int_values: Vec<i16> = values
                     .into_iter()
                     .map(|v| {
-                        if v < 0.0 {
-                            0
-                        } else if v > u8::MAX as f32 {
-                            u8::MAX
+                        if v < i16::MIN as f32 {
+                            i16::MIN
+                        } else if v > i16::MAX as f32 {
+                            i16::MAX
                         } else {
-                            v as u8
+                            v as i16
                         }
                     })
                     .collect();
-                Self::new_with_spec(uint_values, device, dtype)
+                Self::new_with_spec(int_values, device, dtype)
             }
-            DType::BOOL => {
-                let bool_values: Vec<bool> = values.into_iter().map(|v| v != 0.0).collect();
-                Self::new_with_spec(bool_values, device, dtype)
+            DType::I32 => {
+                let int_values: Vec<i32> = values.into_iter().map(|v| v as i32).collect();
+                Self::new_with_spec(int_values, device, dtype)
             }
-            DType::F16 | DType::BF16 => {
-                let mut tensor = Self::new_with_spec(values, device, DType::F32)?;
-                tensor.with_dtype(dtype)?;
-                Ok(tensor)
+            DType::I64 => {
+                let int_values: Vec<i64> = values.into_iter().map(|v| v as i64).collect();
+                Self::new_with_spec(int_values, device, dtype)
             }
         }
     }

@@ -66,13 +66,28 @@ declare_extern_reduction_ops! {
         standard_ops: [sum, max, min],
         shape_ops: [sum_to_shape, fold]
     },
+    U16 => {
+        type: u16,
+        standard_ops: [sum, max, min],
+        shape_ops: [sum_to_shape, fold]
+    },
     U32 => {
         type: u32,
         standard_ops: [sum, max, min],
         shape_ops: [sum_to_shape, fold]
     },
+    U64 => {
+        type: u64,
+        standard_ops: [sum, max, min],
+        shape_ops: [sum_to_shape, fold]
+    },
     I8 => {
         type: i8,
+        standard_ops: [sum, max, min],
+        shape_ops: [sum_to_shape, fold]
+    },
+    I16 => {
+        type: i16,
         standard_ops: [sum, max, min],
         shape_ops: [sum_to_shape, fold]
     },

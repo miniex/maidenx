@@ -466,48 +466,66 @@
 PAD_WITH_CONSTANT_OP(float, pad_with_constant_f32);
 PAD_WITH_CONSTANT_OP(double, pad_with_constant_f64);
 PAD_WITH_CONSTANT_OP(uint8_t, pad_with_constant_u8);
+PAD_WITH_CONSTANT_OP(uint16_t, pad_with_constant_u16);
 PAD_WITH_CONSTANT_OP(uint32_t, pad_with_constant_u32);
+PAD_WITH_CONSTANT_OP(uint64_t, pad_with_constant_u64);
 PAD_WITH_CONSTANT_OP(int8_t, pad_with_constant_i8);
+PAD_WITH_CONSTANT_OP(int16_t, pad_with_constant_i16);
 PAD_WITH_CONSTANT_OP(int32_t, pad_with_constant_i32);
 PAD_WITH_CONSTANT_OP(int64_t, pad_with_constant_i64);
 
 PAD_WITH_REFLECTION_OP(float, pad_with_reflection_f32);
 PAD_WITH_REFLECTION_OP(double, pad_with_reflection_f64);
 PAD_WITH_REFLECTION_OP(uint8_t, pad_with_reflection_u8);
+PAD_WITH_REFLECTION_OP(uint16_t, pad_with_reflection_u16);
 PAD_WITH_REFLECTION_OP(uint32_t, pad_with_reflection_u32);
+PAD_WITH_REFLECTION_OP(uint64_t, pad_with_reflection_u64);
 PAD_WITH_REFLECTION_OP(int8_t, pad_with_reflection_i8);
+PAD_WITH_REFLECTION_OP(int16_t, pad_with_reflection_i16);
 PAD_WITH_REFLECTION_OP(int32_t, pad_with_reflection_i32);
 PAD_WITH_REFLECTION_OP(int64_t, pad_with_reflection_i64);
 
 PAD_WITH_REPLICATION_OP(float, pad_with_replication_f32);
 PAD_WITH_REPLICATION_OP(double, pad_with_replication_f64);
 PAD_WITH_REPLICATION_OP(uint8_t, pad_with_replication_u8);
+PAD_WITH_REPLICATION_OP(uint16_t, pad_with_replication_u16);
 PAD_WITH_REPLICATION_OP(uint32_t, pad_with_replication_u32);
+PAD_WITH_REPLICATION_OP(uint64_t, pad_with_replication_u64);
 PAD_WITH_REPLICATION_OP(int8_t, pad_with_replication_i8);
+PAD_WITH_REPLICATION_OP(int16_t, pad_with_replication_i16);
 PAD_WITH_REPLICATION_OP(int32_t, pad_with_replication_i32);
 PAD_WITH_REPLICATION_OP(int64_t, pad_with_replication_i64);
 
 PAD_WITH_CONSTANT_BACKWARD_OP(float, pad_with_constant_backward_f32);
 PAD_WITH_CONSTANT_BACKWARD_OP(double, pad_with_constant_backward_f64);
 PAD_WITH_CONSTANT_BACKWARD_OP(uint8_t, pad_with_constant_backward_u8);
+PAD_WITH_CONSTANT_BACKWARD_OP(uint16_t, pad_with_constant_backward_u16);
 PAD_WITH_CONSTANT_BACKWARD_OP(uint32_t, pad_with_constant_backward_u32);
+PAD_WITH_CONSTANT_BACKWARD_OP(uint64_t, pad_with_constant_backward_u64);
 PAD_WITH_CONSTANT_BACKWARD_OP(int8_t, pad_with_constant_backward_i8);
+PAD_WITH_CONSTANT_BACKWARD_OP(int16_t, pad_with_constant_backward_i16);
 PAD_WITH_CONSTANT_BACKWARD_OP(int32_t, pad_with_constant_backward_i32);
 PAD_WITH_CONSTANT_BACKWARD_OP(int64_t, pad_with_constant_backward_i64);
 
 PAD_WITH_REFLECTION_BACKWARD_OP(float, pad_with_reflection_backward_f32);
 PAD_WITH_REFLECTION_BACKWARD_OP(double, pad_with_reflection_backward_f64);
 PAD_WITH_REFLECTION_BACKWARD_OP(uint8_t, pad_with_reflection_backward_u8);
+PAD_WITH_REFLECTION_BACKWARD_OP(uint16_t, pad_with_reflection_backward_u16);
 PAD_WITH_REFLECTION_BACKWARD_OP(uint32_t, pad_with_reflection_backward_u32);
+PAD_WITH_REFLECTION_BACKWARD_OP(uint64_t, pad_with_reflection_backward_u64);
 PAD_WITH_REFLECTION_BACKWARD_OP(int8_t, pad_with_reflection_backward_i8);
+PAD_WITH_REFLECTION_BACKWARD_OP(int16_t, pad_with_reflection_backward_i16);
 PAD_WITH_REFLECTION_BACKWARD_OP(int32_t, pad_with_reflection_backward_i32);
 PAD_WITH_REFLECTION_BACKWARD_OP(int64_t, pad_with_reflection_backward_i64);
 
 PAD_WITH_REPLICATION_BACKWARD_OP(float, pad_with_replication_backward_f32);
 PAD_WITH_REPLICATION_BACKWARD_OP(double, pad_with_replication_backward_f64);
 PAD_WITH_REPLICATION_BACKWARD_OP(uint8_t, pad_with_replication_backward_u8);
+PAD_WITH_REPLICATION_BACKWARD_OP(uint16_t, pad_with_replication_backward_u16);
 PAD_WITH_REPLICATION_BACKWARD_OP(uint32_t, pad_with_replication_backward_u32);
+PAD_WITH_REPLICATION_BACKWARD_OP(uint64_t, pad_with_replication_backward_u64);
 PAD_WITH_REPLICATION_BACKWARD_OP(int8_t, pad_with_replication_backward_i8);
+PAD_WITH_REPLICATION_BACKWARD_OP(int16_t, pad_with_replication_backward_i16);
 PAD_WITH_REPLICATION_BACKWARD_OP(int32_t, pad_with_replication_backward_i32);
 PAD_WITH_REPLICATION_BACKWARD_OP(int64_t, pad_with_replication_backward_i64);
 

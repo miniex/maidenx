@@ -52,8 +52,11 @@ impl fmt::Display for Tensor {
             DType::F64 => handle_type!(f64, "{:.8}"),
             DType::BOOL => handle_type!(bool, "{}"),
             DType::U8 => handle_type!(u8, "{}"),
+            DType::U16 => handle_type!(u16, "{}"),
             DType::U32 => handle_type!(u32, "{}"),
+            DType::U64 => handle_type!(u64, "{}"),
             DType::I8 => handle_type!(i8, "{}"),
+            DType::I16 => handle_type!(i16, "{}"),
             DType::I32 => handle_type!(i32, "{}"),
             DType::I64 => handle_type!(i64, "{}"),
         }
