@@ -57,12 +57,14 @@ impl Tensor {
             result.with_grad()?;
 
             let input_shape = input.shape().to_vec();
+            let input_strides = input.strides().to_vec();
+            let input_offset = input.offset();
             let paddings_vec = paddings.to_vec();
 
             let backward_fn = Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> {
                 let mut grad_in = Tensor::empty_with_spec(&input_shape, grad_out.device(), grad_out.dtype())?;
 
-                let metadata = prepare_metadata_for_padding_backward(&input_shape, &paddings_vec);
+                let metadata = prepare_metadata_for_padding_backward(&input_shape, &input_strides, input_offset, &paddings_vec);
 
                 unsafe {
                     let grad_in_size = grad_in.size();
@@ -138,12 +140,14 @@ impl Tensor {
             result.with_grad()?;
 
             let input_shape = input.shape().to_vec();
+            let input_strides = input.strides().to_vec();
+            let input_offset = input.offset();
             let paddings_vec = paddings.to_vec();
 
             let backward_fn = Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> {
                 let mut grad_in = Tensor::empty_with_spec(&input_shape, grad_out.device(), grad_out.dtype())?;
 
-                let metadata = prepare_metadata_for_padding_backward(&input_shape, &paddings_vec);
+                let metadata = prepare_metadata_for_padding_backward(&input_shape, &input_strides, input_offset, &paddings_vec);
 
                 unsafe {
                     let grad_in_size = grad_in.size();
@@ -211,12 +215,14 @@ impl Tensor {
             result.with_grad()?;
 
             let input_shape = input.shape().to_vec();
+            let input_strides = input.strides().to_vec();
+            let input_offset = input.offset();
             let paddings_vec = paddings.to_vec();
 
             let backward_fn = Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> {
                 let mut grad_in = Tensor::empty_with_spec(&input_shape, grad_out.device(), grad_out.dtype())?;
 
-                let metadata = prepare_metadata_for_padding_backward(&input_shape, &paddings_vec);
+                let metadata = prepare_metadata_for_padding_backward(&input_shape, &input_strides, input_offset, &paddings_vec);
 
                 unsafe {
                     let grad_in_size = grad_in.size();
@@ -248,6 +254,10 @@ fn prepare_metadata_for_padding(tensor: &Tensor, paddings: &[(usize, usize)]) ->
 
     // Input dimensions
     info.extend_from_slice(tensor.shape());
+    // Input strides
+    info.extend_from_slice(tensor.strides());
+    // Input offset
+    info.push(tensor.offset());
 
     // Output dimensions
     for (i, &(pad_before, pad_after)) in paddings.iter().enumerate() {
@@ -263,11 +273,20 @@ fn prepare_metadata_for_padding(tensor: &Tensor, paddings: &[(usize, usize)]) ->
     info
 }
 
-fn prepare_metadata_for_padding_backward(input_shape: &[usize], paddings: &[(usize, usize)]) -> Vec<usize> {
+fn prepare_metadata_for_padding_backward(
+    input_shape: &[usize],
+    input_strides: &[usize],
+    input_offset: usize,
+    paddings: &[(usize, usize)],
+) -> Vec<usize> {
     let mut info = Vec::new();
 
     // Input dimensions (original tensor shape)
     info.extend_from_slice(input_shape);
+    // Input strides
+    info.extend_from_slice(input_strides);
+    // Input offset
+    info.push(input_offset);
 
     // Output dimensions (padded tensor shape)
     for (i, &(pad_before, pad_after)) in paddings.iter().enumerate() {

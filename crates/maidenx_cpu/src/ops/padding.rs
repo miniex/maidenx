@@ -1,3 +1,4 @@
+use crate::utils::is_contiguous;
 use half::{bf16, f16};
 use rayon::prelude::*;
 use std::cmp::{max, min};
@@ -10,9 +11,10 @@ macro_rules! pad_with_constant_op {
         ///
         /// * `metadata` must be a valid pointer to an array containing:
         ///   - input_dims[num_dims]: array dimensions for input
+        ///   - input_strides[num_dims]: strides for input array
+        ///   - input_offset: offset for input array
         ///   - output_dims[num_dims]: dimensions for output array
         ///   - paddings[num_dims * 2]: padding values for each dimension (before, after)
-        ///   - pad_value: value to use for padding
         /// * `inp` must be a valid pointer to an array of at least `num_els_in` elements
         /// * `out` must be a valid pointer to an array of at least `num_els_out` elements
         /// * The alignment requirements of the type must be respected
@@ -27,11 +29,13 @@ macro_rules! pad_with_constant_op {
             pad_value: $type,
         ) {
             let input_dims = std::slice::from_raw_parts(metadata, num_dims);
-            let output_dims = std::slice::from_raw_parts(metadata.add(num_dims), num_dims);
-            let paddings = std::slice::from_raw_parts(metadata.add(2 * num_dims), num_dims * 2);
+            let input_strides = std::slice::from_raw_parts(metadata.add(num_dims), num_dims);
+            let input_offset = *metadata.add(2 * num_dims);
+            let output_dims = std::slice::from_raw_parts(metadata.add(2 * num_dims + 1), num_dims);
+            let paddings = std::slice::from_raw_parts(metadata.add(3 * num_dims + 1), num_dims * 2);
 
-            // Copy data to Vec for safe multi-threading
-            let input_vec = std::slice::from_raw_parts(inp, num_els_in).to_vec();
+            // Copy data to Vec for safe multi-threading, including offset
+            let input_vec = std::slice::from_raw_parts(inp.add(input_offset), num_els_in).to_vec();
             let mut output_vec = vec![$zero; num_els_out];
 
             // Initialize output with pad value
@@ -39,11 +43,13 @@ macro_rules! pad_with_constant_op {
                 output_vec[i] = pad_value;
             }
 
+            // Check if input is contiguous
+            let is_input_contiguous = is_contiguous(num_dims, input_dims, input_strides);
+
             // Create chunks of work for better parallelism
             let chunk_size = (num_els_out / rayon::current_num_threads()) + 1;
             output_vec.par_chunks_mut(chunk_size).enumerate().for_each(|(chunk_idx, chunk)| {
                 let start_idx = chunk_idx * chunk_size;
-
                 for (local_idx, out_val) in chunk.iter_mut().enumerate() {
                     let i = start_idx + local_idx;
                     if i >= num_els_out {
@@ -61,11 +67,9 @@ macro_rules! pad_with_constant_op {
                     // Calculate corresponding coordinates in input tensor
                     let mut in_bounds = true;
                     let mut in_coords = vec![0; num_dims];
-
                     for d in 0..num_dims {
                         let pad_before = paddings[d * 2];
                         in_coords[d] = out_coords[d] as isize - pad_before as isize;
-
                         // Check if this coordinate is within input bounds
                         if in_coords[d] < 0 || in_coords[d] >= input_dims[d] as isize {
                             in_bounds = false;
@@ -75,13 +79,23 @@ macro_rules! pad_with_constant_op {
 
                     // If within bounds, copy from input to output
                     if in_bounds {
-                        // Calculate linear index for input
-                        let mut in_idx = 0;
-                        let mut stride = 1;
-                        for d in (0..num_dims).rev() {
-                            in_idx += in_coords[d] as usize * stride;
-                            stride *= input_dims[d];
-                        }
+                        let in_idx = if is_input_contiguous {
+                            // Calculate linear index for contiguous input
+                            let mut idx = 0;
+                            let mut stride = 1;
+                            for d in (0..num_dims).rev() {
+                                idx += in_coords[d] as usize * stride;
+                                stride *= input_dims[d];
+                            }
+                            idx
+                        } else {
+                            // Calculate strided index
+                            let mut idx = 0;
+                            for d in 0..num_dims {
+                                idx += in_coords[d] as usize * input_strides[d];
+                            }
+                            idx
+                        };
 
                         // Copy value from input to output
                         *out_val = input_vec[in_idx];
@@ -102,6 +116,8 @@ macro_rules! pad_with_reflection_op {
         ///
         /// * `metadata` must be a valid pointer to an array containing:
         ///   - input_dims[num_dims]: array dimensions for input
+        ///   - input_strides[num_dims]: strides for input array
+        ///   - input_offset: offset for input array
         ///   - output_dims[num_dims]: dimensions for output array
         ///   - paddings[num_dims * 2]: padding values for each dimension (before, after)
         /// * `inp` must be a valid pointer to an array of at least `num_els_in` elements
@@ -110,18 +126,22 @@ macro_rules! pad_with_reflection_op {
         /// * All array indices calculated must be in bounds
         pub unsafe fn $name(num_els_in: usize, num_els_out: usize, num_dims: usize, metadata: *const usize, inp: *const $type, out: *mut $type) {
             let input_dims = std::slice::from_raw_parts(metadata, num_dims);
-            let output_dims = std::slice::from_raw_parts(metadata.add(num_dims), num_dims);
-            let paddings = std::slice::from_raw_parts(metadata.add(2 * num_dims), num_dims * 2);
+            let input_strides = std::slice::from_raw_parts(metadata.add(num_dims), num_dims);
+            let input_offset = *metadata.add(2 * num_dims);
+            let output_dims = std::slice::from_raw_parts(metadata.add(2 * num_dims + 1), num_dims);
+            let paddings = std::slice::from_raw_parts(metadata.add(3 * num_dims + 1), num_dims * 2);
 
-            // Copy data to Vec for safe multi-threading
-            let input_vec = std::slice::from_raw_parts(inp, num_els_in).to_vec();
+            // Copy data to Vec for safe multi-threading, including offset
+            let input_vec = std::slice::from_raw_parts(inp.add(input_offset), num_els_in).to_vec();
             let mut output_vec = vec![$zero; num_els_out];
+
+            // Check if input is contiguous
+            let is_input_contiguous = is_contiguous(num_dims, input_dims, input_strides);
 
             // Create chunks of work for better parallelism
             let chunk_size = (num_els_out / rayon::current_num_threads()) + 1;
             output_vec.par_chunks_mut(chunk_size).enumerate().for_each(|(chunk_idx, chunk)| {
                 let start_idx = chunk_idx * chunk_size;
-
                 for (local_idx, out_val) in chunk.iter_mut().enumerate() {
                     let i = start_idx + local_idx;
                     if i >= num_els_out {
@@ -138,14 +158,11 @@ macro_rules! pad_with_reflection_op {
 
                     // Calculate corresponding coordinates in input tensor with reflection
                     let mut in_coords = vec![0; num_dims];
-
                     for d in 0..num_dims {
                         let pad_before = paddings[d * 2] as isize;
                         let dim_size = input_dims[d] as isize;
-
                         // Get position relative to the padded area
                         let mut pos = out_coords[d] as isize - pad_before;
-
                         // Apply correct reflection padding
                         // For positions outside the input bounds
                         if pos < 0 {
@@ -155,7 +172,6 @@ macro_rules! pad_with_reflection_op {
                             // Reflection logic for positions beyond last element
                             pos = 2 * dim_size - pos - 2; // Reflection at (dim_size-1)
                         }
-
                         // Handle multiple reflections if needed
                         while pos < 0 || pos >= dim_size {
                             if pos < 0 {
@@ -164,17 +180,27 @@ macro_rules! pad_with_reflection_op {
                                 pos = 2 * dim_size - pos - 2; // Reflect at (dim_size-1)
                             }
                         }
-
                         in_coords[d] = pos as usize;
                     }
 
-                    // Calculate linear index for input
-                    let mut in_idx = 0;
-                    let mut stride = 1;
-                    for d in (0..num_dims).rev() {
-                        in_idx += in_coords[d] * stride;
-                        stride *= input_dims[d];
-                    }
+                    // Calculate index for input
+                    let in_idx = if is_input_contiguous {
+                        // Calculate linear index for contiguous input
+                        let mut idx = 0;
+                        let mut stride = 1;
+                        for d in (0..num_dims).rev() {
+                            idx += in_coords[d] * stride;
+                            stride *= input_dims[d];
+                        }
+                        idx
+                    } else {
+                        // Calculate strided index
+                        let mut idx = 0;
+                        for d in 0..num_dims {
+                            idx += in_coords[d] * input_strides[d];
+                        }
+                        idx
+                    };
 
                     // Copy value from input to output
                     *out_val = input_vec[in_idx];
@@ -194,6 +220,8 @@ macro_rules! pad_with_replication_op {
         ///
         /// * `metadata` must be a valid pointer to an array containing:
         ///   - input_dims[num_dims]: array dimensions for input
+        ///   - input_strides[num_dims]: strides for input array
+        ///   - input_offset: offset for input array
         ///   - output_dims[num_dims]: dimensions for output array
         ///   - paddings[num_dims * 2]: padding values for each dimension (before, after)
         /// * `inp` must be a valid pointer to an array of at least `num_els_in` elements
@@ -202,18 +230,22 @@ macro_rules! pad_with_replication_op {
         /// * All array indices calculated must be in bounds
         pub unsafe fn $name(num_els_in: usize, num_els_out: usize, num_dims: usize, metadata: *const usize, inp: *const $type, out: *mut $type) {
             let input_dims = std::slice::from_raw_parts(metadata, num_dims);
-            let output_dims = std::slice::from_raw_parts(metadata.add(num_dims), num_dims);
-            let paddings = std::slice::from_raw_parts(metadata.add(2 * num_dims), num_dims * 2);
+            let input_strides = std::slice::from_raw_parts(metadata.add(num_dims), num_dims);
+            let input_offset = *metadata.add(2 * num_dims);
+            let output_dims = std::slice::from_raw_parts(metadata.add(2 * num_dims + 1), num_dims);
+            let paddings = std::slice::from_raw_parts(metadata.add(3 * num_dims + 1), num_dims * 2);
 
-            // Copy data to Vec for safe multi-threading
-            let input_vec = std::slice::from_raw_parts(inp, num_els_in).to_vec();
+            // Copy data to Vec for safe multi-threading, including offset
+            let input_vec = std::slice::from_raw_parts(inp.add(input_offset), num_els_in).to_vec();
             let mut output_vec = vec![$zero; num_els_out];
+
+            // Check if input is contiguous
+            let is_input_contiguous = is_contiguous(num_dims, input_dims, input_strides);
 
             // Create chunks of work for better parallelism
             let chunk_size = (num_els_out / rayon::current_num_threads()) + 1;
             output_vec.par_chunks_mut(chunk_size).enumerate().for_each(|(chunk_idx, chunk)| {
                 let start_idx = chunk_idx * chunk_size;
-
                 for (local_idx, out_val) in chunk.iter_mut().enumerate() {
                     let i = start_idx + local_idx;
                     if i >= num_els_out {
@@ -230,24 +262,32 @@ macro_rules! pad_with_replication_op {
 
                     // Calculate corresponding coordinates in input tensor with replication
                     let mut in_coords = vec![0; num_dims];
-
                     for d in 0..num_dims {
                         let pad_before = paddings[d * 2];
                         let mut pos = out_coords[d] as isize - pad_before as isize;
-
                         // Apply replication (clamp to valid range)
                         pos = max(0, min(pos, input_dims[d] as isize - 1));
-
                         in_coords[d] = pos as usize;
                     }
 
-                    // Calculate linear index for input
-                    let mut in_idx = 0;
-                    let mut stride = 1;
-                    for d in (0..num_dims).rev() {
-                        in_idx += in_coords[d] * stride;
-                        stride *= input_dims[d];
-                    }
+                    // Calculate index for input
+                    let in_idx = if is_input_contiguous {
+                        // Calculate linear index for contiguous input
+                        let mut idx = 0;
+                        let mut stride = 1;
+                        for d in (0..num_dims).rev() {
+                            idx += in_coords[d] * stride;
+                            stride *= input_dims[d];
+                        }
+                        idx
+                    } else {
+                        // Calculate strided index
+                        let mut idx = 0;
+                        for d in 0..num_dims {
+                            idx += in_coords[d] * input_strides[d];
+                        }
+                        idx
+                    };
 
                     // Copy value from input to output
                     *out_val = input_vec[in_idx];
@@ -268,6 +308,8 @@ macro_rules! pad_with_constant_backward_op {
         ///
         /// * `metadata` must be a valid pointer to an array containing:
         ///   - input_dims[num_dims]: array dimensions for input gradient
+        ///   - input_strides[num_dims]: strides for input gradient array
+        ///   - input_offset: offset for input gradient array
         ///   - output_dims[num_dims]: dimensions for output gradient array
         ///   - paddings[num_dims * 2]: padding values for each dimension (before, after)
         /// * `grad_out` must be a valid pointer to an array of at least `num_els_out` elements (gradient of output)
@@ -283,12 +325,17 @@ macro_rules! pad_with_constant_backward_op {
             grad_in: *mut $type,
         ) {
             let input_dims = std::slice::from_raw_parts(metadata, num_dims);
-            let output_dims = std::slice::from_raw_parts(metadata.add(num_dims), num_dims);
-            let paddings = std::slice::from_raw_parts(metadata.add(2 * num_dims), num_dims * 2);
+            let input_strides = std::slice::from_raw_parts(metadata.add(num_dims), num_dims);
+            let input_offset = *metadata.add(2 * num_dims);
+            let output_dims = std::slice::from_raw_parts(metadata.add(2 * num_dims + 1), num_dims);
+            let paddings = std::slice::from_raw_parts(metadata.add(3 * num_dims + 1), num_dims * 2);
 
             // Copy data to Vec for safe multi-threading
             let grad_output_vec = std::slice::from_raw_parts(grad_out, num_els_out).to_vec();
             let grad_input_vec = vec![$zero; num_els_in];
+
+            // Check if input gradient is contiguous
+            let is_input_contiguous = is_contiguous(num_dims, input_dims, input_strides);
 
             // Create chunks of work for better parallelism
             let chunk_size = (num_els_out / rayon::current_num_threads()) + 1;
@@ -312,11 +359,9 @@ macro_rules! pad_with_constant_backward_op {
                     // Calculate corresponding coordinates in input tensor
                     let mut in_bounds = true;
                     let mut in_coords = vec![0; num_dims];
-
                     for d in 0..num_dims {
                         let pad_before = paddings[d * 2];
                         in_coords[d] = out_coords[d] as isize - pad_before as isize;
-
                         // Check if this coordinate is within input bounds
                         if in_coords[d] < 0 || in_coords[d] >= input_dims[d] as isize {
                             in_bounds = false;
@@ -326,13 +371,24 @@ macro_rules! pad_with_constant_backward_op {
 
                     // If within bounds, accumulate gradient
                     if in_bounds {
-                        // Calculate linear index for input
-                        let mut in_idx = 0;
-                        let mut stride = 1;
-                        for d in (0..num_dims).rev() {
-                            in_idx += in_coords[d] as usize * stride;
-                            stride *= input_dims[d];
-                        }
+                        // Calculate index for input
+                        let in_idx = if is_input_contiguous {
+                            // Calculate linear index for contiguous input
+                            let mut idx = 0;
+                            let mut stride = 1;
+                            for d in (0..num_dims).rev() {
+                                idx += in_coords[d] as usize * stride;
+                                stride *= input_dims[d];
+                            }
+                            idx
+                        } else {
+                            // Calculate strided index
+                            let mut idx = 0;
+                            for d in 0..num_dims {
+                                idx += in_coords[d] as usize * input_strides[d];
+                            }
+                            idx
+                        };
 
                         // Accumulate in local buffer
                         local_grad_input[in_idx] += grad_output_vec[i];
@@ -346,9 +402,9 @@ macro_rules! pad_with_constant_backward_op {
                 }
             });
 
-            // Copy results back to grad_in
+            // Copy results back to grad_in, including offset
             let final_grad = grad_input_shared.lock().unwrap();
-            std::ptr::copy_nonoverlapping(final_grad.as_ptr(), grad_in, num_els_in);
+            std::ptr::copy_nonoverlapping(final_grad.as_ptr(), grad_in.add(input_offset), num_els_in);
         }
     };
 }
@@ -360,6 +416,8 @@ macro_rules! pad_with_reflection_backward_op {
         ///
         /// * `metadata` must be a valid pointer to an array containing:
         ///   - input_dims[num_dims]: array dimensions for input gradient
+        ///   - input_strides[num_dims]: strides for input gradient array
+        ///   - input_offset: offset for input gradient array
         ///   - output_dims[num_dims]: dimensions for output gradient array
         ///   - paddings[num_dims * 2]: padding values for each dimension (before, after)
         /// * `grad_out` must be a valid pointer to an array of at least `num_els_out` elements (gradient of output)
@@ -375,12 +433,17 @@ macro_rules! pad_with_reflection_backward_op {
             grad_in: *mut $type,
         ) {
             let input_dims = std::slice::from_raw_parts(metadata, num_dims);
-            let output_dims = std::slice::from_raw_parts(metadata.add(num_dims), num_dims);
-            let paddings = std::slice::from_raw_parts(metadata.add(2 * num_dims), num_dims * 2);
+            let input_strides = std::slice::from_raw_parts(metadata.add(num_dims), num_dims);
+            let input_offset = *metadata.add(2 * num_dims);
+            let output_dims = std::slice::from_raw_parts(metadata.add(2 * num_dims + 1), num_dims);
+            let paddings = std::slice::from_raw_parts(metadata.add(3 * num_dims + 1), num_dims * 2);
 
             // Copy data to Vec for safe multi-threading
             let grad_output_vec = std::slice::from_raw_parts(grad_out, num_els_out).to_vec();
             let grad_input_vec = vec![$zero; num_els_in];
+
+            // Check if input gradient is contiguous
+            let is_input_contiguous = is_contiguous(num_dims, input_dims, input_strides);
 
             // Use Arc<Mutex<Vec>> for thread-safe accumulation
             let grad_input_shared = Arc::new(Mutex::new(grad_input_vec));
@@ -403,14 +466,11 @@ macro_rules! pad_with_reflection_backward_op {
 
                     // Calculate corresponding coordinates in input tensor with reflection
                     let mut in_coords = vec![0; num_dims];
-
                     for d in 0..num_dims {
                         let pad_before = paddings[d * 2] as isize;
                         let dim_size = input_dims[d] as isize;
-
                         // Get position relative to the padded area
                         let mut pos = out_coords[d] as isize - pad_before;
-
                         // Apply correct reflection padding
                         // Basic reflection algorithm
                         if pos < 0 {
@@ -420,7 +480,6 @@ macro_rules! pad_with_reflection_backward_op {
                             // Reflection for positions after array end
                             pos = 2 * dim_size - pos - 2; // Reflect at (dim_size-1)
                         }
-
                         // Handle multiple reflections if needed
                         while pos < 0 || pos >= dim_size {
                             if pos < 0 {
@@ -429,17 +488,27 @@ macro_rules! pad_with_reflection_backward_op {
                                 pos = 2 * dim_size - pos - 2; // Reflect at (dim_size-1)
                             }
                         }
-
                         in_coords[d] = pos as usize;
                     }
 
-                    // Calculate linear index for input
-                    let mut in_idx = 0;
-                    let mut stride = 1;
-                    for d in (0..num_dims).rev() {
-                        in_idx += in_coords[d] * stride;
-                        stride *= input_dims[d];
-                    }
+                    // Calculate index for input
+                    let in_idx = if is_input_contiguous {
+                        // Calculate linear index for contiguous input
+                        let mut idx = 0;
+                        let mut stride = 1;
+                        for d in (0..num_dims).rev() {
+                            idx += in_coords[d] * stride;
+                            stride *= input_dims[d];
+                        }
+                        idx
+                    } else {
+                        // Calculate strided index
+                        let mut idx = 0;
+                        for d in 0..num_dims {
+                            idx += in_coords[d] * input_strides[d];
+                        }
+                        idx
+                    };
 
                     // Accumulate in local buffer
                     local_grad_input[in_idx] += grad_output_vec[i];
@@ -452,9 +521,9 @@ macro_rules! pad_with_reflection_backward_op {
                 }
             });
 
-            // Copy results back to grad_in
+            // Copy results back to grad_in, including offset
             let final_grad = grad_input_shared.lock().unwrap();
-            std::ptr::copy_nonoverlapping(final_grad.as_ptr(), grad_in, num_els_in);
+            std::ptr::copy_nonoverlapping(final_grad.as_ptr(), grad_in.add(input_offset), num_els_in);
         }
     };
 }
@@ -466,6 +535,8 @@ macro_rules! pad_with_replication_backward_op {
         ///
         /// * `metadata` must be a valid pointer to an array containing:
         ///   - input_dims[num_dims]: array dimensions for input gradient
+        ///   - input_strides[num_dims]: strides for input gradient array
+        ///   - input_offset: offset for input gradient array
         ///   - output_dims[num_dims]: dimensions for output gradient array
         ///   - paddings[num_dims * 2]: padding values for each dimension (before, after)
         /// * `grad_out` must be a valid pointer to an array of at least `num_els_out` elements (gradient of output)
@@ -481,12 +552,17 @@ macro_rules! pad_with_replication_backward_op {
             grad_in: *mut $type,
         ) {
             let input_dims = std::slice::from_raw_parts(metadata, num_dims);
-            let output_dims = std::slice::from_raw_parts(metadata.add(num_dims), num_dims);
-            let paddings = std::slice::from_raw_parts(metadata.add(2 * num_dims), num_dims * 2);
+            let input_strides = std::slice::from_raw_parts(metadata.add(num_dims), num_dims);
+            let input_offset = *metadata.add(2 * num_dims);
+            let output_dims = std::slice::from_raw_parts(metadata.add(2 * num_dims + 1), num_dims);
+            let paddings = std::slice::from_raw_parts(metadata.add(3 * num_dims + 1), num_dims * 2);
 
             // Copy data to Vec for safe multi-threading
             let grad_output_vec = std::slice::from_raw_parts(grad_out, num_els_out).to_vec();
             let grad_input_vec = vec![$zero; num_els_in];
+
+            // Check if input gradient is contiguous
+            let is_input_contiguous = is_contiguous(num_dims, input_dims, input_strides);
 
             // Use Arc<Mutex<Vec>> for thread-safe accumulation
             let grad_input_shared = Arc::new(Mutex::new(grad_input_vec));
@@ -509,24 +585,32 @@ macro_rules! pad_with_replication_backward_op {
 
                     // Calculate corresponding coordinates in input tensor with replication
                     let mut in_coords = vec![0; num_dims];
-
                     for d in 0..num_dims {
                         let pad_before = paddings[d * 2];
                         let mut pos = out_coords[d] as isize - pad_before as isize;
-
                         // Apply replication (clamp to valid range)
                         pos = max(0, min(pos, input_dims[d] as isize - 1));
-
                         in_coords[d] = pos as usize;
                     }
 
-                    // Calculate linear index for input
-                    let mut in_idx = 0;
-                    let mut stride = 1;
-                    for d in (0..num_dims).rev() {
-                        in_idx += in_coords[d] * stride;
-                        stride *= input_dims[d];
-                    }
+                    // Calculate index for input
+                    let in_idx = if is_input_contiguous {
+                        // Calculate linear index for contiguous input
+                        let mut idx = 0;
+                        let mut stride = 1;
+                        for d in (0..num_dims).rev() {
+                            idx += in_coords[d] * stride;
+                            stride *= input_dims[d];
+                        }
+                        idx
+                    } else {
+                        // Calculate strided index
+                        let mut idx = 0;
+                        for d in 0..num_dims {
+                            idx += in_coords[d] * input_strides[d];
+                        }
+                        idx
+                    };
 
                     // Accumulate in local buffer
                     local_grad_input[in_idx] += grad_output_vec[i];
@@ -539,12 +623,13 @@ macro_rules! pad_with_replication_backward_op {
                 }
             });
 
-            // Copy results back to grad_in
+            // Copy results back to grad_in, including offset
             let final_grad = grad_input_shared.lock().unwrap();
-            std::ptr::copy_nonoverlapping(final_grad.as_ptr(), grad_in, num_els_in);
+            std::ptr::copy_nonoverlapping(final_grad.as_ptr(), grad_in.add(input_offset), num_els_in);
         }
     };
 }
+
 // Forward operations for different types
 pad_with_constant_op!(pad_with_constant_bf16, bf16, bf16::from_f32(0.0));
 pad_with_constant_op!(pad_with_constant_f16, f16, f16::from_f32(0.0));

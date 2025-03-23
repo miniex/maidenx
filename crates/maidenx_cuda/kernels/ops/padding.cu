@@ -10,8 +10,10 @@
       const size_t num_dims, const size_t *metadata, const TYPENAME *inp,      \
       TYPENAME *out, const TYPENAME pad_value) {                               \
     const size_t *input_dims = metadata;                                       \
-    const size_t *output_dims = metadata + num_dims;                           \
-    const size_t *paddings = metadata + 2 * num_dims;                          \
+    const size_t *input_strides = metadata + num_dims;                         \
+    const size_t input_offset = metadata ? *(metadata + 2 * num_dims) : 0;     \
+    const size_t *output_dims = metadata + 2 * num_dims + 1;                   \
+    const size_t *paddings = metadata + 3 * num_dims + 1;                      \
                                                                                \
     if (num_dims > MAX_DIMS)                                                   \
       return;                                                                  \
@@ -22,6 +24,9 @@
       out[i] = pad_value;                                                      \
     }                                                                          \
     /* No need for __syncthreads() here as we're using global memory */        \
+                                                                               \
+    bool is_input_contiguous =                                                 \
+        is_contiguous(num_dims, input_dims, input_strides);                    \
                                                                                \
     /* Process elements in parallel */                                         \
     for (unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;               \
@@ -41,32 +46,41 @@
                                                                                \
       for (size_t d = 0; d < num_dims; d++) {                                  \
         size_t pad_before = paddings[d * 2];                                   \
-        in_coords[d] = out_coords[d];                                          \
+        int pos = (int)out_coords[d] - (int)pad_before;                        \
                                                                                \
-        if (in_coords[d] < pad_before ||                                       \
-            in_coords[d] >= pad_before + input_dims[d]) {                      \
+        /* Check if this coordinate is within input bounds */                  \
+        if (pos < 0 || pos >= (int)input_dims[d]) {                            \
           in_bounds = false;                                                   \
           break;                                                               \
         }                                                                      \
                                                                                \
         /* Adjust to input coordinates */                                      \
-        in_coords[d] -= pad_before;                                            \
+        in_coords[d] = (size_t)pos;                                            \
       }                                                                        \
                                                                                \
       /* If within bounds, copy from input to output */                        \
       if (in_bounds) {                                                         \
-        /* Calculate linear index for input */                                 \
-        size_t in_idx = 0;                                                     \
-        size_t stride = 1;                                                     \
-                                                                               \
-        for (int d = num_dims - 1; d >= 0; --d) {                              \
-          in_idx += in_coords[d] * stride;                                     \
-          stride *= input_dims[d];                                             \
+        /* Calculate index for input with strides */                           \
+        size_t in_idx;                                                         \
+        if (is_input_contiguous) {                                             \
+          /* Calculate linear index for contiguous input */                    \
+          in_idx = 0;                                                          \
+          size_t stride = 1;                                                   \
+          for (int d = num_dims - 1; d >= 0; --d) {                            \
+            in_idx += in_coords[d] * stride;                                   \
+            stride *= input_dims[d];                                           \
+          }                                                                    \
+        } else {                                                               \
+          /* Calculate strided index */                                        \
+          in_idx = 0;                                                          \
+          for (size_t d = 0; d < num_dims; d++) {                              \
+            in_idx += in_coords[d] * input_strides[d];                         \
+          }                                                                    \
         }                                                                      \
                                                                                \
-        /* Copy value from input to output */                                  \
+        /* Copy value from input to output, including offset */                \
         if (in_idx < num_els_in) {                                             \
-          out[i] = inp[in_idx];                                                \
+          out[i] = inp[input_offset + in_idx];                                 \
         }                                                                      \
       }                                                                        \
     }                                                                          \
@@ -88,11 +102,16 @@
       const size_t num_dims, const size_t *metadata, const TYPENAME *inp,      \
       TYPENAME *out) {                                                         \
     const size_t *input_dims = metadata;                                       \
-    const size_t *output_dims = metadata + num_dims;                           \
-    const size_t *paddings = metadata + 2 * num_dims;                          \
+    const size_t *input_strides = metadata + num_dims;                         \
+    const size_t input_offset = metadata ? *(metadata + 2 * num_dims) : 0;     \
+    const size_t *output_dims = metadata + 2 * num_dims + 1;                   \
+    const size_t *paddings = metadata + 3 * num_dims + 1;                      \
                                                                                \
     if (num_dims > MAX_DIMS)                                                   \
       return;                                                                  \
+                                                                               \
+    bool is_input_contiguous =                                                 \
+        is_contiguous(num_dims, input_dims, input_strides);                    \
                                                                                \
     /* Process elements in parallel */                                         \
     for (unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;               \
@@ -144,18 +163,27 @@
         in_coords[d] = static_cast<size_t>(pos);                               \
       }                                                                        \
                                                                                \
-      /* Calculate linear index for input */                                   \
-      size_t in_idx = 0;                                                       \
-      size_t stride = 1;                                                       \
-                                                                               \
-      for (int d = num_dims - 1; d >= 0; --d) {                                \
-        in_idx += in_coords[d] * stride;                                       \
-        stride *= input_dims[d];                                               \
+      /* Calculate index for input with strides */                             \
+      size_t in_idx;                                                           \
+      if (is_input_contiguous) {                                               \
+        /* Calculate linear index for contiguous input */                      \
+        in_idx = 0;                                                            \
+        size_t stride = 1;                                                     \
+        for (int d = num_dims - 1; d >= 0; --d) {                              \
+          in_idx += in_coords[d] * stride;                                     \
+          stride *= input_dims[d];                                             \
+        }                                                                      \
+      } else {                                                                 \
+        /* Calculate strided index */                                          \
+        in_idx = 0;                                                            \
+        for (size_t d = 0; d < num_dims; d++) {                                \
+          in_idx += in_coords[d] * input_strides[d];                           \
+        }                                                                      \
       }                                                                        \
                                                                                \
-      /* Copy value from input to output */                                    \
+      /* Copy value from input to output, including offset */                  \
       if (in_idx < num_els_in) {                                               \
-        out[i] = inp[in_idx];                                                  \
+        out[i] = inp[input_offset + in_idx];                                   \
       }                                                                        \
     }                                                                          \
   }                                                                            \
@@ -175,11 +203,16 @@
       const size_t num_dims, const size_t *metadata, const TYPENAME *inp,      \
       TYPENAME *out) {                                                         \
     const size_t *input_dims = metadata;                                       \
-    const size_t *output_dims = metadata + num_dims;                           \
-    const size_t *paddings = metadata + 2 * num_dims;                          \
+    const size_t *input_strides = metadata + num_dims;                         \
+    const size_t input_offset = metadata ? *(metadata + 2 * num_dims) : 0;     \
+    const size_t *output_dims = metadata + 2 * num_dims + 1;                   \
+    const size_t *paddings = metadata + 3 * num_dims + 1;                      \
                                                                                \
     if (num_dims > MAX_DIMS)                                                   \
       return;                                                                  \
+                                                                               \
+    bool is_input_contiguous =                                                 \
+        is_contiguous(num_dims, input_dims, input_strides);                    \
                                                                                \
     /* Process elements in parallel */                                         \
     for (unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;               \
@@ -208,18 +241,27 @@
         in_coords[d] = static_cast<size_t>(pos);                               \
       }                                                                        \
                                                                                \
-      /* Calculate linear index for input */                                   \
-      size_t in_idx = 0;                                                       \
-      size_t stride = 1;                                                       \
-                                                                               \
-      for (int d = num_dims - 1; d >= 0; --d) {                                \
-        in_idx += in_coords[d] * stride;                                       \
-        stride *= input_dims[d];                                               \
+      /* Calculate index for input with strides */                             \
+      size_t in_idx;                                                           \
+      if (is_input_contiguous) {                                               \
+        /* Calculate linear index for contiguous input */                      \
+        in_idx = 0;                                                            \
+        size_t stride = 1;                                                     \
+        for (int d = num_dims - 1; d >= 0; --d) {                              \
+          in_idx += in_coords[d] * stride;                                     \
+          stride *= input_dims[d];                                             \
+        }                                                                      \
+      } else {                                                                 \
+        /* Calculate strided index */                                          \
+        in_idx = 0;                                                            \
+        for (size_t d = 0; d < num_dims; d++) {                                \
+          in_idx += in_coords[d] * input_strides[d];                           \
+        }                                                                      \
       }                                                                        \
                                                                                \
-      /* Copy value from input to output */                                    \
+      /* Copy value from input to output, including offset */                  \
       if (in_idx < num_els_in) {                                               \
-        out[i] = inp[in_idx];                                                  \
+        out[i] = inp[input_offset + in_idx];                                   \
       }                                                                        \
     }                                                                          \
   }                                                                            \
@@ -240,18 +282,16 @@
       const size_t num_dims, const size_t *metadata, const TYPENAME *grad_out, \
       TYPENAME *grad_in) {                                                     \
     const size_t *input_dims = metadata;                                       \
-    const size_t *output_dims = metadata + num_dims;                           \
-    const size_t *paddings = metadata + 2 * num_dims;                          \
+    const size_t *input_strides = metadata + num_dims;                         \
+    const size_t input_offset = metadata ? *(metadata + 2 * num_dims) : 0;     \
+    const size_t *output_dims = metadata + 2 * num_dims + 1;                   \
+    const size_t *paddings = metadata + 3 * num_dims + 1;                      \
                                                                                \
     if (num_dims > MAX_DIMS)                                                   \
       return;                                                                  \
                                                                                \
-    /* Initialize grad_in to zeros */                                          \
-    for (unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;               \
-         i < num_els_in; i += blockDim.x * gridDim.x) {                        \
-      grad_in[i] = static_cast<TYPENAME>(0);                                   \
-    }                                                                          \
-    __syncthreads();                                                           \
+    bool is_input_contiguous =                                                 \
+        is_contiguous(num_dims, input_dims, input_strides);                    \
                                                                                \
     /* Process elements in parallel */                                         \
     for (unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;               \
@@ -271,30 +311,41 @@
                                                                                \
       for (size_t d = 0; d < num_dims; d++) {                                  \
         size_t pad_before = paddings[d * 2];                                   \
-        if (out_coords[d] < pad_before ||                                      \
-            out_coords[d] >= pad_before + input_dims[d]) {                     \
+        int pos = (int)out_coords[d] - (int)pad_before;                        \
+                                                                               \
+        /* Check if this coordinate is within input bounds */                  \
+        if (pos < 0 || pos >= (int)input_dims[d]) {                            \
           in_bounds = false;                                                   \
           break;                                                               \
         }                                                                      \
                                                                                \
         /* Adjust to input coordinates */                                      \
-        in_coords[d] = out_coords[d] - pad_before;                             \
+        in_coords[d] = (size_t)pos;                                            \
       }                                                                        \
                                                                                \
       /* If within bounds, accumulate gradient */                              \
       if (in_bounds) {                                                         \
-        /* Calculate linear index for input */                                 \
-        size_t in_idx = 0;                                                     \
-        size_t stride = 1;                                                     \
-                                                                               \
-        for (int d = num_dims - 1; d >= 0; --d) {                              \
-          in_idx += in_coords[d] * stride;                                     \
-          stride *= input_dims[d];                                             \
+        /* Calculate index for input with strides */                           \
+        size_t in_idx;                                                         \
+        if (is_input_contiguous) {                                             \
+          /* Calculate linear index for contiguous input */                    \
+          in_idx = 0;                                                          \
+          size_t stride = 1;                                                   \
+          for (int d = num_dims - 1; d >= 0; --d) {                            \
+            in_idx += in_coords[d] * stride;                                   \
+            stride *= input_dims[d];                                           \
+          }                                                                    \
+        } else {                                                               \
+          /* Calculate strided index */                                        \
+          in_idx = 0;                                                          \
+          for (size_t d = 0; d < num_dims; d++) {                              \
+            in_idx += in_coords[d] * input_strides[d];                         \
+          }                                                                    \
         }                                                                      \
                                                                                \
         /* Accumulate gradient */                                              \
         if (in_idx < num_els_in) {                                             \
-          atomicAdd(grad_in + in_idx, grad_out[i]);                            \
+          atomicAdd(&grad_in[in_idx], grad_out[i]);                            \
         }                                                                      \
       }                                                                        \
     }                                                                          \
@@ -303,6 +354,7 @@
   extern "C" void cuda_##FN_NAME(                                              \
       size_t num_els_in, size_t num_els_out, size_t num_dims,                  \
       const size_t *metadata, const TYPENAME *grad_out, TYPENAME *grad_in) {   \
+    /* Initialize grad_in to zeros */                                          \
     cudaMemset(grad_in, 0, num_els_in * sizeof(TYPENAME));                     \
     dim3 block_dim(256);                                                       \
     dim3 grid_dim((num_els_out + block_dim.x - 1) / block_dim.x);              \
@@ -316,11 +368,16 @@
       const size_t num_dims, const size_t *metadata, const TYPENAME *grad_out, \
       TYPENAME *grad_in) {                                                     \
     const size_t *input_dims = metadata;                                       \
-    const size_t *output_dims = metadata + num_dims;                           \
-    const size_t *paddings = metadata + 2 * num_dims;                          \
+    const size_t *input_strides = metadata + num_dims;                         \
+    const size_t input_offset = metadata ? *(metadata + 2 * num_dims) : 0;     \
+    const size_t *output_dims = metadata + 2 * num_dims + 1;                   \
+    const size_t *paddings = metadata + 3 * num_dims + 1;                      \
                                                                                \
     if (num_dims > MAX_DIMS)                                                   \
       return;                                                                  \
+                                                                               \
+    bool is_input_contiguous =                                                 \
+        is_contiguous(num_dims, input_dims, input_strides);                    \
                                                                                \
     /* Process elements in parallel */                                         \
     for (unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;               \
@@ -372,18 +429,27 @@
         in_coords[d] = static_cast<size_t>(pos);                               \
       }                                                                        \
                                                                                \
-      /* Calculate linear index for input */                                   \
-      size_t in_idx = 0;                                                       \
-      size_t stride = 1;                                                       \
-                                                                               \
-      for (int d = num_dims - 1; d >= 0; --d) {                                \
-        in_idx += in_coords[d] * stride;                                       \
-        stride *= input_dims[d];                                               \
+      /* Calculate index for input with strides */                             \
+      size_t in_idx;                                                           \
+      if (is_input_contiguous) {                                               \
+        /* Calculate linear index for contiguous input */                      \
+        in_idx = 0;                                                            \
+        size_t stride = 1;                                                     \
+        for (int d = num_dims - 1; d >= 0; --d) {                              \
+          in_idx += in_coords[d] * stride;                                     \
+          stride *= input_dims[d];                                             \
+        }                                                                      \
+      } else {                                                                 \
+        /* Calculate strided index */                                          \
+        in_idx = 0;                                                            \
+        for (size_t d = 0; d < num_dims; d++) {                                \
+          in_idx += in_coords[d] * input_strides[d];                           \
+        }                                                                      \
       }                                                                        \
                                                                                \
       /* Accumulate gradient */                                                \
       if (in_idx < num_els_in) {                                               \
-        atomicAdd(grad_in + in_idx, grad_out[i]);                              \
+        atomicAdd(&grad_in[in_idx], grad_out[i]);                              \
       }                                                                        \
     }                                                                          \
   }                                                                            \
@@ -391,6 +457,7 @@
   extern "C" void cuda_##FN_NAME(                                              \
       size_t num_els_in, size_t num_els_out, size_t num_dims,                  \
       const size_t *metadata, const TYPENAME *grad_out, TYPENAME *grad_in) {   \
+    /* Initialize grad_in to zeros */                                          \
     cudaMemset(grad_in, 0, num_els_in * sizeof(TYPENAME));                     \
     dim3 block_dim(256);                                                       \
     dim3 grid_dim((num_els_out + block_dim.x - 1) / block_dim.x);              \
@@ -404,11 +471,16 @@
       const size_t num_dims, const size_t *metadata, const TYPENAME *grad_out, \
       TYPENAME *grad_in) {                                                     \
     const size_t *input_dims = metadata;                                       \
-    const size_t *output_dims = metadata + num_dims;                           \
-    const size_t *paddings = metadata + 2 * num_dims;                          \
+    const size_t *input_strides = metadata + num_dims;                         \
+    const size_t input_offset = metadata ? *(metadata + 2 * num_dims) : 0;     \
+    const size_t *output_dims = metadata + 2 * num_dims + 1;                   \
+    const size_t *paddings = metadata + 3 * num_dims + 1;                      \
                                                                                \
     if (num_dims > MAX_DIMS)                                                   \
       return;                                                                  \
+                                                                               \
+    bool is_input_contiguous =                                                 \
+        is_contiguous(num_dims, input_dims, input_strides);                    \
                                                                                \
     /* Process elements in parallel */                                         \
     for (unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;               \
@@ -437,18 +509,27 @@
         in_coords[d] = static_cast<size_t>(pos);                               \
       }                                                                        \
                                                                                \
-      /* Calculate linear index for input */                                   \
-      size_t in_idx = 0;                                                       \
-      size_t stride = 1;                                                       \
-                                                                               \
-      for (int d = num_dims - 1; d >= 0; --d) {                                \
-        in_idx += in_coords[d] * stride;                                       \
-        stride *= input_dims[d];                                               \
+      /* Calculate index for input with strides */                             \
+      size_t in_idx;                                                           \
+      if (is_input_contiguous) {                                               \
+        /* Calculate linear index for contiguous input */                      \
+        in_idx = 0;                                                            \
+        size_t stride = 1;                                                     \
+        for (int d = num_dims - 1; d >= 0; --d) {                              \
+          in_idx += in_coords[d] * stride;                                     \
+          stride *= input_dims[d];                                             \
+        }                                                                      \
+      } else {                                                                 \
+        /* Calculate strided index */                                          \
+        in_idx = 0;                                                            \
+        for (size_t d = 0; d < num_dims; d++) {                                \
+          in_idx += in_coords[d] * input_strides[d];                           \
+        }                                                                      \
       }                                                                        \
                                                                                \
       /* Accumulate gradient */                                                \
       if (in_idx < num_els_in) {                                               \
-        atomicAdd(grad_in + in_idx, grad_out[i]);                              \
+        atomicAdd(&grad_in[in_idx], grad_out[i]);                              \
       }                                                                        \
     }                                                                          \
   }                                                                            \
@@ -456,6 +537,7 @@
   extern "C" void cuda_##FN_NAME(                                              \
       size_t num_els_in, size_t num_els_out, size_t num_dims,                  \
       const size_t *metadata, const TYPENAME *grad_out, TYPENAME *grad_in) {   \
+    /* Initialize grad_in to zeros */                                          \
     cudaMemset(grad_in, 0, num_els_in * sizeof(TYPENAME));                     \
     dim3 block_dim(256);                                                       \
     dim3 grid_dim((num_els_out + block_dim.x - 1) / block_dim.x);              \
