@@ -10,6 +10,7 @@ repository = "https://github.com/miniex/maidenx"
 
 [features]
 cuda = ["maidenx_core/cuda", "maidenx_tensor/cuda"]
+mps = ["maidenx_core/mps", "maidenx_tensor/mps"]
 
 [dependencies]
 maidenx_core = { path = "../maidenx_core", version = "0.1.0-dev" }

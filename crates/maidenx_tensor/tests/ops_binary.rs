@@ -1,37 +1,30 @@
 #![allow(clippy::useless_vec)]
 
-use crate::{test_logical_ops, test_ops};
-use maidenx_core::{
-    device::{set_default_device, Device},
-    dtype::DType,
-    error::Result,
-};
+mod utils;
+
+use maidenx_core::{dtype::DType, error::Result};
 use maidenx_tensor::{adapter::TensorAdapter, Tensor};
+use utils::setup_device;
 
 // Helper functions
-fn setup_device() {
-    #[cfg(feature = "cuda")]
-    set_default_device(Device::CUDA(0));
-    #[cfg(not(any(feature = "cuda")))]
-    set_default_device(Device::CPU);
-}
-
-fn setup_tensor<T: Clone + 'static>(data: Vec<T>, dtype: DType) -> Result<Tensor>
+pub fn setup_tensor<T: Clone + 'static>(data: Vec<T>, dtype: DType) -> Result<Tensor>
 where
     Vec<T>: TensorAdapter,
 {
     setup_device();
+
     let mut tensor = Tensor::new(data)?;
     tensor.with_dtype(dtype)?;
     Ok(tensor)
 }
 
-fn setup_grad_tensor<T: Clone + 'static>(data: Vec<T>, dtype: DType) -> Result<Tensor>
+pub fn setup_grad_tensor<T: Clone + 'static>(data: Vec<T>, dtype: DType) -> Result<Tensor>
 where
     Vec<T>: TensorAdapter,
 {
     let mut tensor = setup_tensor(data, dtype)?;
     tensor.with_grad().ok();
+
     Ok(tensor)
 }
 

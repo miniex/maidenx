@@ -2,13 +2,11 @@
 #![allow(clippy::approx_constant)]
 #![allow(clippy::useless_vec)]
 
-use crate::{test_logical_ops, test_ops};
-use maidenx_core::{
-    device::{set_default_device, Device},
-    dtype::DType,
-    error::Result,
-};
+mod utils;
+
+use maidenx_core::{dtype::DType, error::Result};
 use maidenx_tensor::{adapter::TensorAdapter, Tensor};
+use utils::setup_device;
 
 // Constants for test data
 const TEST_DATA_F32: [f32; 4] = [-1.0f32, 0.0, 2.0, -3.0];
@@ -16,14 +14,7 @@ const TEST_DATA_U32: [u32; 4] = [1, 0, 2, 3];
 const TEST_DATA_BOOL: [bool; 4] = [true, false, false, true];
 
 // Helper functions
-fn setup_device() {
-    #[cfg(feature = "cuda")]
-    set_default_device(Device::CUDA(0));
-    #[cfg(not(any(feature = "cuda")))]
-    set_default_device(Device::CPU);
-}
-
-fn setup_tensor<T: Clone + 'static>(data: Vec<T>, dtype: DType) -> Result<Tensor>
+pub fn setup_tensor<T: Clone + 'static>(data: Vec<T>, dtype: DType) -> Result<Tensor>
 where
     Vec<T>: TensorAdapter,
 {
@@ -34,7 +25,7 @@ where
     Ok(tensor)
 }
 
-fn setup_grad_tensor<T: Clone + 'static>(data: Vec<T>, dtype: DType) -> Result<Tensor>
+pub fn setup_grad_tensor<T: Clone + 'static>(data: Vec<T>, dtype: DType) -> Result<Tensor>
 where
     Vec<T>: TensorAdapter,
 {
@@ -45,6 +36,7 @@ where
 }
 
 mod test_functions {
+
     use super::*;
 
     pub fn neg_test(dtype: DType) -> Result<()> {

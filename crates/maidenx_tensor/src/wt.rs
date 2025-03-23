@@ -4,6 +4,8 @@ use crate::{
 };
 #[cfg(feature = "cuda")]
 use maidenx_core::buffer::cuda::CudaBuffer;
+#[cfg(feature = "mps")]
+use maidenx_core::buffer::mps::MpsBuffer;
 use maidenx_core::{
     buffer::{cpu::CpuBuffer, Buffer},
     device::Device,
@@ -27,6 +29,8 @@ impl Tensor {
             Device::CPU => Arc::new(CpuBuffer::new(size, dtype)?),
             #[cfg(feature = "cuda")]
             Device::CUDA(id) => Arc::new(CudaBuffer::new(size, dtype, id)?),
+            #[cfg(feature = "mps")]
+            Device::MPS => Arc::new(MpsBuffer::new(size, dtype)?),
         };
 
         {
@@ -94,6 +98,8 @@ impl Tensor {
             Device::CPU => Arc::new(CpuBuffer::new(size, dtype)?),
             #[cfg(feature = "cuda")]
             Device::CUDA(id) => Arc::new(CudaBuffer::new(size, dtype, id)?),
+            #[cfg(feature = "mps")]
+            Device::MPS => Arc::new(MpsBuffer::new(size, dtype)?),
         };
 
         {
@@ -121,6 +127,8 @@ impl Tensor {
             Device::CPU => Arc::new(CpuBuffer::new(size, dtype)?),
             #[cfg(feature = "cuda")]
             Device::CUDA(id) => Arc::new(CudaBuffer::new(size, dtype, id)?),
+            #[cfg(feature = "mps")]
+            Device::MPS => Arc::new(MpsBuffer::new(size, dtype)?),
         };
 
         {
@@ -151,6 +159,8 @@ impl Tensor {
             Device::CPU => Arc::new(CpuBuffer::new(size, dtype)?),
             #[cfg(feature = "cuda")]
             Device::CUDA(id) => Arc::new(CudaBuffer::new(size, dtype, id)?),
+            #[cfg(feature = "mps")]
+            Device::MPS => Arc::new(MpsBuffer::new(size, dtype)?),
         };
 
         {
@@ -181,6 +191,8 @@ impl Tensor {
             Device::CPU => Arc::new(CpuBuffer::new(size, dtype)?),
             #[cfg(feature = "cuda")]
             Device::CUDA(id) => Arc::new(CudaBuffer::new(size, dtype, id)?),
+            #[cfg(feature = "mps")]
+            Device::MPS => Arc::new(MpsBuffer::new(size, dtype)?),
         };
 
         {
@@ -225,6 +237,8 @@ impl Tensor {
                 Device::CPU => Arc::new(CpuBuffer::new(target_size, dtype)?),
                 #[cfg(feature = "cuda")]
                 Device::CUDA(id) => Arc::new(CudaBuffer::new(target_size, dtype, id)?),
+                #[cfg(feature = "mps")]
+                Device::MPS => Arc::new(MpsBuffer::new(target_size, dtype)?),
             };
 
             let mut scalar_buf = vec![0u8; dtype.size_in_bytes()];
@@ -269,6 +283,8 @@ impl Tensor {
             Device::CPU => Arc::new(CpuBuffer::new(size, dtype)?),
             #[cfg(feature = "cuda")]
             Device::CUDA(id) => Arc::new(CudaBuffer::new(size, dtype, id)?),
+            #[cfg(feature = "mps")]
+            Device::MPS => Arc::new(MpsBuffer::new(size, dtype)?),
         };
 
         let src_size = self.size();

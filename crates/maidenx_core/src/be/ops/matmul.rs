@@ -52,6 +52,10 @@ macro_rules! declare_matmul_op {
                             }) as Box<dyn FnOnce()>)
                         )
                     },
+                    #[cfg(feature = "mps")]
+                    Device::MPS => {
+                        return Err(Error::MpsError("Failed to MPS".to_string()));
+                    },
                 };
 
                 match lhs.device() {
@@ -88,6 +92,8 @@ macro_rules! declare_matmul_op {
                             _ => return Err(Error::UnsupportedDType)
                         }
                     },
+                    #[cfg(feature = "mps")]
+                    Device::MPS => {},
                 }
 
                 if let Some(cleanup) = cleanup_fn {
@@ -137,6 +143,10 @@ macro_rules! declare_matmul_op {
                             }) as Box<dyn FnOnce()>)
                         )
                     },
+                    #[cfg(feature = "mps")]
+                    Device::MPS => {
+                        return Err(Error::MpsError("Failed to MPS".to_string()));
+                    },
                 };
 
                 match lhs.device() {
@@ -179,6 +189,8 @@ macro_rules! declare_matmul_op {
                             _ => return Err(Error::UnsupportedDType)
                         }
                     },
+                    #[cfg(feature = "mps")]
+                    Device::MPS => {},
                 }
 
                 if let Some(cleanup) = cleanup_fn {

@@ -8,7 +8,9 @@ use maidenx_tensor::{adapter::TensorAdapter, Tensor};
 fn setup_device() {
     #[cfg(feature = "cuda")]
     set_default_device(Device::CUDA(0));
-    #[cfg(not(any(feature = "cuda")))]
+    #[cfg(feature = "mps")]
+    set_default_device(Device::MPS);
+    #[cfg(not(any(feature = "cuda", feature = "mps")))]
     set_default_device(Device::CPU);
 }
 

@@ -77,6 +77,10 @@ impl Buffer for CudaBuffer {
         let status = match other.device() {
             Device::CPU => cuda_memcpy_h2d(self.ptr, other.as_ptr(), size_in_bytes),
             Device::CUDA(_) => cuda_memcpy_d2d(self.ptr, other.as_ptr(), size_in_bytes),
+            #[cfg(feature = "mps")]
+            Device::MPS => {
+                return Err(Error::InvalidArgument("Direct copy from MPS to CUDA is not supported".into()));
+            }
         };
         if status != 0 {
             return Err(Error::InvalidArgument(format!("CUDA memcpy failed: {}", status)));

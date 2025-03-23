@@ -48,6 +48,10 @@ macro_rules! declare_reduction_op {
                             }) as Box<dyn FnOnce()>)
                         )
                     },
+                    #[cfg(feature = "mps")]
+                    Device::MPS => {
+                        return Err(Error::MpsError("Failed to MPS".to_string()));
+                    },
                 };
 
                 match input.device() {
@@ -86,6 +90,8 @@ macro_rules! declare_reduction_op {
                             _ => return Err(Error::UnsupportedDType)
                         }
                     },
+                    #[cfg(feature = "mps")]
+                    Device::MPS => {},
                 }
 
                 if let Some(cleanup) = cleanup_fn {
@@ -131,6 +137,10 @@ macro_rules! declare_reduction_op {
                             }) as Box<dyn FnOnce()>)
                         )
                     },
+                    #[cfg(feature = "mps")]
+                    Device::MPS => {
+                        return Err(Error::MpsError("Failed to MPS".to_string()));
+                    },
                 };
 
                 match input.device() {
@@ -167,6 +177,8 @@ macro_rules! declare_reduction_op {
                             _ => return Err(Error::UnsupportedDType)
                         }
                     },
+                    #[cfg(feature = "mps")]
+                    Device::MPS => {},
                 }
 
                 if let Some(cleanup) = cleanup_fn {

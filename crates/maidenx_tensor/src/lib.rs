@@ -13,6 +13,8 @@ mod wt;
 use iterator::TensorIterator;
 #[cfg(feature = "cuda")]
 use maidenx_core::buffer::cuda::CudaBuffer;
+#[cfg(feature = "mps")]
+use maidenx_core::buffer::mps::MpsBuffer;
 use maidenx_core::{
     buffer::{cpu::CpuBuffer, Buffer},
     device::Device,
@@ -121,6 +123,11 @@ impl Tensor {
             #[cfg(feature = "cuda")]
             Device::CUDA(device_id) => {
                 let buffer = CudaBuffer::new(size, dtype, device_id)?;
+                Arc::new(buffer)
+            }
+            #[cfg(feature = "mps")]
+            Device::MPS => {
+                let buffer = MpsBuffer::new(size, dtype)?;
                 Arc::new(buffer)
             }
         };

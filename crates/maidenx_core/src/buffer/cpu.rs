@@ -6,6 +6,8 @@ use crate::{
 };
 #[cfg(feature = "cuda")]
 use maidenx_cuda::cuda_memcpy_d2h;
+#[cfg(feature = "mps")]
+use maidenx_mps::mps_memcpy_d2h;
 use std::{ffi::c_void, ptr};
 
 pub struct CpuBuffer {
@@ -65,6 +67,11 @@ impl Buffer for CpuBuffer {
             #[cfg(feature = "cuda")]
             Device::CUDA(_) => {
                 cuda_memcpy_d2h(self.data.as_mut_ptr() as *mut c_void, other.as_ptr(), self.data.len());
+                Ok(())
+            }
+            #[cfg(feature = "mps")]
+            Device::MPS => {
+                mps_memcpy_d2h(self.data.as_mut_ptr() as *mut c_void, other.as_ptr(), self.data.len());
                 Ok(())
             }
         }

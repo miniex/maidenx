@@ -38,6 +38,8 @@ impl Tensor {
                 let contiguous_temp = temp.contiguous()?;
                 result = contiguous_temp.to_device(Device::CUDA(device_id))?;
             }
+            #[cfg(feature = "mps")]
+            Device::MPS => {}
         }
 
         Ok(result)

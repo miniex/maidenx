@@ -11,6 +11,7 @@ repository = "https://github.com/miniex/maidenx"
 [features]
 default = []
 cuda = ["maidenx_core/cuda", "maidenx_tensor/cuda"]
+mps = ["maidenx_core/mps", "maidenx_tensor/mps"]
 
 [dependencies]
 maidenx_nn_macros = { path = "macros", version = "0.1.0-dev" }

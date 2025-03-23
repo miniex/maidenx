@@ -2,6 +2,8 @@ use crate::{adapter::TensorAdapter, Tensor, TensorData, TensorMetadata};
 use half::{bf16, f16};
 #[cfg(feature = "cuda")]
 use maidenx_core::buffer::cuda::CudaBuffer;
+#[cfg(feature = "mps")]
+use maidenx_core::buffer::mps::MpsBuffer;
 use maidenx_core::{
     buffer::{cpu::CpuBuffer, Buffer},
     device::{get_default_device, Device},
@@ -36,6 +38,8 @@ impl Tensor {
             Device::CPU => Arc::new(CpuBuffer::new(size, dtype)?),
             #[cfg(feature = "cuda")]
             Device::CUDA(id) => Arc::new(CudaBuffer::new(size, dtype, id)?),
+            #[cfg(feature = "mps")]
+            Device::MPS => Arc::new(MpsBuffer::new(size, dtype)?),
         };
 
         let src_dtype = data.dtype();
@@ -137,6 +141,8 @@ impl Tensor {
             Device::CPU => Arc::new(CpuBuffer::new(size, dtype)?),
             #[cfg(feature = "cuda")]
             Device::CUDA(id) => Arc::new(CudaBuffer::new(size, dtype, id)?),
+            #[cfg(feature = "mps")]
+            Device::MPS => Arc::new(MpsBuffer::new(size, dtype)?),
         };
 
         Ok(Self {
@@ -166,6 +172,8 @@ impl Tensor {
             Device::CPU => Arc::new(CpuBuffer::new(size, dtype)?),
             #[cfg(feature = "cuda")]
             Device::CUDA(id) => Arc::new(CudaBuffer::new(size, dtype, id)?),
+            #[cfg(feature = "mps")]
+            Device::MPS => Arc::new(MpsBuffer::new(size, dtype)?),
         };
 
         let elem_size = dtype.size_in_bytes();
@@ -210,6 +218,8 @@ impl Tensor {
             Device::CPU => Arc::new(CpuBuffer::new(size, dtype)?),
             #[cfg(feature = "cuda")]
             Device::CUDA(id) => Arc::new(CudaBuffer::new(size, dtype, id)?),
+            #[cfg(feature = "mps")]
+            Device::MPS => Arc::new(MpsBuffer::new(size, dtype)?),
         };
 
         let one_bytes = match dtype {
@@ -278,6 +288,8 @@ impl Tensor {
             Device::CPU => Arc::new(CpuBuffer::new(size, dtype)?),
             #[cfg(feature = "cuda")]
             Device::CUDA(id) => Arc::new(CudaBuffer::new(size, dtype, id)?),
+            #[cfg(feature = "mps")]
+            Device::MPS => Arc::new(MpsBuffer::new(size, dtype)?),
         };
 
         let value_bytes = match dtype {

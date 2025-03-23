@@ -1,23 +1,14 @@
-use crate::test_ops;
-use maidenx_core::{
-    device::{set_default_device, Device},
-    dtype::DType,
-    error::Result,
-};
+mod utils;
+
+use maidenx_core::{dtype::DType, error::Result};
 use maidenx_tensor::{adapter::TensorAdapter, Tensor};
+use utils::setup_device;
 
 // Constants for test data
 const TEST_DATA_F32_1D: [f32; 4] = [1.0, 2.0, 3.0, 4.0];
 const TEST_DATA_F32_2D: [[f32; 3]; 2] = [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]];
 
 // Helper functions
-fn setup_device() {
-    #[cfg(feature = "cuda")]
-    set_default_device(Device::CUDA(0));
-    #[cfg(not(any(feature = "cuda")))]
-    set_default_device(Device::CPU);
-}
-
 fn setup_tensor<T: Clone + 'static>(data: Vec<T>, shape: &[usize], dtype: DType) -> Result<Tensor>
 where
     Vec<T>: TensorAdapter,

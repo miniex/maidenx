@@ -49,6 +49,10 @@ macro_rules! declare_conv2d_op {
                             }) as Box<dyn FnOnce()>)
                         )
                     },
+                    #[cfg(feature = "mps")]
+                    Device::MPS => {
+                        return Err(Error::MpsError("Failed to MPS".to_string()));
+                    },
                 };
 
                 match input.device() {
@@ -83,6 +87,8 @@ macro_rules! declare_conv2d_op {
                             _ => return Err(Error::UnsupportedDType)
                         }
                     },
+                    #[cfg(feature = "mps")]
+                    Device::MPS => {},
                 }
 
                 if let Some(cleanup) = cleanup_fn {
@@ -125,6 +131,10 @@ macro_rules! declare_conv2d_op {
                             }) as Box<dyn FnOnce()>)
                         )
                     },
+                    #[cfg(feature = "mps")]
+                    Device::MPS => {
+                        return Err(Error::MpsError("Failed to MPS".to_string()));
+                    },
                 };
 
                 match output.device() {
@@ -159,6 +169,8 @@ macro_rules! declare_conv2d_op {
                             _ => return Err(Error::UnsupportedDType)
                         }
                     },
+                    #[cfg(feature = "mps")]
+                    Device::MPS => {},
                 }
 
                 if let Some(cleanup) = cleanup_fn {

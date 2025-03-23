@@ -1,6 +1,8 @@
 pub mod cpu;
 #[cfg(feature = "cuda")]
 pub mod cuda;
+#[cfg(feature = "mps")]
+pub mod mps;
 
 use crate::{
     device::Device,
@@ -61,6 +63,20 @@ pub trait Buffer: Send + Sync {
             }
             #[cfg(feature = "cuda")]
             (Device::CPU, Device::CUDA(_)) | (Device::CUDA(_), Device::CPU) => unsafe { self.copy_from(other) },
+
+            #[cfg(feature = "mps")]
+            (Device::MPS, Device::MPS) => unsafe { self.copy_from(other) },
+            #[cfg(feature = "mps")]
+            (Device::CPU, Device::MPS) | (Device::MPS, Device::CPU) => unsafe { self.copy_from(other) },
+
+            #[cfg(all(feature = "cuda", feature = "mps"))]
+            (Device::CUDA(_), Device::MPS) | (Device::MPS, Device::CUDA(_)) => {
+                let mut temp = CpuBuffer::new(self.len(), self.dtype())?;
+                unsafe {
+                    temp.copy_from(other)?;
+                    self.copy_from(&temp)
+                }
+            }
         }
     }
 
@@ -452,6 +468,19 @@ pub trait Buffer: Send + Sync {
                     Ok(self.dtype().read_scalar(offset_ptr))
                 }
             }
+            #[cfg(feature = "mps")]
+            Device::MPS => {
+                let dtype_size = self.dtype().size_in_bytes();
+                let total_size = self.len() * dtype_size;
+                let mut temp_buffer = vec![0u8; total_size];
+
+                unsafe {
+                    self.copy_to_host(temp_buffer.as_mut_ptr() as *mut c_void, total_size)?;
+
+                    let offset_ptr = temp_buffer.as_ptr().add(index * dtype_size);
+                    Ok(self.dtype().read_scalar(offset_ptr))
+                }
+            }
         }
     }
 
@@ -491,6 +520,24 @@ pub trait Buffer: Send + Sync {
                     self.dtype().write_scalar(update_ptr, value);
 
                     // Copy the entire buffer back to the device
+                    self.copy_from_host(temp_buffer.as_ptr() as *const c_void, total_size)?;
+
+                    Ok(())
+                }
+            }
+            #[cfg(feature = "mps")]
+            Device::MPS => {
+                let dtype_size = self.dtype().size_in_bytes();
+                let total_size = self.len() * dtype_size;
+                let mut temp_buffer = vec![0u8; total_size];
+
+                unsafe {
+                    self.copy_to_host(temp_buffer.as_mut_ptr() as *mut c_void, total_size)?;
+
+                    let offset = index * dtype_size;
+                    let update_ptr = temp_buffer.as_mut_ptr().add(offset);
+                    self.dtype().write_scalar(update_ptr, value);
+
                     self.copy_from_host(temp_buffer.as_ptr() as *const c_void, total_size)?;
 
                     Ok(())

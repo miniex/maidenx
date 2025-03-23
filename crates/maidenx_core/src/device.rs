@@ -3,6 +3,8 @@ pub enum Device {
     CPU,
     #[cfg(feature = "cuda")]
     CUDA(usize),
+    #[cfg(feature = "mps")]
+    MPS,
 }
 
 impl Device {
@@ -11,6 +13,8 @@ impl Device {
             Device::CPU => "CPU".to_string(),
             #[cfg(feature = "cuda")]
             Device::CUDA(id) => format!("CUDA Device {}", id),
+            #[cfg(feature = "mps")]
+            Device::MPS => "MPS".to_string(),
         }
     }
 }

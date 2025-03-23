@@ -29,6 +29,8 @@ macro_rules! impl_for_type {
                     $rhs.as_ptr() as *const $type,
                     $out.as_mut_ptr() as *mut bool)
             },
+            #[cfg(feature = "mps")]
+            Device::MPS => {}
         }
     };
     ($name:ident, $size:expr, $num_dims:expr, $dims:expr, $lhs:expr, $rhs:expr, $out:expr, $type:ty, false, $device:expr) => {
@@ -46,6 +48,8 @@ macro_rules! impl_for_type {
                     $rhs.as_ptr() as *const $type,
                     $out.as_mut_ptr() as *mut $type)
             },
+            #[cfg(feature = "mps")]
+            Device::MPS => {}
         }
     };
 }
@@ -95,6 +99,10 @@ macro_rules! declare_binary_op {
                                 }
                             }) as Box<dyn FnOnce()>)
                         )
+                    },
+                    #[cfg(feature = "mps")]
+                    Device::MPS => {
+                        return Err(Error::MpsError("Failed to MPS".to_string()));
                     },
                 };
 

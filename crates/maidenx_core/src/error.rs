@@ -1,6 +1,8 @@
 use crate::{device::Device, dtype::DType};
 #[cfg(feature = "cuda")]
 use maidenx_cuda::cuda_error;
+#[cfg(feature = "mps")]
+use maidenx_mps::mps_error;
 use std::fmt;
 
 #[derive(Debug)]
@@ -20,6 +22,8 @@ pub enum Error {
     IncompatibleShape(String),
     #[cfg(feature = "cuda")]
     CudaError(String),
+    #[cfg(feature = "mps")]
+    MpsError(String),
     //
     BufferLocked,
     BufferShared,
@@ -72,6 +76,8 @@ impl fmt::Display for Error {
             Self::IncompatibleShape(msg) => write!(f, "Incompatible shape: {}", msg),
             #[cfg(feature = "cuda")]
             Self::CudaError(msg) => write!(f, "CUDA error: {}", msg),
+            #[cfg(feature = "mps")]
+            Self::MpsError(msg) => write!(f, "MPS error: {}", msg),
 
             Self::BufferLocked => write!(f, "Buffer is locked"),
             Self::BufferShared => write!(f, "Buffer is shared"),
