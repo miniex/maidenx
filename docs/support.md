@@ -185,6 +185,8 @@ Blank: Upcoming support
 |            | `LayerNorm`        | ✓ | ✓ |
 | **Dropout Layers** |
 |            | `Dropout`          | ✓ | ✓ |
+| **Embedding Layers** |
+|            | `Embedding`        | ✓ | ✓ |
 | **Activation Layers** |
 |            | `Softmax`          | ✓ | ✓ | 
 | tensor ops aliases |

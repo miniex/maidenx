@@ -6,7 +6,7 @@ pub mod losses;
 pub mod optimizers;
 
 pub use crate::{
-    layers::{activation::*, conv::*, linear::*},
+    layers::{activation::*, conv::*, dropout::*, embedding::*, linear::*, normalization::*},
     losses::{huber::*, mae::*, mse::*},
     optimizers::{adam::*, sgd::*},
 };
