@@ -1,4 +1,4 @@
-use crate::test_ops_without_8byte;
+use crate::{test_ops, test_ops_with_dtype};
 use maidenx_core::{
     device::{set_default_device, Device},
     dtype::DType,
@@ -131,38 +131,6 @@ mod test_functions {
         Ok(())
     }
 
-    pub fn bincount_test(_dtype: DType) -> Result<()> {
-        // Basic bincount with no weights
-        let input = setup_tensor(vec![1i32, 2, 1, 3, 0, 1, 4, 2], DType::I32)?;
-        let result = input.bincount(None, None)?;
-        assert_eq!(result.shape(), &[5]);
-        assert_eq!(result.to_flatten_vec::<i32>()?, vec![1, 3, 2, 1, 1]);
-
-        // Bincount with weights
-        let input2 = setup_tensor(vec![0i32, 1, 1, 2], DType::I32)?;
-        let weights = setup_tensor(vec![0.5f32, 1.0, 1.5, 2.0], DType::F32)?;
-        let result2 = input2.bincount(Some(&weights), None)?;
-        assert_eq!(result2.to_flatten_vec::<f32>()?, vec![0.5, 2.5, 2.0]);
-
-        // Bincount with minlength
-        let input3 = setup_tensor(vec![0i32, 1], DType::I32)?;
-        let result3 = input3.bincount(None, Some(5))?;
-        assert_eq!(result3.shape(), &[5]);
-        assert_eq!(result3.to_flatten_vec::<i32>()?, vec![1, 1, 0, 0, 0]);
-
-        // Test gradient flow
-        let input4 = setup_grad_tensor(vec![0i32, 1, 0, 2], DType::I32)?;
-        let weights4 = setup_grad_tensor(vec![1.0f32, 2.0, 3.0, 4.0], DType::F32)?;
-        let result4 = input4.bincount(Some(&weights4), None)?;
-        result4.backward()?;
-
-        if let Some(weights_grad) = weights4.grad()? {
-            assert_eq!(weights_grad.to_flatten_vec::<f32>()?, vec![1.0, 1.0, 1.0, 1.0]);
-        }
-
-        Ok(())
-    }
-
     pub fn gather_test(dtype: DType) -> Result<()> {
         let input = setup_grad_tensor(vec![1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0], dtype)?.reshape(&[2, 3])?;
         let index = setup_tensor(vec![0i32, 2, 1, 0, 2, 1], DType::I32)?.reshape(&[2, 3])?;
@@ -206,14 +174,39 @@ mod test_functions {
 
         Ok(())
     }
+
+    pub fn bincount_test(dtype: DType) -> Result<()> {
+        // Basic bincount with no weights
+        let input = setup_tensor(vec![1i32, 2, 1, 3, 0, 1, 4, 2], dtype)?;
+        let result = input.bincount(None, None)?;
+        assert_eq!(result.shape(), &[5]);
+        assert_eq!(result.to_flatten_vec::<i32>()?, vec![1, 3, 2, 1, 1]);
+
+        // Bincount with weights
+        let input2 = setup_tensor(vec![0i32, 1, 1, 2], dtype)?;
+        let weights = setup_tensor(vec![0.5f32, 1.0, 1.5, 2.0], DType::F32)?;
+        let result2 = input2.bincount(Some(&weights), None)?;
+        assert_eq!(result2.to_flatten_vec::<f32>()?, vec![0.5, 2.5, 2.0]);
+
+        // Bincount with minlength
+        let input3 = setup_tensor(vec![0i32, 1], dtype)?;
+        let result3 = input3.bincount(None, Some(5))?;
+        assert_eq!(result3.shape(), &[5]);
+        assert_eq!(result3.to_flatten_vec::<i32>()?, vec![1, 1, 0, 0, 0]);
+
+        Ok(())
+    }
 }
 
-test_ops_without_8byte!([
+test_ops!([
     index_add_inplace,
     index_select,
     index_put_inplace,
     gather,
-    bincount,
     // inplace
     scatter_add_inplace
+]);
+
+test_ops_with_dtype!([
+    bincount: [U8, U32, I8, I32, I64]
 ]);

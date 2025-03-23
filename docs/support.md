@@ -145,9 +145,9 @@ Blank: Upcoming support
 |            | `index_add_`       | ✗ | ✓ | ✓ |
 |            | `index_select`     | ✓ | ✓ | ✓ |
 |            | `index_put_`       | ✗ | ✓ | ✓ |
-|            | `bincount`         | ✓ | ✓ | ✓ |
 |            | `gather`           | ✓ | ✓ | ✓ |
 |            | `scatter_add_`     | ✗ | ✓ | ✓ |
+|            | `bincount`         | ✗ | ✓ | ✓ |
 | **NN Layer Aliases** |
 | activation |
 |            | `softmax`          | ✓ | ✓ | ✓ | 
