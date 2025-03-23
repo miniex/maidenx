@@ -123,7 +123,7 @@ impl DType {
                 Scalar::from(val)
             }
             Self::U8 => {
-                let val = ptr;
+                let val = *ptr;
                 Scalar::from(val as i32)
             }
             Self::U32 => {
