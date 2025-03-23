@@ -1,3 +1,4 @@
+use crate::utils::is_contiguous;
 use half::{bf16, f16};
 use rayon::prelude::*;
 
@@ -181,17 +182,6 @@ macro_rules! matmul_backward_op {
             }
         }
     };
-}
-
-fn is_contiguous(ndim: usize, shape: &[usize], strides: &[usize]) -> bool {
-    let mut acc = 1;
-    for d in (0..ndim).rev() {
-        if strides[d] != acc {
-            return false;
-        }
-        acc *= shape[d];
-    }
-    true
 }
 
 // Forward pass implementations

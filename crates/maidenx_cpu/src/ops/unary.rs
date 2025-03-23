@@ -1,6 +1,7 @@
 #![allow(clippy::comparison_chain)]
 #![allow(clippy::excessive_precision)]
 
+use crate::utils::{get_strided_index, is_contiguous};
 use half::{bf16, f16};
 use rayon::prelude::*;
 
@@ -28,76 +29,25 @@ macro_rules! unary_op_output {
         /// * The alignment requirements of the type must be respected
         /// * All array indices calculated from dims and strides must be in bounds
         pub unsafe fn $name(num_els: usize, num_dims: usize, metadata: *const usize, input: *const $input_type, output: *mut $output_type) {
-            // Safety: We trust that the caller has provided valid pointers and sizes
-            let dims = if metadata.is_null() {
-                None
-            } else {
-                let dims_slice = std::slice::from_raw_parts(metadata, num_dims);
-                Some(dims_slice)
-            };
-
-            // Safety: If metadata is not null, we trust it points to
-            // a contiguous array of 2 * num_dims elements
-            let strides = if metadata.is_null() {
-                None
-            } else {
-                let strides_slice = std::slice::from_raw_parts(metadata.add(num_dims), num_dims);
-                Some(strides_slice)
-            };
-
-            // Get offset from metadata
+            let dims = std::slice::from_raw_parts(metadata, num_dims);
+            let strides = std::slice::from_raw_parts(metadata.add(num_dims), num_dims);
             let offset = if metadata.is_null() { 0 } else { *metadata.add(2 * num_dims) };
 
-            let is_contiguous = |strides: Option<&[usize]>| {
-                if let Some(dims) = dims {
-                    if let Some(strides) = strides {
-                        let mut acc = 1;
-                        for d in (0..num_dims).rev() {
-                            if strides[d] != acc {
-                                return false;
-                            }
-                            acc *= dims[d];
-                        }
-                    }
-                }
-                true
-            };
+            let inp = std::slice::from_raw_parts(input.add(offset), num_els);
+            let out = std::slice::from_raw_parts_mut(output, num_els);
 
-            // Safety: We trust that the caller has provided valid input/output arrays
-            let input_slice = if !input.is_null() {
-                std::slice::from_raw_parts(input, num_els + offset)
+            if is_contiguous(num_dims, dims, strides) {
+                out.par_iter_mut().enumerate().for_each(|(i, out_val)| {
+                    let x = inp[i];
+                    *out_val = $func(x);
+                });
             } else {
-                std::slice::from_raw_parts(output as *const $input_type, num_els + offset)
-            };
-            let output_slice = std::slice::from_raw_parts_mut(output, num_els);
-
-            let is_cont = is_contiguous(strides);
-
-            // Using rayon for parallel processing
-            // Safety: Par-iter ensures thread-safe access to the output array
-            output_slice.par_iter_mut().enumerate().for_each(|(i, out_val)| {
-                let idx = if !is_cont {
-                    let mut tmp_i = i;
-                    let mut strided_i = offset;
-
-                    if let Some(dims) = dims {
-                        if let Some(strides) = strides {
-                            for d in (0..num_dims).rev() {
-                                let i_dim = tmp_i % dims[d];
-                                strided_i += i_dim * strides[d];
-                                tmp_i /= dims[d];
-                            }
-                        }
-                    }
-
-                    strided_i.min(num_els + offset - 1)
-                } else {
-                    i
-                };
-
-                let x = input_slice[idx];
-                *out_val = $func(x);
-            });
+                out.par_iter_mut().enumerate().for_each(|(i, out_val)| {
+                    let strided_i = get_strided_index(i, num_dims, dims, strides);
+                    let x = inp[strided_i];
+                    *out_val = $func(x);
+                });
+            }
         }
     };
 }
@@ -134,70 +84,25 @@ macro_rules! unary_op_with_constant_output {
             constant: $input_type,
             output: *mut $output_type,
         ) {
-            let dims = if metadata.is_null() {
-                None
-            } else {
-                let dims_slice = std::slice::from_raw_parts(metadata, num_dims);
-                Some(dims_slice)
-            };
-
-            let strides = if metadata.is_null() {
-                None
-            } else {
-                let strides_slice = std::slice::from_raw_parts(metadata.add(num_dims), num_dims);
-                Some(strides_slice)
-            };
-
-            // Get offset from metadata
+            let dims = std::slice::from_raw_parts(metadata, num_dims);
+            let strides = std::slice::from_raw_parts(metadata.add(num_dims), num_dims);
             let offset = if metadata.is_null() { 0 } else { *metadata.add(2 * num_dims) };
 
-            let is_contiguous = |strides: Option<&[usize]>| {
-                if let Some(dims) = dims {
-                    if let Some(strides) = strides {
-                        let mut acc = 1;
-                        for d in (0..num_dims).rev() {
-                            if strides[d] != acc {
-                                return false;
-                            }
-                            acc *= dims[d];
-                        }
-                    }
-                }
-                true
-            };
+            let inp = std::slice::from_raw_parts(input.add(offset), num_els);
+            let out = std::slice::from_raw_parts_mut(output, num_els);
 
-            let input_slice = if !input.is_null() {
-                std::slice::from_raw_parts(input, num_els + offset)
+            if is_contiguous(num_dims, dims, strides) {
+                out.par_iter_mut().enumerate().for_each(|(i, out_val)| {
+                    let x = inp[i];
+                    *out_val = $func(x, constant);
+                });
             } else {
-                std::slice::from_raw_parts(output as *const $input_type, num_els + offset)
-            };
-            let output_slice = std::slice::from_raw_parts_mut(output, num_els);
-
-            let is_cont = is_contiguous(strides);
-
-            output_slice.par_iter_mut().enumerate().for_each(|(i, out_val)| {
-                let idx = if !is_cont {
-                    let mut tmp_i = i;
-                    let mut strided_i = offset;
-
-                    if let Some(dims) = dims {
-                        if let Some(strides) = strides {
-                            for d in (0..num_dims).rev() {
-                                let i_dim = tmp_i % dims[d];
-                                strided_i += i_dim * strides[d];
-                                tmp_i /= dims[d];
-                            }
-                        }
-                    }
-
-                    strided_i.min(num_els + offset - 1)
-                } else {
-                    offset + i
-                };
-
-                let x = input_slice[idx];
-                *out_val = $func(x, constant);
-            });
+                out.par_iter_mut().enumerate().for_each(|(i, out_val)| {
+                    let strided_i = get_strided_index(i, num_dims, dims, strides);
+                    let x = inp[strided_i];
+                    *out_val = $func(x, constant);
+                });
+            }
         }
     };
 }

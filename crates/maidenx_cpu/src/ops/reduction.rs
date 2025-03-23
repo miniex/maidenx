@@ -1,3 +1,4 @@
+use crate::utils::{get_strided_index, is_contiguous};
 use half::{bf16, f16};
 use rayon::prelude::*;
 use std::sync::Mutex;
@@ -16,79 +17,146 @@ macro_rules! sum_op {
         /// * `out` must be a valid pointer to an array of appropriate size for the output
         /// * The alignment requirements of the type must be respected
         /// * All array indices calculated must be in bounds
-        pub unsafe fn $name(num_els: usize, num_dims: usize, num_red_dims: usize, metadata: *const usize, inp: *const $type, out: *mut $type) {
+        pub unsafe fn $name(num_els: usize, num_dims: usize, num_sum_dims: usize, metadata: *const usize, inp: *const $type, out: *mut $type) {
             let dims = std::slice::from_raw_parts(metadata, num_dims);
             let strides = std::slice::from_raw_parts(metadata.add(num_dims), num_dims);
-            let sum_dims_l = std::slice::from_raw_parts(metadata.add(2 * num_dims), num_red_dims);
-            let sum_dims_s = std::slice::from_raw_parts(metadata.add(2 * num_dims + num_red_dims), num_red_dims);
+            let sum_dims_l = std::slice::from_raw_parts(metadata.add(2 * num_dims), num_sum_dims);
+            let sum_dims_s = std::slice::from_raw_parts(metadata.add(2 * num_dims + num_sum_dims), num_sum_dims);
+            let offset = *metadata.add(2 * num_dims + 2 * num_sum_dims);
 
-            let offset = *metadata.add(2 * num_dims + 2 * num_red_dims);
-
-            let input = std::slice::from_raw_parts(inp, num_els);
+            let inp = std::slice::from_raw_parts(inp.add(offset), num_els);
 
             // Calculate output size
             let mut out_size = num_els;
-            for i in 0..num_red_dims {
+            for i in 0..num_sum_dims {
                 out_size /= sum_dims_l[i];
             }
-            let output = std::slice::from_raw_parts_mut(out, out_size);
-
+            let out_slice = std::slice::from_raw_parts_mut(out, out_size);
             // Initialize output array with zeros
-            output.fill($zero);
-
+            out_slice.fill($zero);
             // Wrap output in Mutex for thread-safe access
-            let output = output.iter().map(|_| Mutex::new($zero)).collect::<Vec<_>>();
+            let out_slice = out_slice.iter().map(|_| Mutex::new($zero)).collect::<Vec<_>>();
 
-            let is_contiguous = {
-                let mut is_cont = true;
-                let mut acc = 1;
-                for d in (0..num_dims).rev() {
-                    if strides[d] != acc {
-                        is_cont = false;
-                        break;
+            if is_contiguous(num_dims, dims, strides) {
+                (0..num_els).into_par_iter().for_each(|i| {
+                    let mut dst_idx = i;
+                    for nd in 0..num_sum_dims {
+                        let stride = sum_dims_s[nd];
+                        let pre = dst_idx / stride;
+                        let post = dst_idx % stride;
+                        dst_idx = (pre / sum_dims_l[nd]) * stride + post;
                     }
-                    acc *= dims[d];
-                }
-                is_cont
-            };
 
-            // Process elements in parallel
-            (0..num_els).into_par_iter().for_each(|i| {
-                let src_idx = if is_contiguous {
-                    i
-                } else {
-                    let mut idx = 0;
-                    let mut tmp_i = i;
-                    for d in (0..num_dims).rev() {
-                        let i_dim = tmp_i % dims[d];
-                        idx += i_dim * strides[d];
-                        tmp_i /= dims[d];
+                    if let Ok(mut out) = out_slice[dst_idx].lock() {
+                        *out += inp[i];
                     }
-                    idx
-                };
+                });
+            } else {
+                (0..num_els).into_par_iter().for_each(|i| {
+                    let strided_i = get_strided_index(i, num_dims, dims, strides);
+                    let mut dst_idx = i;
+                    for nd in 0..num_sum_dims {
+                        let stride = sum_dims_s[nd];
+                        let pre = dst_idx / stride;
+                        let post = dst_idx % stride;
+                        dst_idx = (pre / sum_dims_l[nd]) * stride + post;
+                    }
 
-                let src_value_idx = (src_idx + offset) % num_els;
+                    if let Ok(mut out) = out_slice[dst_idx].lock() {
+                        *out += inp[strided_i];
+                    }
+                });
+            }
 
-                // Calculate destination index
-                let mut dst_idx = i;
-                for nd in 0..num_red_dims {
-                    let stride = sum_dims_s[nd];
-                    let pre = dst_idx / stride;
-                    let post = dst_idx % stride;
-                    dst_idx = (pre / sum_dims_l[nd]) * stride + post;
-                }
-
-                // Atomic add to output
-                let val = input[src_value_idx];
-                if let Ok(mut out) = output[dst_idx].lock() {
-                    *out += val;
-                }
-            });
-
-            // Copy results back to output array
-            for (i, mutex) in output.iter().enumerate() {
+            for (i, mutex) in out_slice.iter().enumerate() {
                 if let Ok(val) = mutex.lock() {
                     *std::slice::from_raw_parts_mut(out, out_size).get_unchecked_mut(i) = *val;
+                }
+            }
+        }
+    };
+}
+
+macro_rules! sum_to_shape_op {
+    ($name:ident, $type:ty, $zero:expr) => {
+        #[no_mangle]
+        /// # Safety
+        ///
+        /// * `metadata` must be a valid pointer to an array containing:
+        ///   - dims[num_dims]: array dimensions for input
+        ///   - strides[num_dims]: strides for input array
+        ///   - output_dims[num_dims]: dimensions for output array
+        /// * `inp` must be a valid pointer to an array of at least `num_els` elements
+        /// * `out` must be a valid pointer to an array of appropriate size for the output
+        /// * The alignment requirements of the type must be respected
+        /// * All array indices calculated must be in bounds
+        pub unsafe fn $name(num_els: usize, num_dims: usize, metadata: *const usize, inp: *const $type, out: *mut $type) {
+            let input_dims = std::slice::from_raw_parts(metadata, num_dims);
+            let input_strides = std::slice::from_raw_parts(metadata.add(num_dims), num_dims);
+            let output_dims = std::slice::from_raw_parts(metadata.add(2 * num_dims), num_dims);
+            let offset = *metadata.add(3 * num_dims);
+
+            let input = std::slice::from_raw_parts(inp.add(offset), num_els);
+
+            let out_size = output_dims.iter().product();
+            // Initialize output array with zeros using Mutex for thread safety
+            let output_mutex = (0..out_size).map(|_| Mutex::new($zero)).collect::<Vec<_>>();
+
+            // Calculate reduction factors for each dimension
+            let reduction_factors = (0..num_dims).map(|d| input_dims[d] / output_dims[d]).collect::<Vec<_>>();
+
+            if is_contiguous(num_dims, input_dims, input_strides) {
+                (0..num_els).into_par_iter().for_each(|i| {
+                    let mut coords = vec![0; num_dims];
+                    let mut tmp_i = i;
+
+                    for d in (0..num_dims).rev() {
+                        coords[d] = tmp_i % input_dims[d];
+                        tmp_i /= input_dims[d];
+                    }
+
+                    let mut dst_idx = 0;
+                    for d in 0..num_dims {
+                        let out_coord = coords[d] / reduction_factors[d];
+                        dst_idx = dst_idx * output_dims[d] + out_coord;
+                    }
+
+                    if let Ok(mut out) = output_mutex[dst_idx].lock() {
+                        *out += input[i];
+                    }
+                });
+            } else {
+                (0..num_els).into_par_iter().for_each(|i| {
+                    let mut coords = vec![0; num_dims];
+                    let mut tmp_i = i;
+
+                    for d in (0..num_dims).rev() {
+                        coords[d] = tmp_i % input_dims[d];
+                        tmp_i /= input_dims[d];
+                    }
+
+                    let mut dst_idx = 0;
+                    for d in 0..num_dims {
+                        let out_coord = coords[d] / reduction_factors[d];
+                        dst_idx = dst_idx * output_dims[d] + out_coord;
+                    }
+
+                    let mut src_idx = 0;
+                    for d in 0..num_dims {
+                        src_idx += coords[d] * input_strides[d];
+                    }
+                    let src_value_idx = (src_idx + offset) % num_els;
+
+                    if let Ok(mut out) = output_mutex[dst_idx].lock() {
+                        *out += input[src_value_idx];
+                    }
+                });
+            }
+
+            let output = std::slice::from_raw_parts_mut(out, out_size);
+            for (i, mutex) in output_mutex.iter().enumerate() {
+                if let Ok(val) = mutex.lock() {
+                    *output.get_unchecked_mut(i) = *val;
                 }
             }
         }
@@ -121,10 +189,9 @@ macro_rules! mean_op {
             let strides = std::slice::from_raw_parts(metadata.add(num_dims), num_dims);
             let mean_dims_l = std::slice::from_raw_parts(metadata.add(2 * num_dims), num_red_dims);
             let mean_dims_s = std::slice::from_raw_parts(metadata.add(2 * num_dims + num_red_dims), num_red_dims);
-
             let offset = *metadata.add(2 * num_dims + 2 * num_red_dims);
 
-            let input = std::slice::from_raw_parts(inp, num_els);
+            let inp = std::slice::from_raw_parts(inp.add(offset), num_els);
 
             // Calculate output size and reduction factor
             let mut out_size = num_els;
@@ -133,132 +200,49 @@ macro_rules! mean_op {
                 reduction_factor *= mean_dims_l[i];
                 out_size /= mean_dims_l[i];
             }
-            let output = std::slice::from_raw_parts_mut(out, out_size);
-
+            let out_slice = std::slice::from_raw_parts_mut(out, out_size);
             // Initialize output array with zeros
-            output.fill($zero);
-
+            out_slice.fill($zero);
             // Wrap output in Mutex for thread-safe access
-            let output = output.iter().map(|_| Mutex::new($zero)).collect::<Vec<_>>();
+            let out_slice = out_slice.iter().map(|_| Mutex::new($zero)).collect::<Vec<_>>();
 
-            let is_contiguous = {
-                let mut is_cont = true;
-                let mut acc = 1;
-                for d in (0..num_dims).rev() {
-                    if strides[d] != acc {
-                        is_cont = false;
-                        break;
+            if is_contiguous(num_dims, dims, strides) {
+                (0..num_els).into_par_iter().for_each(|i| {
+                    let mut dst_idx = i;
+                    for nd in 0..num_red_dims {
+                        let stride = mean_dims_s[nd];
+                        let pre = dst_idx / stride;
+                        let post = dst_idx % stride;
+                        dst_idx = (pre / mean_dims_l[nd]) * stride + post;
                     }
-                    acc *= dims[d];
-                }
-                is_cont
-            };
 
-            // Process elements in parallel
-            (0..num_els).into_par_iter().for_each(|i| {
-                let src_idx = if is_contiguous {
-                    i
-                } else {
-                    let mut idx = 0;
-                    let mut tmp_i = i;
-                    for d in (0..num_dims).rev() {
-                        let i_dim = tmp_i % dims[d];
-                        idx += i_dim * strides[d];
-                        tmp_i /= dims[d];
+                    if let Ok(mut out) = out_slice[dst_idx].lock() {
+                        *out += inp[i];
                     }
-                    idx
-                };
+                });
+            } else {
+                (0..num_els).into_par_iter().for_each(|i| {
+                    let strided_i = get_strided_index(i, num_dims, dims, strides);
+                    let mut dst_idx = i;
+                    for nd in 0..num_red_dims {
+                        let stride = mean_dims_s[nd];
+                        let pre = dst_idx / stride;
+                        let post = dst_idx % stride;
+                        dst_idx = (pre / mean_dims_l[nd]) * stride + post;
+                    }
 
-                let src_value_idx = (src_idx + offset) % num_els;
-
-                // Calculate destination index
-                let mut dst_idx = i;
-                for nd in 0..num_red_dims {
-                    let stride = mean_dims_s[nd];
-                    let pre = dst_idx / stride;
-                    let post = dst_idx % stride;
-                    dst_idx = (pre / mean_dims_l[nd]) * stride + post;
-                }
-
-                // Atomic add to output
-                let val = input[src_value_idx];
-                if let Ok(mut out) = output[dst_idx].lock() {
-                    *out += val;
-                }
-            });
+                    if let Ok(mut out) = out_slice[dst_idx].lock() {
+                        *out += inp[strided_i];
+                    }
+                });
+            }
 
             // Copy results back to output array and compute mean
             let reduction_factor = $convert(reduction_factor);
-            for (i, mutex) in output.iter().enumerate() {
+            for (i, mutex) in out_slice.iter().enumerate() {
                 if let Ok(val) = mutex.lock() {
                     *std::slice::from_raw_parts_mut(out, out_size).get_unchecked_mut(i) = *val / reduction_factor;
                 }
-            }
-        }
-    };
-}
-
-macro_rules! sum_to_shape_op {
-    ($name:ident, $type:ty, $zero:expr) => {
-        #[no_mangle]
-        /// # Safety
-        ///
-        /// * `metadata` must be a valid pointer to an array containing:
-        ///   - dims[num_dims]: array dimensions for input
-        ///   - strides[num_dims]: strides for input array
-        ///   - output_dims[num_dims]: dimensions for output array
-        /// * `inp` must be a valid pointer to an array of at least `num_els` elements
-        /// * `out` must be a valid pointer to an array of appropriate size for the output
-        /// * The alignment requirements of the type must be respected
-        /// * All array indices calculated must be in bounds
-        pub unsafe fn $name(num_els: usize, num_dims: usize, metadata: *const usize, inp: *const $type, out: *mut $type) {
-            let input_dims = std::slice::from_raw_parts(metadata, num_dims);
-            let input_strides = std::slice::from_raw_parts(metadata.add(num_dims), num_dims);
-            let output_dims = std::slice::from_raw_parts(metadata.add(2 * num_dims), num_dims);
-
-            let offset = *metadata.add(3 * num_dims);
-
-            let input = std::slice::from_raw_parts(inp, num_els);
-            let out_size = output_dims.iter().product();
-            let output = std::slice::from_raw_parts_mut(out, out_size);
-
-            // Initialize output array with zeros
-            output.fill($zero);
-
-            // Calculate reduction factors for each dimension
-            let mut reduction_factors = vec![1; num_dims];
-            for d in 0..num_dims {
-                reduction_factors[d] = input_dims[d] / output_dims[d];
-            }
-
-            // Process elements
-            for i in 0..num_els {
-                let mut coords = vec![0; num_dims];
-                let mut tmp_i = i;
-
-                // Calculate input coordinates
-                for d in (0..num_dims).rev() {
-                    coords[d] = tmp_i % input_dims[d];
-                    tmp_i /= input_dims[d];
-                }
-
-                // Calculate output coordinates by integer division
-                let mut dst_idx = 0;
-                for d in 0..num_dims {
-                    let out_coord = coords[d] / reduction_factors[d];
-                    dst_idx = dst_idx * output_dims[d] + out_coord;
-                }
-
-                // Calculate source index using input strides
-                let mut src_idx = 0;
-                for d in 0..num_dims {
-                    src_idx += coords[d] * input_strides[d];
-                }
-
-                let src_value_idx = (src_idx + offset) % num_els;
-
-                // Add to output
-                output[dst_idx] += input[src_value_idx];
             }
         }
     };
@@ -291,7 +275,7 @@ macro_rules! fold_op {
             let _window_size = *metadata.add(2 * num_dims + 4);
             let offset = *metadata.add(2 * num_dims + 5);
 
-            let input = std::slice::from_raw_parts(inp, num_els);
+            let input = std::slice::from_raw_parts(inp.add(offset), num_els);
 
             // Calculate output size (product of all input dimensions, replacing the window_dim with fold_size)
             let mut out_size = 1;
@@ -304,31 +288,11 @@ macro_rules! fold_op {
                     out_size *= input_dims[d];
                 }
             }
-            let output = std::slice::from_raw_parts_mut(out, out_size);
 
-            // Initialize output array with zeros
-            output.fill($zero);
+            let output_mutex = (0..out_size).map(|_| Mutex::new($zero)).collect::<Vec<_>>();
 
-            // Wrap output in Mutex for thread-safe access
-            let output = output.iter().map(|_| Mutex::new($zero)).collect::<Vec<_>>();
-
-            let is_contiguous = {
-                let mut is_cont = true;
-                let mut acc = 1;
-                for d in (0..num_dims).rev() {
-                    if input_strides[d] != acc {
-                        is_cont = false;
-                        break;
-                    }
-                    acc *= input_dims[d];
-                }
-                is_cont
-            };
-
-            // Process elements in parallel
             (0..num_els).into_par_iter().for_each(|i| {
-                // Calculate coordinates in input tensor
-                let coords = if is_contiguous {
+                let coords = if is_contiguous(num_dims, input_dims, input_strides) {
                     let mut coords = vec![0; num_dims];
                     let mut tmp_i = i;
                     for d in (0..num_dims).rev() {
@@ -337,7 +301,6 @@ macro_rules! fold_op {
                     }
                     coords
                 } else {
-                    // For non-contiguous tensors, calculate coordinates differently
                     let mut coords = vec![0; num_dims];
                     let mut remaining = i;
                     for d in (0..num_dims).rev() {
@@ -347,28 +310,22 @@ macro_rules! fold_op {
                     coords
                 };
 
-                // Calculate source index using input strides
                 let mut src_idx = offset;
                 for d in 0..num_dims {
                     src_idx += coords[d] * input_strides[d];
                 }
                 src_idx %= num_els;
 
-                // Extract window index and position in window
                 let window_idx = coords[fold_dim];
                 let pos_in_window = coords[window_dim];
 
-                // Calculate position in the original folded dimension
                 let orig_pos = window_idx * step + pos_in_window;
 
-                // Skip if outside the bounds of the folded dimension
                 if orig_pos >= fold_size {
                     return;
                 }
 
-                // Calculate destination index in output
                 let mut dst_idx = 0;
-
                 for d in 0..num_dims {
                     if d == window_dim {
                         continue; // Skip window dimension
@@ -379,16 +336,15 @@ macro_rules! fold_op {
                     }
                 }
 
-                // Add value to output using atomic operation via Mutex
-                if let Ok(mut out) = output[dst_idx].lock() {
+                if let Ok(mut out) = output_mutex[dst_idx].lock() {
                     *out += input[src_idx];
                 }
             });
 
-            // Copy results back to output array
-            for (i, mutex) in output.iter().enumerate() {
+            let output = std::slice::from_raw_parts_mut(out, out_size);
+            for (i, mutex) in output_mutex.iter().enumerate() {
                 if let Ok(val) = mutex.lock() {
-                    *std::slice::from_raw_parts_mut(out, out_size).get_unchecked_mut(i) = *val;
+                    *output.get_unchecked_mut(i) = *val;
                 }
             }
         }
@@ -414,74 +370,56 @@ macro_rules! max_op {
             let strides = std::slice::from_raw_parts(metadata.add(num_dims), num_dims);
             let max_dims_l = std::slice::from_raw_parts(metadata.add(2 * num_dims), num_red_dims);
             let max_dims_s = std::slice::from_raw_parts(metadata.add(2 * num_dims + num_red_dims), num_red_dims);
-
             let offset = *metadata.add(2 * num_dims + 2 * num_red_dims);
 
-            let input = std::slice::from_raw_parts(inp, num_els);
+            let input = std::slice::from_raw_parts(inp.add(offset), num_els);
 
             // Calculate output size
             let mut out_size = num_els;
             for i in 0..num_red_dims {
                 out_size /= max_dims_l[i];
             }
+
+            let output_mutex = (0..out_size).map(|_| Mutex::new($min_value)).collect::<Vec<_>>();
+
+            if is_contiguous(num_dims, dims, strides) {
+                (0..num_els).into_par_iter().for_each(|i| {
+                    let mut dst_idx = i;
+                    for nd in 0..num_red_dims {
+                        let stride = max_dims_s[nd];
+                        let pre = dst_idx / stride;
+                        let post = dst_idx % stride;
+                        dst_idx = (pre / max_dims_l[nd]) * stride + post;
+                    }
+
+                    let val = input[i];
+                    if let Ok(mut out) = output_mutex[dst_idx].lock() {
+                        *out = if val > *out { val } else { *out };
+                    }
+                });
+            } else {
+                (0..num_els).into_par_iter().for_each(|i| {
+                    let strided_i = get_strided_index(i, num_dims, dims, strides);
+
+                    let mut dst_idx = i;
+                    for nd in 0..num_red_dims {
+                        let stride = max_dims_s[nd];
+                        let pre = dst_idx / stride;
+                        let post = dst_idx % stride;
+                        dst_idx = (pre / max_dims_l[nd]) * stride + post;
+                    }
+
+                    let val = input[strided_i];
+                    if let Ok(mut out) = output_mutex[dst_idx].lock() {
+                        *out = if val > *out { val } else { *out };
+                    }
+                });
+            }
+
             let output = std::slice::from_raw_parts_mut(out, out_size);
-
-            // Initialize output array with minimum possible values
-            output.fill($min_value);
-
-            // Wrap output in Mutex for thread-safe access
-            let output = output.iter().map(|_| Mutex::new($min_value)).collect::<Vec<_>>();
-
-            let is_contiguous = {
-                let mut is_cont = true;
-                let mut acc = 1;
-                for d in (0..num_dims).rev() {
-                    if strides[d] != acc {
-                        is_cont = false;
-                        break;
-                    }
-                    acc *= dims[d];
-                }
-                is_cont
-            };
-
-            // Process elements in parallel
-            (0..num_els).into_par_iter().for_each(|i| {
-                let src_idx = if is_contiguous {
-                    i
-                } else {
-                    let mut idx = 0;
-                    let mut tmp_i = i;
-                    for d in (0..num_dims).rev() {
-                        let i_dim = tmp_i % dims[d];
-                        idx += i_dim * strides[d];
-                        tmp_i /= dims[d];
-                    }
-                    idx
-                };
-
-                let src_value_idx = (src_idx + offset) % num_els;
-
-                // Calculate destination index
-                let mut dst_idx = i;
-                for nd in 0..num_red_dims {
-                    let stride = max_dims_s[nd];
-                    let pre = dst_idx / stride;
-                    let post = dst_idx % stride;
-                    dst_idx = (pre / max_dims_l[nd]) * stride + post;
-                }
-
-                // Update max value atomically
-                let val = input[src_value_idx];
-                if let Ok(mut out) = output[dst_idx].lock() {
-                    *out = if val > *out { val } else { *out };
-                }
-            });
-
-            // Copy results back to output array
-            for (i, mutex) in output.iter().enumerate() {
+            for (i, mutex) in output_mutex.iter().enumerate() {
                 if let Ok(val) = mutex.lock() {
-                    *std::slice::from_raw_parts_mut(out, out_size).get_unchecked_mut(i) = *val;
+                    *output.get_unchecked_mut(i) = *val;
                 }
             }
         }
@@ -507,74 +445,56 @@ macro_rules! min_op {
             let strides = std::slice::from_raw_parts(metadata.add(num_dims), num_dims);
             let min_dims_l = std::slice::from_raw_parts(metadata.add(2 * num_dims), num_red_dims);
             let min_dims_s = std::slice::from_raw_parts(metadata.add(2 * num_dims + num_red_dims), num_red_dims);
-
             let offset = *metadata.add(2 * num_dims + 2 * num_red_dims);
 
-            let input = std::slice::from_raw_parts(inp, num_els);
+            let input = std::slice::from_raw_parts(inp.add(offset), num_els);
 
             // Calculate output size
             let mut out_size = num_els;
             for i in 0..num_red_dims {
                 out_size /= min_dims_l[i];
             }
+
+            let output_mutex = (0..out_size).map(|_| Mutex::new($max_value)).collect::<Vec<_>>();
+
+            if is_contiguous(num_dims, dims, strides) {
+                (0..num_els).into_par_iter().for_each(|i| {
+                    let mut dst_idx = i;
+                    for nd in 0..num_red_dims {
+                        let stride = min_dims_s[nd];
+                        let pre = dst_idx / stride;
+                        let post = dst_idx % stride;
+                        dst_idx = (pre / min_dims_l[nd]) * stride + post;
+                    }
+
+                    let val = input[i];
+                    if let Ok(mut out) = output_mutex[dst_idx].lock() {
+                        *out = if val < *out { val } else { *out };
+                    }
+                });
+            } else {
+                (0..num_els).into_par_iter().for_each(|i| {
+                    let strided_i = get_strided_index(i, num_dims, dims, strides);
+
+                    let mut dst_idx = i;
+                    for nd in 0..num_red_dims {
+                        let stride = min_dims_s[nd];
+                        let pre = dst_idx / stride;
+                        let post = dst_idx % stride;
+                        dst_idx = (pre / min_dims_l[nd]) * stride + post;
+                    }
+
+                    let val = input[strided_i];
+                    if let Ok(mut out) = output_mutex[dst_idx].lock() {
+                        *out = if val < *out { val } else { *out };
+                    }
+                });
+            }
+
             let output = std::slice::from_raw_parts_mut(out, out_size);
-
-            // Initialize output array with maximum possible values
-            output.fill($max_value);
-
-            // Wrap output in Mutex for thread-safe access
-            let output = output.iter().map(|_| Mutex::new($max_value)).collect::<Vec<_>>();
-
-            let is_contiguous = {
-                let mut is_cont = true;
-                let mut acc = 1;
-                for d in (0..num_dims).rev() {
-                    if strides[d] != acc {
-                        is_cont = false;
-                        break;
-                    }
-                    acc *= dims[d];
-                }
-                is_cont
-            };
-
-            // Process elements in parallel
-            (0..num_els).into_par_iter().for_each(|i| {
-                let src_idx = if is_contiguous {
-                    i
-                } else {
-                    let mut idx = 0;
-                    let mut tmp_i = i;
-                    for d in (0..num_dims).rev() {
-                        let i_dim = tmp_i % dims[d];
-                        idx += i_dim * strides[d];
-                        tmp_i /= dims[d];
-                    }
-                    idx
-                };
-
-                let src_value_idx = (src_idx + offset) % num_els;
-
-                // Calculate destination index
-                let mut dst_idx = i;
-                for nd in 0..num_red_dims {
-                    let stride = min_dims_s[nd];
-                    let pre = dst_idx / stride;
-                    let post = dst_idx % stride;
-                    dst_idx = (pre / min_dims_l[nd]) * stride + post;
-                }
-
-                // Update min value atomically
-                let val = input[src_value_idx];
-                if let Ok(mut out) = output[dst_idx].lock() {
-                    *out = if val < *out { val } else { *out };
-                }
-            });
-
-            // Copy results back to output array
-            for (i, mutex) in output.iter().enumerate() {
+            for (i, mutex) in output_mutex.iter().enumerate() {
                 if let Ok(val) = mutex.lock() {
-                    *std::slice::from_raw_parts_mut(out, out_size).get_unchecked_mut(i) = *val;
+                    *output.get_unchecked_mut(i) = *val;
                 }
             }
         }

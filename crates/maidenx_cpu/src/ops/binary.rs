@@ -1,31 +1,8 @@
 #![allow(clippy::comparison_chain)]
 
+use crate::utils::is_contiguous;
 use half::{bf16, f16};
 use rayon::prelude::*;
-
-#[inline(always)]
-unsafe fn compute_factors(num_dims: usize, dims: &[usize]) -> Vec<usize> {
-    let mut factors = vec![1; num_dims];
-    // factors[d] = product_{j=d+1}^{num_dims-1} dims[j]
-    for d in (0..num_dims).rev() {
-        if d + 1 < num_dims {
-            factors[d] = factors[d + 1] * dims[d + 1];
-        }
-    }
-    factors
-}
-
-#[inline(always)]
-fn compute_offset(i: usize, num_dims: usize, _dims: &[usize], factors: &[usize], strides: &[usize]) -> usize {
-    let mut offset = 0;
-    let mut rem = i;
-    for d in 0..num_dims {
-        let digit = rem / factors[d];
-        offset += digit * strides[d];
-        rem %= factors[d];
-    }
-    offset
-}
 
 macro_rules! binary_op {
     ($name:ident, $op:expr, $type:ty) => {
@@ -59,72 +36,65 @@ macro_rules! binary_op_with_output {
             rhs: *const $input_type,
             out: *mut $output_type,
         ) {
-            let dims = if metadata.is_null() {
-                None
-            } else {
-                Some(std::slice::from_raw_parts(metadata, num_dims))
-            };
-
-            let lhs_strides = if metadata.is_null() {
-                None
-            } else {
-                Some(std::slice::from_raw_parts(metadata.add(num_dims), num_dims))
-            };
-
-            let rhs_strides = if metadata.is_null() {
-                None
-            } else {
-                Some(std::slice::from_raw_parts(metadata.add(2 * num_dims), num_dims))
-            };
-
+            let dims = std::slice::from_raw_parts(metadata, num_dims);
+            let lhs_strides = std::slice::from_raw_parts(metadata.add(num_dims), num_dims);
+            let rhs_strides = std::slice::from_raw_parts(metadata.add(2 * num_dims), num_dims);
             let lhs_offset = if metadata.is_null() { 0 } else { *metadata.add(3 * num_dims) };
             let rhs_offset = if metadata.is_null() { 0 } else { *metadata.add(3 * num_dims + 1) };
 
-            let lhs = std::slice::from_raw_parts(lhs, num_els);
-            let rhs = std::slice::from_raw_parts(rhs, num_els);
+            let lhs_cont = is_contiguous(num_dims, dims, lhs_strides);
+            let rhs_cont = is_contiguous(num_dims, dims, rhs_strides);
+
+            let lhs = std::slice::from_raw_parts(lhs.add(lhs_offset), num_els);
+            let rhs = std::slice::from_raw_parts(rhs.add(rhs_offset), num_els);
             let out = std::slice::from_raw_parts_mut(out, num_els);
 
-            let is_contiguous = |strides: Option<&[usize]>| -> bool {
-                match (dims, strides) {
-                    (Some(dims), Some(strides)) => {
-                        let mut acc = 1;
-                        for d in (0..num_dims).rev() {
-                            if strides[d] != acc {
-                                return false;
-                            }
-                            acc *= dims[d];
-                        }
-                        true
+            if lhs_cont && rhs_cont {
+                out.par_iter_mut().enumerate().for_each(|(i, out_val)| {
+                    *out_val = $op(lhs[i], rhs[i]) as $output_type;
+                });
+            } else if lhs_cont {
+                out.par_iter_mut().enumerate().for_each(|(i, out_val)| {
+                    let mut tmp_i = i;
+                    let mut rhs_i = 0;
+
+                    for d in (0..num_dims).rev() {
+                        let i_dim = tmp_i % dims[d];
+                        rhs_i += i_dim * rhs_strides[d];
+                        tmp_i /= dims[d];
                     }
-                    _ => true,
-                }
-            };
 
-            let lhs_cont = is_contiguous(lhs_strides);
-            let rhs_cont = is_contiguous(rhs_strides);
+                    *out_val = $op(lhs[i], rhs[rhs_i]) as $output_type;
+                });
+            } else if rhs_cont {
+                out.par_iter_mut().enumerate().for_each(|(i, out_val)| {
+                    let mut tmp_i = i;
+                    let mut lhs_i = 0;
 
-            let factors = if !lhs_cont || !rhs_cont {
-                dims.map(|d| compute_factors(num_dims, d))
+                    for d in (0..num_dims).rev() {
+                        let i_dim = tmp_i % dims[d];
+                        lhs_i += i_dim * lhs_strides[d];
+                        tmp_i /= dims[d];
+                    }
+
+                    *out_val = $op(lhs[lhs_i], rhs[i]) as $output_type;
+                });
             } else {
-                None
-            };
+                out.par_iter_mut().enumerate().for_each(|(i, out_val)| {
+                    let mut tmp_i = i;
+                    let mut lhs_i = 0;
+                    let mut rhs_i = 0;
 
-            out.par_iter_mut().enumerate().for_each(|(i, out_val)| {
-                let (lhs_idx, rhs_idx) = if !lhs_cont || !rhs_cont {
-                    if let (Some(dims), Some(lhs_str), Some(rhs_str), Some(ref fac)) = (dims, lhs_strides, rhs_strides, factors.as_ref()) {
-                        (
-                            lhs_offset + compute_offset(i, num_dims, dims, fac, lhs_str),
-                            rhs_offset + compute_offset(i, num_dims, dims, fac, rhs_str),
-                        )
-                    } else {
-                        (lhs_offset + i, rhs_offset + i)
+                    for d in (0..num_dims).rev() {
+                        let i_dim = tmp_i % dims[d];
+                        lhs_i += i_dim * lhs_strides[d];
+                        rhs_i += i_dim * rhs_strides[d];
+                        tmp_i /= dims[d];
                     }
-                } else {
-                    (lhs_offset + i, rhs_offset + i)
-                };
 
-                *out_val = $op(lhs[lhs_idx], rhs[rhs_idx]) as $output_type;
-            });
+                    *out_val = $op(lhs[lhs_i], rhs[rhs_i]) as $output_type;
+                });
+            }
         }
     };
 }
@@ -148,72 +118,73 @@ macro_rules! logical_op {
         /// * The alignment requirements of the data type must be respected for all arrays
         /// * All array indices calculated from dims and strides must be in bounds
         pub unsafe fn $name(num_els: usize, num_dims: usize, metadata: *const usize, lhs: *const $t, rhs: *const $t, out: *mut bool) {
-            let dims = if metadata.is_null() {
-                None
-            } else {
-                Some(std::slice::from_raw_parts(metadata, num_dims))
-            };
-            let lhs_strides = if metadata.is_null() {
-                None
-            } else {
-                Some(std::slice::from_raw_parts(metadata.add(num_dims), num_dims))
-            };
-            let rhs_strides = if metadata.is_null() {
-                None
-            } else {
-                Some(std::slice::from_raw_parts(metadata.add(2 * num_dims), num_dims))
-            };
-
+            let dims = std::slice::from_raw_parts(metadata, num_dims);
+            let lhs_strides = std::slice::from_raw_parts(metadata.add(num_dims), num_dims);
+            let rhs_strides = std::slice::from_raw_parts(metadata.add(2 * num_dims), num_dims);
             let lhs_offset = if metadata.is_null() { 0 } else { *metadata.add(3 * num_dims) };
             let rhs_offset = if metadata.is_null() { 0 } else { *metadata.add(3 * num_dims + 1) };
 
-            let lhs = std::slice::from_raw_parts(lhs, num_els);
-            let rhs = std::slice::from_raw_parts(rhs, num_els);
+            let lhs_cont = is_contiguous(num_dims, dims, lhs_strides);
+            let rhs_cont = is_contiguous(num_dims, dims, rhs_strides);
+
+            let lhs = std::slice::from_raw_parts(lhs.add(lhs_offset), num_els);
+            let rhs = std::slice::from_raw_parts(rhs.add(rhs_offset), num_els);
             let out = std::slice::from_raw_parts_mut(out, num_els);
 
-            let is_contiguous = |dims: Option<&[usize]>, strides: Option<&[usize]>| -> bool {
-                match (dims, strides) {
-                    (Some(d), Some(s)) => {
-                        let mut acc = 1;
-                        for i in (0..d.len()).rev() {
-                            if s[i] != acc {
-                                return false;
-                            }
-                            acc *= d[i];
-                        }
-                        true
+            if lhs_cont && rhs_cont {
+                out.par_iter_mut().enumerate().for_each(|(i, out_val)| {
+                    let lhs_bool = lhs[i] != $zero;
+                    let rhs_bool = rhs[i] != $zero;
+                    *out_val = $op(lhs_bool, rhs_bool);
+                });
+            } else if lhs_cont {
+                out.par_iter_mut().enumerate().for_each(|(i, out_val)| {
+                    let mut tmp_i = i;
+                    let mut rhs_i = 0;
+
+                    for d in (0..num_dims).rev() {
+                        let i_dim = tmp_i % dims[d];
+                        rhs_i += i_dim * rhs_strides[d];
+                        tmp_i /= dims[d];
                     }
-                    _ => true,
-                }
-            };
 
-            let lhs_cont = is_contiguous(dims, lhs_strides);
-            let rhs_cont = is_contiguous(dims, rhs_strides);
+                    let lhs_bool = lhs[i] != $zero;
+                    let rhs_bool = rhs[rhs_i] != $zero;
+                    *out_val = $op(lhs_bool, rhs_bool);
+                });
+            } else if rhs_cont {
+                out.par_iter_mut().enumerate().for_each(|(i, out_val)| {
+                    let mut tmp_i = i;
+                    let mut lhs_i = 0;
 
-            let factors = if !lhs_cont || !rhs_cont {
-                dims.map(|d| compute_factors(num_dims, d))
+                    for d in (0..num_dims).rev() {
+                        let i_dim = tmp_i % dims[d];
+                        lhs_i += i_dim * lhs_strides[d];
+                        tmp_i /= dims[d];
+                    }
+
+                    let lhs_bool = lhs[lhs_i] != $zero;
+                    let rhs_bool = rhs[i] != $zero;
+                    *out_val = $op(lhs_bool, rhs_bool);
+                });
             } else {
-                None
-            };
+                out.par_iter_mut().enumerate().for_each(|(i, out_val)| {
+                    let mut tmp_i = i;
+                    let mut lhs_i = 0;
+                    let mut rhs_i = 0;
 
-            out.par_iter_mut().enumerate().for_each(|(i, out_val)| {
-                let (lhs_idx, rhs_idx) = if !lhs_cont || !rhs_cont {
-                    if let (Some(dims), Some(lhs_str), Some(rhs_str), Some(ref fac)) = (dims, lhs_strides, rhs_strides, factors.as_ref()) {
-                        (
-                            lhs_offset + compute_offset(i, num_dims, dims, fac, lhs_str),
-                            rhs_offset + compute_offset(i, num_dims, dims, fac, rhs_str),
-                        )
-                    } else {
-                        (lhs_offset + i, rhs_offset + i)
+                    for d in (0..num_dims).rev() {
+                        let i_dim = tmp_i % dims[d];
+                        lhs_i += i_dim * lhs_strides[d];
+                        rhs_i += i_dim * rhs_strides[d];
+                        tmp_i /= dims[d];
                     }
-                } else {
-                    (lhs_offset + i, rhs_offset + i)
-                };
 
-                let lhs_bool = lhs[lhs_idx] != $zero;
-                let rhs_bool = rhs[rhs_idx] != $zero;
-                *out_val = $op(lhs_bool, rhs_bool);
-            });
+                    let lhs_bool = lhs[lhs_i] != $zero;
+                    let rhs_bool = rhs[rhs_i] != $zero;
+                    *out_val = $op(lhs_bool, rhs_bool);
+                });
+            }
         }
     };
 }
