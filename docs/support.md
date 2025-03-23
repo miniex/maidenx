@@ -144,6 +144,7 @@ Blank: Upcoming support
 |            | `index` (dim 0 index_select alias)   | ✓ | ✓ | ✓ |
 |            | `index_select`     | ✓ | ✓ | ✓ |
 |            | `index_put_`       | ✗ | ✓ | ✓ |
+|            | `bincount`         | ✓ | ✓ | ✓ |
 |            | `gather`           | ✓ | ✓ | ✓ |
 |            | `scatter_add_`     | ✗ | ✓ | ✓ |
 | **NN Layer Aliases** |

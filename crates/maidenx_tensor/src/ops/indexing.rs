@@ -220,6 +220,123 @@ impl Tensor {
         Ok(())
     }
 
+    pub fn bincount(&self, weights: Option<&Tensor>, minlength: Option<usize>) -> Result<Tensor> {
+        if self.ndim() != 1 {
+            return Err(Error::InvalidArgument(format!("Expected 1D tensor for bincount, got {}D", self.ndim())));
+        }
+
+        if !self.dtype().is_int() {
+            return Err(Error::InvalidArgument(format!(
+                "Expected tensor with integer dtype for bincount, got {}",
+                self.dtype()
+            )));
+        }
+
+        let mut max_val: i32 = 0;
+        for i in 0..self.size() {
+            let val = self.get(&[i])?.as_i32();
+            if val < 0 {
+                return Err(Error::InvalidArgument(
+                    "bincount input tensor must not contain negative values".to_string(),
+                ));
+            }
+            if val > max_val {
+                max_val = val;
+            }
+        }
+
+        let output_size = std::cmp::max(max_val as usize + 1, minlength.unwrap_or(0));
+        let output_dtype = if let Some(w) = weights { w.dtype() } else { self.dtype() };
+
+        let mut output = Self::zeros_with_spec(&[output_size], self.device(), output_dtype)?;
+
+        if let Some(w) = weights {
+            if w.shape() != self.shape() {
+                return Err(Error::InvalidArgument(format!(
+                    "weights tensor must have the same shape as input tensor, got {:?} and {:?}",
+                    w.shape(),
+                    self.shape()
+                )));
+            }
+
+            for i in 0..self.size() {
+                let bin_idx = self.get(&[i])?.as_i32() as usize;
+                let weight_val = w.get(&[i])?;
+                println!("{:?}", w);
+
+                let current_val = output.get(&[bin_idx])?;
+                println!("{} + {} = {}", weight_val, current_val, weight_val + current_val);
+                output.set(&[bin_idx], current_val + weight_val)?;
+            }
+        } else {
+            for i in 0..self.size() {
+                let bin_idx = self.get(&[i])?.as_i32() as usize;
+
+                let current_count = output.get(&[bin_idx])?.as_i32();
+                output.set(&[bin_idx], current_count + 1)?;
+            }
+        }
+
+        if self.requires_grad() {
+            output.with_grad()?;
+
+            let self_clone = self.clone();
+            let weights_clone = weights.cloned();
+
+            let backward_fn = Box::new(move |_inputs: &[Tensor], grad_output: &Tensor| -> Result<Vec<Tensor>> {
+                let mut grad_self = Tensor::zeros_like(&self_clone)?;
+
+                if let Some(ref w) = weights_clone {
+                    let mut grad_weights = Tensor::zeros_like(w)?;
+
+                    for i in 0..self_clone.size() {
+                        let bin_idx = self_clone.get(&[i])?.as_i32() as usize;
+                        if bin_idx < grad_output.size() {
+                            let grad_out_val = grad_output.get(&[bin_idx])?;
+                            grad_weights.set(&[i], grad_out_val)?;
+
+                            if bin_idx > 0 && bin_idx + 1 < grad_output.size() {
+                                let grad_prev = grad_output.get(&[bin_idx - 1])?;
+                                let grad_next = grad_output.get(&[bin_idx + 1])?;
+                                let weight_val = w.get(&[i])?;
+
+                                // Approximate gradient as the scaled finite difference
+                                let diff = (grad_next - grad_prev) * weight_val;
+                                grad_self.set(&[i], diff)?;
+                            }
+                        }
+                    }
+
+                    Ok(vec![grad_self, grad_weights])
+                } else {
+                    for i in 0..self_clone.size() {
+                        let bin_idx = self_clone.get(&[i])?.as_i32() as usize;
+                        if bin_idx > 0 && bin_idx + 1 < grad_output.size() {
+                            let grad_prev = grad_output.get(&[bin_idx - 1])?;
+                            let grad_next = grad_output.get(&[bin_idx + 1])?;
+
+                            let diff = grad_next - grad_prev;
+                            grad_self.set(&[i], diff)?;
+                        }
+                    }
+
+                    Ok(vec![grad_self])
+                }
+            });
+
+            let inputs = if let Some(w) = weights {
+                vec![self.clone(), w.clone()]
+            } else {
+                vec![self.clone()]
+            };
+
+            let node = TensorNode::new("bincount".to_string(), inputs, Some(backward_fn));
+            output.set_node(node);
+        }
+
+        Ok(output)
+    }
+
     pub fn gather(&self, dim: impl Into<Scalar>, index: &Tensor) -> Result<Tensor> {
         let dim_i32 = dim.into().as_i32();
         let dim_usize: usize = if dim_i32 < 0 {
