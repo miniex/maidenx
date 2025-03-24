@@ -10,9 +10,28 @@ use crate::{
     error::{Error, Result},
     scalar::Scalar,
 };
-#[cfg(feature = "cuda")]
 use cpu::CpuBuffer;
-use std::ffi::c_void;
+#[cfg(feature = "cuda")]
+use cuda::CudaBuffer;
+#[cfg(feature = "mps")]
+use mps::MpsBuffer;
+use std::{ffi::c_void, sync::Arc};
+
+pub struct BufferManager {}
+
+impl BufferManager {
+    pub fn create(size: usize, device: Device, dtype: DType) -> Result<Arc<dyn Buffer>> {
+        let buffer: Arc<dyn Buffer> = match device {
+            Device::CPU => Arc::new(CpuBuffer::new(size, dtype)?),
+            #[cfg(feature = "cuda")]
+            Device::CUDA(id) => Arc::new(CudaBuffer::new(size, dtype, id)?),
+            #[cfg(feature = "mps")]
+            Device::MPS => Arc::new(MpsBuffer::new(size, dtype)?),
+        };
+
+        Ok(buffer)
+    }
+}
 
 pub trait Buffer: Send + Sync {
     fn as_ptr(&self) -> *const c_void;

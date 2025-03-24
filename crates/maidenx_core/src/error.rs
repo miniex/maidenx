@@ -126,3 +126,10 @@ impl Error {
         }
     }
 }
+
+impl Error {
+    #[cfg(feature = "mps")]
+    pub fn from_mps_error(error_code: i32) -> Self {
+        Self::MpsError(mps_error(error_code))
+    }
+}

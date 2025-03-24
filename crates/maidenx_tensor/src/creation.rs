@@ -1,11 +1,7 @@
 use crate::{adapter::TensorAdapter, Tensor, TensorData, TensorMetadata};
 use half::{bf16, f16};
-#[cfg(feature = "cuda")]
-use maidenx_core::buffer::cuda::CudaBuffer;
-#[cfg(feature = "mps")]
-use maidenx_core::buffer::mps::MpsBuffer;
 use maidenx_core::{
-    buffer::{cpu::CpuBuffer, Buffer},
+    buffer::BufferManager,
     device::{get_default_device, Device},
     dtype::{get_default_dtype, DType},
     error::{Error, Result},
@@ -34,13 +30,7 @@ impl Tensor {
         let layout = Layout::from_shape(&shape);
         let size = layout.size();
 
-        let mut buffer: Arc<dyn Buffer> = match device {
-            Device::CPU => Arc::new(CpuBuffer::new(size, dtype)?),
-            #[cfg(feature = "cuda")]
-            Device::CUDA(id) => Arc::new(CudaBuffer::new(size, dtype, id)?),
-            #[cfg(feature = "mps")]
-            Device::MPS => Arc::new(MpsBuffer::new(size, dtype)?),
-        };
+        let mut buffer = BufferManager::create(size, device, dtype)?;
 
         let src_dtype = data.dtype();
         let src_data = data.to_flat_vec()?;
@@ -137,13 +127,7 @@ impl Tensor {
         let layout = Layout::from_shape(shape);
         let size = layout.size();
 
-        let buffer: Arc<dyn Buffer> = match device {
-            Device::CPU => Arc::new(CpuBuffer::new(size, dtype)?),
-            #[cfg(feature = "cuda")]
-            Device::CUDA(id) => Arc::new(CudaBuffer::new(size, dtype, id)?),
-            #[cfg(feature = "mps")]
-            Device::MPS => Arc::new(MpsBuffer::new(size, dtype)?),
-        };
+        let buffer = BufferManager::create(size, device, dtype)?;
 
         Ok(Self {
             data: TensorData { buffer, grad: None },
@@ -164,17 +148,15 @@ impl Tensor {
         Self::zeros_with_spec(shape, device, dtype)
     }
 
+    pub fn zeros_like(src: &Tensor) -> Result<Self> {
+        Self::zeros_with_spec(src.layout().shape(), src.device(), src.dtype())
+    }
+
     pub fn zeros_with_spec(shape: &[usize], device: Device, dtype: DType) -> Result<Self> {
         let layout = Layout::from_shape(shape);
         let size = layout.size();
 
-        let mut buffer: Arc<dyn Buffer> = match device {
-            Device::CPU => Arc::new(CpuBuffer::new(size, dtype)?),
-            #[cfg(feature = "cuda")]
-            Device::CUDA(id) => Arc::new(CudaBuffer::new(size, dtype, id)?),
-            #[cfg(feature = "mps")]
-            Device::MPS => Arc::new(MpsBuffer::new(size, dtype)?),
-        };
+        let mut buffer = BufferManager::create(size, device, dtype)?;
 
         let elem_size = dtype.size_in_bytes();
         let total_bytes = size * elem_size;
@@ -199,10 +181,6 @@ impl Tensor {
         })
     }
 
-    pub fn zeros_like(src: &Tensor) -> Result<Self> {
-        Self::zeros_with_spec(src.layout().shape(), src.device(), src.dtype())
-    }
-
     pub fn ones(shape: &[usize]) -> Result<Self> {
         let device = get_default_device();
         let dtype = get_default_dtype();
@@ -210,17 +188,15 @@ impl Tensor {
         Self::ones_with_spec(shape, device, dtype)
     }
 
+    pub fn ones_like(src: &Tensor) -> Result<Self> {
+        Self::ones_with_spec(src.layout().shape(), src.device(), src.dtype())
+    }
+
     pub fn ones_with_spec(shape: &[usize], device: Device, dtype: DType) -> Result<Self> {
         let layout = Layout::from_shape(shape);
         let size = layout.size();
 
-        let mut buffer: Arc<dyn Buffer> = match device {
-            Device::CPU => Arc::new(CpuBuffer::new(size, dtype)?),
-            #[cfg(feature = "cuda")]
-            Device::CUDA(id) => Arc::new(CudaBuffer::new(size, dtype, id)?),
-            #[cfg(feature = "mps")]
-            Device::MPS => Arc::new(MpsBuffer::new(size, dtype)?),
-        };
+        let mut buffer = BufferManager::create(size, device, dtype)?;
 
         let one_bytes = match dtype {
             DType::BF16 => bf16::ONE.to_ne_bytes().to_vec(),
@@ -264,10 +240,6 @@ impl Tensor {
         })
     }
 
-    pub fn ones_like(src: &Tensor) -> Result<Self> {
-        Self::ones_with_spec(src.layout().shape(), src.device(), src.dtype())
-    }
-
     pub fn fill<T: Into<Scalar>>(shape: &[usize], value: T) -> Result<Self> {
         let device = get_default_device();
         let dtype = get_default_dtype();
@@ -284,13 +256,7 @@ impl Tensor {
         let size = layout.size();
         let scalar_value = value.into();
 
-        let mut buffer: Arc<dyn Buffer> = match device {
-            Device::CPU => Arc::new(CpuBuffer::new(size, dtype)?),
-            #[cfg(feature = "cuda")]
-            Device::CUDA(id) => Arc::new(CudaBuffer::new(size, dtype, id)?),
-            #[cfg(feature = "mps")]
-            Device::MPS => Arc::new(MpsBuffer::new(size, dtype)?),
-        };
+        let mut buffer = BufferManager::create(size, device, dtype)?;
 
         let value_bytes = match dtype {
             DType::BF16 => bf16::from_f32(scalar_value.as_f32()).to_ne_bytes().to_vec(),
