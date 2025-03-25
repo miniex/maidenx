@@ -101,10 +101,16 @@ fn get_dtype_for_type<T: 'static>() -> Option<DType> {
         Some(DType::BOOL)
     } else if std::any::TypeId::of::<T>() == std::any::TypeId::of::<u8>() {
         Some(DType::U8)
+    } else if std::any::TypeId::of::<T>() == std::any::TypeId::of::<u16>() {
+        Some(DType::U16)
     } else if std::any::TypeId::of::<T>() == std::any::TypeId::of::<u32>() {
         Some(DType::U32)
+    } else if std::any::TypeId::of::<T>() == std::any::TypeId::of::<u64>() {
+        Some(DType::U64)
     } else if std::any::TypeId::of::<T>() == std::any::TypeId::of::<i8>() {
         Some(DType::I8)
+    } else if std::any::TypeId::of::<T>() == std::any::TypeId::of::<i16>() {
+        Some(DType::I16)
     } else if std::any::TypeId::of::<T>() == std::any::TypeId::of::<i32>() {
         Some(DType::I32)
     } else if std::any::TypeId::of::<T>() == std::any::TypeId::of::<i64>() {
