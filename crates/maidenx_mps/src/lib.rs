@@ -1,9 +1,13 @@
+pub mod nn;
+pub mod ops;
+
+pub mod metal_context;
+
 use metal::{Device, MTLResourceOptions};
 use std::collections::HashMap;
 use std::ffi::c_void;
 use std::ptr;
-use std::sync::Mutex;
-use std::sync::Once;
+use std::sync::{Mutex, Once};
 
 // Initialize static variables for buffer management
 static INIT: Once = Once::new();
@@ -169,6 +173,47 @@ pub unsafe extern "C" fn mps_memcpy_d2d(dst: *mut c_void, src: *const c_void, si
     dst_buffer.did_modify_range(metal::NSRange::new(0, size as u64));
 
     0 // Success
+}
+
+/// Allocates memory on the Metal device and copies dimension array data to it
+///
+/// # Arguments
+///
+/// * `dims` - A slice containing the dimensions to be copied to the device
+///
+/// # Returns
+///
+/// A tuple containing:
+/// * A pointer to the allocated memory on the Metal device
+/// * The number of dimensions (length of the dims array)
+///
+/// # Safety
+///
+/// This function is unsafe because it:
+/// * Dereferences raw pointers
+/// * Performs memory allocation on the Metal device
+/// * Requires the input slice to be valid for reads
+/// * Returns a raw pointer that must be properly managed and eventually freed with `mps_free`
+#[no_mangle]
+pub unsafe fn mps_alloc_and_copy_dims(dims_and_strides: &[usize]) -> (*mut std::ffi::c_void, usize) {
+    let size = std::mem::size_of_val(dims_and_strides);
+    if size == 0 {
+        return (ptr::null_mut(), 0);
+    }
+
+    let mut ptr: *mut c_void = ptr::null_mut();
+    let result = mps_malloc(&mut ptr, size);
+    if result != 0 || ptr.is_null() {
+        return (ptr::null_mut(), 0);
+    }
+
+    let result = mps_memcpy_h2d(ptr, dims_and_strides.as_ptr() as *const c_void, size);
+    if result != 0 {
+        mps_free(ptr);
+        return (ptr::null_mut(), 0);
+    }
+
+    (ptr, dims_and_strides.len())
 }
 
 /// Returns a descriptive error message for MPS error codes
