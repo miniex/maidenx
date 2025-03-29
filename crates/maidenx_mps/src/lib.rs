@@ -1,7 +1,60 @@
+pub mod nn;
+pub mod ops;
+
+pub mod metal_context;
+
 use metal::{Device, MTLResourceOptions};
+use std::collections::HashMap;
 use std::ffi::c_void;
 use std::ptr;
+use std::sync::{Mutex, Once};
 
+// Initialize static variables for buffer management
+static INIT: Once = Once::new();
+static mut BUFFER_MAP: Option<Mutex<HashMap<*mut c_void, metal::Buffer>>> = None;
+
+// Initialize the buffer map for storing Metal buffers
+fn init_buffer_map() {
+    unsafe {
+        BUFFER_MAP = Some(Mutex::new(HashMap::new()));
+    }
+}
+
+// Add a buffer to the map with its pointer as key
+unsafe fn add_to_buffer_map(ptr: *mut c_void, buffer: metal::Buffer) {
+    INIT.call_once(|| {
+        init_buffer_map();
+    });
+
+    let buffer_map = &raw const BUFFER_MAP;
+    if let Some(map) = (*buffer_map).as_ref() {
+        let mut map_guard = map.lock().unwrap();
+        map_guard.insert(ptr, buffer);
+    }
+}
+
+// Retrieve a buffer from the map using its pointer
+unsafe fn get_buffer_from_map(ptr: *mut c_void) -> Option<metal::Buffer> {
+    let buffer_map = &raw const BUFFER_MAP;
+    if let Some(map) = (*buffer_map).as_ref() {
+        let map_guard = map.lock().unwrap();
+        map_guard.get(&ptr).cloned()
+    } else {
+        None
+    }
+}
+
+// Remove a buffer from the map
+unsafe fn remove_from_buffer_map(ptr: *mut c_void) {
+    let buffer_map = &raw const BUFFER_MAP;
+    if let Some(map) = (*buffer_map).as_ref() {
+        let mut map_guard = map.lock().unwrap();
+        map_guard.remove(&ptr);
+    }
+}
+
+/// Allocates memory on the Metal device
+///
 /// # Safety
 ///
 /// This function is unsafe because it dereferences raw pointers and requires:
@@ -23,11 +76,15 @@ pub unsafe extern "C" fn mps_malloc(ptr: *mut *mut c_void, size: usize) -> i32 {
     let buffer = device.new_buffer(size as u64, MTLResourceOptions::StorageModeManaged);
     let contents_ptr = buffer.contents();
 
+    add_to_buffer_map(contents_ptr, buffer);
+
     *ptr = contents_ptr;
 
     0 // Success
 }
 
+/// Frees memory allocated on the Metal device
+///
 /// # Safety
 ///
 /// This function is unsafe because it dereferences raw pointers and requires:
@@ -39,9 +96,13 @@ pub unsafe extern "C" fn mps_free(ptr: *mut c_void) -> i32 {
         return -1; // Invalid pointer
     }
 
+    remove_from_buffer_map(ptr);
+
     0 // Success
 }
 
+/// Copies memory from host to device
+///
 /// # Safety
 ///
 /// This function is unsafe because it dereferences raw pointers and requires:
@@ -57,17 +118,18 @@ pub unsafe extern "C" fn mps_memcpy_h2d(dst: *mut c_void, src: *const c_void, si
 
     ptr::copy_nonoverlapping(src, dst, size);
 
-    let device = match Device::system_default() {
-        Some(device) => device,
-        None => return -2, // No Metal device available
+    let buffer = match get_buffer_from_map(dst) {
+        Some(buffer) => buffer,
+        None => return -1,
     };
 
-    let temp_buffer = device.new_buffer_with_data(dst as *const std::ffi::c_void, size as u64, MTLResourceOptions::StorageModeManaged);
-    temp_buffer.did_modify_range(metal::NSRange::new(0, size as u64));
+    buffer.did_modify_range(metal::NSRange::new(0, size as u64));
 
     0 // Success
 }
 
+/// Copies memory from device to host
+///
 /// # Safety
 ///
 /// This function is unsafe because it dereferences raw pointers and requires:
@@ -81,11 +143,14 @@ pub unsafe extern "C" fn mps_memcpy_d2h(dst: *mut c_void, src: *const c_void, si
         return -1; // Invalid parameters
     }
 
+    // Copy data
     ptr::copy_nonoverlapping(src, dst, size);
 
     0 // Success
 }
 
+/// Copies memory from device to device
+///
 /// # Safety
 ///
 /// This function is unsafe because it dereferences raw pointers and requires:
@@ -98,11 +163,60 @@ pub unsafe extern "C" fn mps_memcpy_d2d(dst: *mut c_void, src: *const c_void, si
         return -1; // Invalid parameters
     }
 
+    let dst_buffer = match get_buffer_from_map(dst) {
+        Some(buffer) => buffer,
+        None => return -1,
+    };
+
     ptr::copy_nonoverlapping(src, dst, size);
+
+    dst_buffer.did_modify_range(metal::NSRange::new(0, size as u64));
 
     0 // Success
 }
 
+/// Allocates memory on the Metal device and copies dimension array data to it
+///
+/// # Arguments
+///
+/// * `dims` - A slice containing the dimensions to be copied to the device
+///
+/// # Returns
+///
+/// A tuple containing:
+/// * A pointer to the allocated memory on the Metal device
+/// * The number of dimensions (length of the dims array)
+///
+/// # Safety
+///
+/// This function is unsafe because it:
+/// * Dereferences raw pointers
+/// * Performs memory allocation on the Metal device
+/// * Requires the input slice to be valid for reads
+/// * Returns a raw pointer that must be properly managed and eventually freed with `mps_free`
+#[no_mangle]
+pub unsafe fn mps_alloc_and_copy_dims(dims_and_strides: &[usize]) -> (*mut std::ffi::c_void, usize) {
+    let size = std::mem::size_of_val(dims_and_strides);
+    if size == 0 {
+        return (ptr::null_mut(), 0);
+    }
+
+    let mut ptr: *mut c_void = ptr::null_mut();
+    let result = mps_malloc(&mut ptr, size);
+    if result != 0 || ptr.is_null() {
+        return (ptr::null_mut(), 0);
+    }
+
+    let result = mps_memcpy_h2d(ptr, dims_and_strides.as_ptr() as *const c_void, size);
+    if result != 0 {
+        mps_free(ptr);
+        return (ptr::null_mut(), 0);
+    }
+
+    (ptr, dims_and_strides.len())
+}
+
+/// Returns a descriptive error message for MPS error codes
 pub fn mps_error(error_code: i32) -> String {
     match error_code {
         0 => String::from("Success"),

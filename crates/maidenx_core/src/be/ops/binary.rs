@@ -12,6 +12,8 @@ use half::{bf16, f16};
 use maidenx_cpu::ops::binary::*;
 #[cfg(feature = "cuda")]
 use maidenx_cuda::{cuda_alloc_and_copy_dims, cuda_free, cuda_set_device, ops::binary::*};
+#[cfg(feature = "mps")]
+use maidenx_mps::{mps_alloc_and_copy_dims, mps_free, ops::binary::*};
 
 macro_rules! impl_for_type {
     ($name:ident, $size:expr, $num_dims:expr, $dims:expr, $lhs:expr, $rhs:expr, $out:expr, $type:ty, true, $device:expr) => {
@@ -30,7 +32,12 @@ macro_rules! impl_for_type {
                     $out.as_mut_ptr() as *mut bool)
             },
             #[cfg(feature = "mps")]
-            Device::MPS => {}
+            Device::MPS => paste::paste! {
+                [<metal_ $name _ $type>]($size, $num_dims, $dims,
+                    $lhs.as_ptr() as *const $type,
+                    $rhs.as_ptr() as *const $type,
+                    $out.as_mut_ptr() as *mut bool)
+            },
         }
     };
     ($name:ident, $size:expr, $num_dims:expr, $dims:expr, $lhs:expr, $rhs:expr, $out:expr, $type:ty, false, $device:expr) => {
@@ -49,7 +56,12 @@ macro_rules! impl_for_type {
                     $out.as_mut_ptr() as *mut $type)
             },
             #[cfg(feature = "mps")]
-            Device::MPS => {}
+            Device::MPS => paste::paste! {
+                [<metal_ $name _ $type>]($size, $num_dims, $dims,
+                    $lhs.as_ptr() as *const $type,
+                    $rhs.as_ptr() as *const $type,
+                    $out.as_mut_ptr() as *mut $type)
+            },
         }
     };
 }
@@ -74,6 +86,14 @@ macro_rules! declare_binary_op {
                     assert_eq!(output.dtype(), DType::BOOL, "Output must be BOOL for comparison operations");
                 } else {
                     assert_eq!(output.dtype(), lhs.dtype(), "Output dtype must match input dtype");
+                }
+
+                #[cfg(feature = "mps")]
+                if output.device() == Device::MPS {
+                    match lhs.dtype() {
+                        DType::U64 | DType::I64 | DType::F64 => return Err(Error::UnsupportedDType),
+                        _ => {}
+                    }
                 }
 
                 let (metadata, cleanup_fn): (*const usize, CleanupFn) = match output.device() {
@@ -102,7 +122,19 @@ macro_rules! declare_binary_op {
                     },
                     #[cfg(feature = "mps")]
                     Device::MPS => {
-                        return Err(Error::MpsError("Failed to MPS".to_string()));
+                        let (ptr, _) = metadata
+                            .map_or((std::ptr::null(), None), |dims| {
+                                let (p, len) = mps_alloc_and_copy_dims(dims);
+                                (p as *const usize, Some(len))
+                            });
+                        (
+                            ptr,
+                            Some(Box::new(move || {
+                                if !ptr.is_null() {
+                                    mps_free(ptr as *mut std::ffi::c_void);
+                                }
+                            }) as Box<dyn FnOnce()>)
+                        )
                     },
                 };
 
