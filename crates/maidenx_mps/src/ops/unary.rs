@@ -236,6 +236,76 @@ macro_rules! declare_extern_unary_ops_with_constant {
     };
 }
 
+macro_rules! implement_dummy_unary_op {
+    ($fn_name:ident, $in_type:ty, $out_type:ty) => {
+        /// # Safety
+        ///
+        /// This is a dummy function for 64-bit types in MPS which are not supported.
+        pub unsafe fn $fn_name(_num_els: usize, _num_dims: usize, _metadata: *const usize, _input: *const $in_type, _output: *mut $out_type) {
+            // MPS doesn't support 64-bit types, this is a dummy function
+            eprintln!("MPS does not support 64-bit unary operations for {}", stringify!($fn_name));
+        }
+    };
+}
+
+macro_rules! implement_dummy_unary_op_with_constant {
+    ($fn_name:ident, $in_type:ty, $out_type:ty) => {
+        /// # Safety
+        ///
+        /// This is a dummy function for 64-bit types in MPS which are not supported.
+        pub unsafe fn $fn_name(
+            _num_els: usize,
+            _num_dims: usize,
+            _metadata: *const usize,
+            _input: *const $in_type,
+            _constant: $in_type,
+            _output: *mut $out_type,
+        ) {
+            // MPS doesn't support 64-bit types, this is a dummy function
+            eprintln!(
+                "MPS does not support 64-bit unary operations with constant for {}",
+                stringify!($fn_name)
+            );
+        }
+    };
+}
+
+macro_rules! declare_dummy_unary_ops {
+    ($($dtype:ident => {
+        type: $ty:ty,
+        ops: [$($op:ident),+ $(,)?; $($bool_op:ident),* $(,)?]
+    }),+ $(,)?) => {
+        $(
+            paste::paste! {
+                $(
+                    implement_dummy_unary_op!([<metal_ $op _ $dtype:lower>], $ty, $ty);
+                )+
+                $(
+                    implement_dummy_unary_op!([<metal_ $bool_op _ $dtype:lower>], $ty, bool);
+                )*
+            }
+        )+
+    };
+}
+
+macro_rules! declare_dummy_unary_ops_with_constant {
+    ($($dtype:ident => {
+        type: $ty:ty,
+        ops: [$($op:ident),+ $(,)?; $($bool_op:ident),* $(,)?]
+    }),+ $(,)?) => {
+        $(
+            paste::paste! {
+                $(
+                    implement_dummy_unary_op_with_constant!([<metal_ $op _ $dtype:lower>], $ty, $ty);
+                )+
+                $(
+                    implement_dummy_unary_op_with_constant!([<metal_ $bool_op _ $dtype:lower>], $ty, bool);
+                )*
+            }
+        )+
+    };
+}
+
 declare_extern_unary_ops! {
     BF16 => {
         type: bf16,
@@ -255,27 +325,27 @@ declare_extern_unary_ops! {
     },
     U8 => {
         type: u8,
-        ops: [sign, square, sqrt; logical_not]
+        ops: [sign, square, sqrt, relu; logical_not]
     },
     U16 => {
         type: u16,
-        ops: [sign, square, sqrt; logical_not]
+        ops: [sign, square, sqrt, relu; logical_not]
     },
     U32 => {
         type: u32,
-        ops: [sign, square, sqrt; logical_not]
+        ops: [sign, square, sqrt, relu; logical_not]
     },
     I8 => {
         type: i8,
-        ops: [neg, abs, sign, square, sqrt; logical_not]
+        ops: [neg, abs, sign, square, sqrt, relu; logical_not]
     },
     I16 => {
         type: i16,
-        ops: [neg, abs, sign, square, sqrt; logical_not]
+        ops: [neg, abs, sign, square, sqrt, relu; logical_not]
     },
     I32 => {
         type: i32,
-        ops: [neg, abs, sign, square, sqrt; logical_not]
+        ops: [neg, abs, sign, square, sqrt, relu; logical_not]
     },
 }
 
@@ -318,6 +388,36 @@ declare_extern_unary_ops_with_constant! {
     },
     I32 => {
         type: i32,
+        ops: [add_scalar, sub_scalar, mul_scalar, div_scalar, maximum_scalar, minimum_scalar, pow; eq_scalar, ne_scalar, lt_scalar, le_scalar, gt_scalar, ge_scalar]
+    }
+}
+
+declare_dummy_unary_ops! {
+    F64 => {
+        type: f64,
+        ops: [neg, abs, sign, square, sqrt, relu, sigmoid, tanh, gelu, sin, cos, tan, ln, log10, log2, exp, exp10, exp2, softplus, recip; logical_not]
+    },
+    U64 => {
+        type: u64,
+        ops: [sign, square, sqrt, relu; logical_not]
+    },
+    I64 => {
+        type: i64,
+        ops: [neg, abs, sign, square, sqrt, relu; logical_not]
+    }
+}
+
+declare_dummy_unary_ops_with_constant! {
+    F64 => {
+        type: f64,
+        ops: [add_scalar, sub_scalar, mul_scalar, div_scalar, maximum_scalar, minimum_scalar, pow, leaky_relu, elu; eq_scalar, ne_scalar, lt_scalar, le_scalar, gt_scalar, ge_scalar]
+    },
+    U64 => {
+        type: u64,
+        ops: [add_scalar, sub_scalar, mul_scalar, div_scalar, maximum_scalar, minimum_scalar, pow; eq_scalar, ne_scalar, lt_scalar, le_scalar, gt_scalar, ge_scalar]
+    },
+    I64 => {
+        type: i64,
         ops: [add_scalar, sub_scalar, mul_scalar, div_scalar, maximum_scalar, minimum_scalar, pow; eq_scalar, ne_scalar, lt_scalar, le_scalar, gt_scalar, ge_scalar]
     }
 }

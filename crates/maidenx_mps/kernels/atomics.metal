@@ -30,69 +30,79 @@ inline int8_t atomic_add_int8(device int8_t* address, int8_t val) {
     uint mask = 0xFF << shift;
     
     uint old = atomic_load_explicit(base_address, memory_order_relaxed);
-    uint assumed, sum, new_val;
+    uint assumed, new_val;
     
     do {
         assumed = old;
         int8_t current = (assumed >> shift) & 0xFF;
-        sum = val + current;
+        
+        if (current & 0x80) {
+            current |= ~0xFF; 
+        }
+        
+        int8_t sum = current + val;
         new_val = (assumed & ~mask) | ((sum & 0xFF) << shift);
         old = atomic_exchange_explicit(base_address, new_val, memory_order_relaxed);
     } while (assumed != old);
     
-    return (old >> shift) & 0xFF;
+    int8_t result = (old >> shift) & 0xFF;
+    
+    if (result & 0x80) {
+        result |= ~0xFF;
+    }
+    
+    return result;
 }
 
 // For uint16_t
 inline uint16_t atomic_add_uint16(device uint16_t* address, uint16_t val) {
-    if ((device uintptr_t)(address) % 2 == 0) {
-        // Aligned case - can use atomic_fetch_add directly
-        return atomic_fetch_add_explicit((device atomic_uint*)(address), val, memory_order_relaxed);
-    } else {
-        // Unaligned case
-        device atomic_uint* base_address = (device atomic_uint*)((device uintptr_t)(address) & ~3);
-        uint shift = (((device uintptr_t)(address) & 3) * 8);
-        uint mask = 0xFFFF << shift;
-        
-        uint old = atomic_load_explicit(base_address, memory_order_relaxed);
-        uint assumed, sum, new_val;
-        
-        do {
-            assumed = old;
-            uint16_t current = (assumed >> shift) & 0xFFFF;
-            sum = val + current;
-            new_val = (assumed & ~mask) | ((sum & 0xFFFF) << shift);
-            old = atomic_exchange_explicit(base_address, new_val, memory_order_relaxed);
-        } while (assumed != old);
-        
-        return (old >> shift) & 0xFFFF;
-    }
+    device atomic_uint* base_address = (device atomic_uint*)((device uintptr_t)(address) & ~3);
+    uint shift = (((device uintptr_t)(address) & 3) * 8);
+    uint mask = 0xFFFF << shift;
+    
+    uint old = atomic_load_explicit(base_address, memory_order_relaxed);
+    uint assumed, new_val;
+    
+    do {
+        assumed = old;
+        uint16_t current = (assumed >> shift) & 0xFFFF;
+        uint16_t sum = current + val;
+        new_val = (assumed & ~mask) | ((sum & 0xFFFF) << shift);
+        old = atomic_exchange_explicit(base_address, new_val, memory_order_relaxed);
+    } while (assumed != old);
+    
+    return (old >> shift) & 0xFFFF;
 }
 
 // For int16_t
 inline int16_t atomic_add_int16(device int16_t* address, int16_t val) {
-    if ((device uintptr_t)(address) % 2 == 0) {
-        // Aligned case - can use atomic_fetch_add directly
-        return atomic_fetch_add_explicit((device atomic_int*)(address), val, memory_order_relaxed);
-    } else {
-        // Unaligned case
-        device atomic_uint* base_address = (device atomic_uint*)((device uintptr_t)(address) & ~3);
-        uint shift = (((device uintptr_t)(address) & 3) * 8);
-        uint mask = 0xFFFF << shift;
+    device atomic_uint* base_address = (device atomic_uint*)((device uintptr_t)(address) & ~3);
+    uint shift = (((device uintptr_t)(address) & 3) * 8);
+    uint mask = 0xFFFF << shift;
+    
+    uint old = atomic_load_explicit(base_address, memory_order_relaxed);
+    uint assumed, new_val;
+    
+    do {
+        assumed = old;
+        int16_t current = (assumed >> shift) & 0xFFFF;
         
-        uint old = atomic_load_explicit(base_address, memory_order_relaxed);
-        uint assumed, sum, new_val;
+        if (current & 0x8000) {
+            current |= ~0xFFFF;
+        }
         
-        do {
-            assumed = old;
-            int16_t current = (assumed >> shift) & 0xFFFF;
-            sum = val + current;
-            new_val = (assumed & ~mask) | ((sum & 0xFFFF) << shift);
-            old = atomic_exchange_explicit(base_address, new_val, memory_order_relaxed);
-        } while (assumed != old);
-        
-        return (old >> shift) & 0xFFFF;
+        int16_t sum = current + val;
+        new_val = (assumed & ~mask) | ((sum & 0xFFFF) << shift);
+        old = atomic_exchange_explicit(base_address, new_val, memory_order_relaxed);
+    } while (assumed != old);
+    
+    int16_t result = (old >> shift) & 0xFFFF;
+    
+    if (result & 0x8000) {
+        result |= ~0xFFFF; 
     }
+    
+    return result;
 }
 
 // For float - using atomic_uint for bit manipulation
@@ -270,64 +280,70 @@ inline int8_t atomic_max_int8(device int8_t* address, int8_t val) {
 
 // For uint16_t
 inline uint16_t atomic_max_uint16(device uint16_t* address, uint16_t val) {
-    if ((device uintptr_t)(address) % 2 == 0) {
-        // Aligned case
-        return atomic_fetch_max_explicit((device atomic_uint*)(address), val, memory_order_relaxed);
-    } else {
-        // Unaligned case
-        device atomic_uint* base_address = (device atomic_uint*)((device uintptr_t)(address) & ~3);
-        uint shift = (((device uintptr_t)(address) & 3) * 8);
-        uint mask = 0xFFFF << shift;
+    device atomic_uint* base_address = (device atomic_uint*)((device uintptr_t)(address) & ~3);
+    uint shift = (((device uintptr_t)(address) & 3) * 8);
+    uint mask = 0xFFFF << shift;
+    
+    uint old = atomic_load_explicit(base_address, memory_order_relaxed);
+    uint assumed, new_val;
+    
+    do {
+        assumed = old;
+        uint16_t current = (assumed >> shift) & 0xFFFF;
         
-        uint old = atomic_load_explicit(base_address, memory_order_relaxed);
-        uint assumed, new_val;
+        if (current >= val) {
+            return current;
+        }
         
-        do {
-            assumed = old;
-            uint16_t current = (assumed >> shift) & 0xFFFF;
-            
-            if (current >= val) {
-                return current; // No update needed
-            }
-            
-            new_val = (assumed & ~mask) | ((val & 0xFFFF) << shift);
-            old = atomic_exchange_explicit(base_address, new_val, memory_order_relaxed);
-        } while (assumed != old);
+        new_val = (assumed & ~mask) | ((val & 0xFFFF) << shift);
+        old = atomic_exchange_explicit(base_address, new_val, memory_order_relaxed);
         
-        return (old >> shift) & 0xFFFF;
-    }
+        if (assumed == old) {
+            break;
+        }
+        
+    } while (true);
+    
+    return (old >> shift) & 0xFFFF;
 }
 
 // For int16_t
 inline int16_t atomic_max_int16(device int16_t* address, int16_t val) {
-    if ((device uintptr_t)(address) % 2 == 0) {
-        // Aligned case
-        return atomic_fetch_max_explicit((device atomic_int*)(address), val, memory_order_relaxed);
-    } else {
-        // Unaligned case
-        device atomic_uint* base_address = (device atomic_uint*)((device uintptr_t)(address) & ~3);
-        uint shift = (((device uintptr_t)(address) & 3) * 8);
-        uint mask = 0xFFFF << shift;
+    device atomic_uint* base_address = (device atomic_uint*)((device uintptr_t)(address) & ~3);
+    uint shift = (((device uintptr_t)(address) & 3) * 8);
+    uint mask = 0xFFFF << shift;
+    
+    uint old = atomic_load_explicit(base_address, memory_order_relaxed);
+    uint assumed, new_val;
+    
+    do {
+        assumed = old;
+        int16_t current = (assumed >> shift) & 0xFFFF;
         
-        uint old = atomic_load_explicit(base_address, memory_order_relaxed);
-        uint assumed, new_val;
+        if (current & 0x8000) {
+            current |= ~0xFFFF;
+        }
         
-        do {
-            assumed = old;
-            int16_t current = (assumed >> shift) & 0xFFFF;
-            
-            if (current >= val) {
-                return current; // No update needed
-            }
-            
-            new_val = (assumed & ~mask) | ((val & 0xFFFF) << shift);
-            old = atomic_exchange_explicit(base_address, new_val, memory_order_relaxed);
-        } while (assumed != old);
+        if (current >= val) {
+            return current;
+        }
         
-        return (old >> shift) & 0xFFFF;
+        new_val = (assumed & ~mask) | ((val & 0xFFFF) << shift);
+        old = atomic_exchange_explicit(base_address, new_val, memory_order_relaxed);
+        
+        if (assumed == old) {
+            break;
+        }
+        
+    } while (true);
+    
+    int16_t result = (old >> shift) & 0xFFFF;
+    if (result & 0x8000) {
+        result |= ~0xFFFF;
     }
+    
+    return result;
 }
-
 inline uint32_t atomic_max_uint32(device uint32_t* address, uint32_t val) {
     return atomic_fetch_max_explicit((device atomic_uint*)(address), val, memory_order_relaxed);
 }
@@ -492,62 +508,64 @@ inline int8_t atomic_min_int8(device int8_t* address, int8_t val) {
 
 // For uint16_t
 inline uint16_t atomic_min_uint16(device uint16_t* address, uint16_t val) {
-    if ((device uintptr_t)(address) % 2 == 0) {
-        // Aligned case
-        return atomic_fetch_min_explicit((device atomic_uint*)(address), val, memory_order_relaxed);
-    } else {
-        // Unaligned case
-        device atomic_uint* base_address = (device atomic_uint*)((device uintptr_t)(address) & ~3);
-        uint shift = (((device uintptr_t)(address) & 3) * 8);
-        uint mask = 0xFFFF << shift;
+    device atomic_uint* base_address = (device atomic_uint*)((device uintptr_t)(address) & ~3);
+    uint shift = (((device uintptr_t)(address) & 3) * 8);
+    uint mask = 0xFFFF << shift;
+    
+    uint old = atomic_load_explicit(base_address, memory_order_relaxed);
+    uint assumed, new_val;
+    
+    do {
+        assumed = old;
+        uint16_t current = (assumed >> shift) & 0xFFFF;
         
-        uint old = atomic_load_explicit(base_address, memory_order_relaxed);
-        uint assumed, new_val;
+        if (current <= val) {
+            return current;
+        }
         
-        do {
-            assumed = old;
-            uint16_t current = (assumed >> shift) & 0xFFFF;
-            
-            if (current <= val) {
-                return current; // No update needed
-            }
-            
-            new_val = (assumed & ~mask) | ((val & 0xFFFF) << shift);
-            old = atomic_exchange_explicit(base_address, new_val, memory_order_relaxed);
-        } while (assumed != old);
+        new_val = (assumed & ~mask) | ((val & 0xFFFF) << shift);
+        old = atomic_exchange_explicit(base_address, new_val, memory_order_relaxed);
         
-        return (old >> shift) & 0xFFFF;
-    }
+        if (assumed == old) {
+            break;
+        }
+    } while (true);
+    
+    return (old >> shift) & 0xFFFF;
 }
 
 // For int16_t
 inline int16_t atomic_min_int16(device int16_t* address, int16_t val) {
-    if ((device uintptr_t)(address) % 2 == 0) {
-        // Aligned case
-        return atomic_fetch_min_explicit((device atomic_int*)(address), val, memory_order_relaxed);
-    } else {
-        // Unaligned case
-        device atomic_uint* base_address = (device atomic_uint*)((device uintptr_t)(address) & ~3);
-        uint shift = (((device uintptr_t)(address) & 3) * 8);
-        uint mask = 0xFFFF << shift;
+    device atomic_uint* base_address = (device atomic_uint*)((device uintptr_t)(address) & ~3);
+    uint shift = (((device uintptr_t)(address) & 3) * 8);
+    uint mask = 0xFFFF << shift;
+    
+    uint old = atomic_load_explicit(base_address, memory_order_relaxed);
+    uint assumed, new_val;
+    
+    do {
+        assumed = old;
+        int16_t current = (assumed >> shift) & 0xFFFF;
         
-        uint old = atomic_load_explicit(base_address, memory_order_relaxed);
-        uint assumed, new_val;
+        if (current & 0x8000) {
+            current |= ~0xFFFF;
+        }
         
-        do {
-            assumed = old;
-            int16_t current = (assumed >> shift) & 0xFFFF;
-            
-            if (current <= val) {
-                return current; // No update needed
-            }
-            
-            new_val = (assumed & ~mask) | ((val & 0xFFFF) << shift);
-            old = atomic_exchange_explicit(base_address, new_val, memory_order_relaxed);
-        } while (assumed != old);
+        bool is_current_less = current <= val;
+        if (is_current_less) {
+            break;
+        }
         
-        return (old >> shift) & 0xFFFF;
+        new_val = (assumed & ~mask) | ((val & 0xFFFF) << shift);
+        old = atomic_exchange_explicit(base_address, new_val, memory_order_relaxed);
+    } while (assumed != old);
+    
+    int16_t result = (old >> shift) & 0xFFFF;
+    if (result & 0x8000) {
+        result |= ~0xFFFF;
     }
+    
+    return result;
 }
 
 inline uint32_t atomic_min_uint32(device uint32_t* address, uint32_t val) {

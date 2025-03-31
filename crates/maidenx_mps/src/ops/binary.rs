@@ -108,6 +108,28 @@ macro_rules! implement_binary_op {
     };
 }
 
+macro_rules! implement_dummy_binary_op {
+    ($fn_name:ident, $in_type:ty, $out_type:ty) => {
+        /// # Safety
+        ///
+        /// This is a dummy function for 64-bit types in MPS which are not supported.
+        /// It's unsafe to maintain the same signature as the actual implementation.
+        pub unsafe fn $fn_name(
+            _num_els: usize,
+            _num_dims: usize,
+            _metadata: *const usize,
+            _lhs: *const $in_type,
+            _rhs: *const $in_type,
+            _out: *mut $out_type,
+        ) {
+            // MPS doesn't support 64-bit types, this is a dummy function
+            // that will never actually be called because the tensor layer
+            // will prevent execution reaching this point.
+            eprintln!("MPS does not support 64-bit operations");
+        }
+    };
+}
+
 macro_rules! implement_binary_ops {
     ($dtype:ident => $ty:ty) => {
         paste::paste! {
@@ -132,6 +154,30 @@ macro_rules! implement_binary_ops {
     };
 }
 
+macro_rules! implement_dummy_binary_ops {
+    ($dtype:ident => $ty:ty) => {
+        paste::paste! {
+            implement_dummy_binary_op!([<metal_add_ $dtype>], $ty, $ty);
+            implement_dummy_binary_op!([<metal_sub_ $dtype>], $ty, $ty);
+            implement_dummy_binary_op!([<metal_mul_ $dtype>], $ty, $ty);
+            implement_dummy_binary_op!([<metal_div_ $dtype>], $ty, $ty);
+            implement_dummy_binary_op!([<metal_maximum_ $dtype>], $ty, $ty);
+            implement_dummy_binary_op!([<metal_minimum_ $dtype>], $ty, $ty);
+
+            implement_dummy_binary_op!([<metal_logical_and_ $dtype>], $ty, bool);
+            implement_dummy_binary_op!([<metal_logical_or_ $dtype>], $ty, bool);
+            implement_dummy_binary_op!([<metal_logical_xor_ $dtype>], $ty, bool);
+
+            implement_dummy_binary_op!([<metal_eq_ $dtype>], $ty, bool);
+            implement_dummy_binary_op!([<metal_ne_ $dtype>], $ty, bool);
+            implement_dummy_binary_op!([<metal_lt_ $dtype>], $ty, bool);
+            implement_dummy_binary_op!([<metal_le_ $dtype>], $ty, bool);
+            implement_dummy_binary_op!([<metal_gt_ $dtype>], $ty, bool);
+            implement_dummy_binary_op!([<metal_ge_ $dtype>], $ty, bool);
+        }
+    };
+}
+
 implement_binary_ops!(bf16 => bf16);
 implement_binary_ops!(f16 => f16);
 implement_binary_ops!(f32 => f32);
@@ -142,3 +188,7 @@ implement_binary_ops!(u32 => u32);
 implement_binary_ops!(i8 => i8);
 implement_binary_ops!(i16 => i16);
 implement_binary_ops!(i32 => i32);
+
+implement_dummy_binary_ops!(u64 => u64);
+implement_dummy_binary_ops!(i64 => i64);
+implement_dummy_binary_ops!(f64 => f64);

@@ -104,35 +104,35 @@ declare_extern_unary_ops! {
     },
     U8 => {
         type: u8,
-        ops: [sign, square, sqrt; logical_not]
+        ops: [sign, square, sqrt, relu; logical_not]
     },
     U16 => {
         type: u16,
-        ops: [sign, square, sqrt; logical_not]
+        ops: [sign, square, sqrt, relu; logical_not]
     },
     U32 => {
         type: u32,
-        ops: [sign, square, sqrt; logical_not]
+        ops: [sign, square, sqrt, relu; logical_not]
     },
     U64 => {
         type: u64,
-        ops: [sign, square, sqrt; logical_not]
+        ops: [sign, square, sqrt, relu; logical_not]
     },
     I8 => {
         type: i8,
-        ops: [neg, abs, sign, square, sqrt; logical_not]
+        ops: [neg, abs, sign, square, sqrt, relu; logical_not]
     },
     I16 => {
         type: i16,
-        ops: [neg, abs, sign, square, sqrt; logical_not]
+        ops: [neg, abs, sign, square, sqrt, relu; logical_not]
     },
     I32 => {
         type: i32,
-        ops: [neg, abs, sign, square, sqrt; logical_not]
+        ops: [neg, abs, sign, square, sqrt, relu; logical_not]
     },
     I64 => {
         type: i64,
-        ops: [neg, abs, sign, square, sqrt; logical_not]
+        ops: [neg, abs, sign, square, sqrt, relu; logical_not]
     }
 }
 

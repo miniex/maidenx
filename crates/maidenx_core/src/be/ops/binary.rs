@@ -88,14 +88,6 @@ macro_rules! declare_binary_op {
                     assert_eq!(output.dtype(), lhs.dtype(), "Output dtype must match input dtype");
                 }
 
-                #[cfg(feature = "mps")]
-                if output.device() == Device::MPS {
-                    match lhs.dtype() {
-                        DType::U64 | DType::I64 | DType::F64 => return Err(Error::UnsupportedDType),
-                        _ => {}
-                    }
-                }
-
                 let (metadata, cleanup_fn): (*const usize, CleanupFn) = match output.device() {
                     Device::CPU => (
                         metadata.map_or(std::ptr::null(), |d| d.as_ptr()),

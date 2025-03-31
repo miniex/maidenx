@@ -209,6 +209,7 @@ impl Tensor {
             let node = TensorNode::new("slice".to_string(), vec![self.clone()], Some(backward_fn));
             result.node = Some(node);
         }
+
         Ok(result)
     }
 

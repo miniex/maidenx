@@ -13,8 +13,9 @@ template <typename T>
 kernel void fill_kernel(device T *data [[buffer(0)]],
                         constant T& value [[buffer(1)]],
                         constant size_t& size [[buffer(2)]],
-                        uint id [[thread_position_in_grid]]) {
-  if (id < size) {
+                        uint thread_index [[thread_position_in_grid]],
+                        uint threads_per_grid [[threads_per_grid]]) {
+  for (uint id = thread_index; id < size; id += threads_per_grid) {
     data[id] = value;
   }
 }
@@ -28,52 +29,154 @@ kernel void fill_kernel(device T *data [[buffer(0)]],
       constant size_t& num_dims [[buffer(4)]],                                \
       constant size_t *metadata [[buffer(5)]],                                \
       constant TYPENAME& pad_value [[buffer(6)]],                             \
-      uint id [[thread_position_in_grid]]) {                                  \
-    if (id >= num_els_out) return;                                            \
+      uint thread_index [[thread_position_in_grid]],                          \
+      uint threads_per_grid [[threads_per_grid]]) {                           \
                                                                               \
-    const constant size_t *input_dims = metadata;                             \
-    const constant size_t *input_strides = metadata + num_dims;               \
-    const size_t input_offset = metadata ? *(metadata + 2 * num_dims) : 0;    \
-    const constant size_t *output_dims = metadata + 2 * num_dims + 1;         \
-    const constant size_t *paddings = metadata + 3 * num_dims + 1;            \
+    for (uint id = thread_index; id < num_els_out; id += threads_per_grid) {  \
+      if (!metadata || !inp || !out)                                          \
+        continue;                                                             \
                                                                               \
-    if (num_dims > MAX_DIMS)                                                  \
-      return;                                                                 \
+      const constant size_t *input_dims = metadata;                           \
+      const constant size_t *input_strides = metadata + num_dims;             \
+      const size_t input_offset = metadata ? *(metadata + 2 * num_dims) : 0;  \
+      const constant size_t *output_dims = metadata + 2 * num_dims + 1;       \
+      const constant size_t *paddings = metadata + 3 * num_dims + 1;          \
                                                                               \
-    /* Initialize output with pad value */                                    \
-    out[id] = pad_value;                                                      \
+      if (num_dims > MAX_DIMS)                                                \
+        continue;                                                             \
                                                                               \
-    bool is_input_contiguous =                                                \
-        is_contiguous(num_dims, input_dims, input_strides);                   \
+      /* Initialize output with pad value */                                  \
+      out[id] = pad_value;                                                    \
                                                                               \
-    /* Calculate coordinates in output tensor */                              \
-    size_t out_coords[MAX_DIMS];                                              \
-    size_t tmp_i = id;                                                        \
-    for (int d = num_dims - 1; d >= 0; --d) {                                 \
-      out_coords[d] = tmp_i % output_dims[d];                                 \
-      tmp_i /= output_dims[d];                                                \
-    }                                                                         \
+      bool is_input_contiguous =                                              \
+          is_contiguous(num_dims, input_dims, input_strides);                 \
                                                                               \
-    /* Calculate corresponding coordinates in input tensor */                 \
-    bool in_bounds = true;                                                    \
-    size_t in_coords[MAX_DIMS];                                               \
-                                                                              \
-    for (size_t d = 0; d < num_dims; d++) {                                   \
-      size_t pad_before = paddings[d * 2];                                    \
-      int pos = (int)out_coords[d] - (int)pad_before;                         \
-                                                                              \
-      /* Check if this coordinate is within input bounds */                   \
-      if (pos < 0 || pos >= (int)input_dims[d]) {                             \
-        in_bounds = false;                                                    \
-        break;                                                                \
+      /* Calculate coordinates in output tensor */                            \
+      size_t out_coords[MAX_DIMS];                                            \
+      size_t tmp_i = id;                                                      \
+      for (int d = num_dims - 1; d >= 0; --d) {                               \
+        out_coords[d] = tmp_i % output_dims[d];                               \
+        tmp_i /= output_dims[d];                                              \
       }                                                                       \
                                                                               \
-      /* Adjust to input coordinates */                                       \
-      in_coords[d] = (size_t)pos;                                             \
-    }                                                                         \
+      /* Calculate corresponding coordinates in input tensor */               \
+      bool in_bounds = true;                                                  \
+      size_t in_coords[MAX_DIMS];                                             \
                                                                               \
-    /* If within bounds, copy from input to output */                         \
-    if (in_bounds) {                                                          \
+      for (size_t d = 0; d < num_dims; d++) {                                 \
+        size_t pad_before = paddings[d * 2];                                  \
+        int pos = (int)out_coords[d] - (int)pad_before;                       \
+                                                                              \
+        /* Check if this coordinate is within input bounds */                 \
+        if (pos < 0 || pos >= (int)input_dims[d]) {                           \
+          in_bounds = false;                                                  \
+          break;                                                              \
+        }                                                                     \
+                                                                              \
+        /* Adjust to input coordinates */                                     \
+        in_coords[d] = (size_t)pos;                                           \
+      }                                                                       \
+                                                                              \
+      /* If within bounds, copy from input to output */                       \
+      if (in_bounds) {                                                        \
+        /* Calculate index for input with strides */                          \
+        size_t in_idx;                                                        \
+        if (is_input_contiguous) {                                            \
+          /* Calculate linear index for contiguous input */                   \
+          in_idx = 0;                                                         \
+          size_t stride = 1;                                                  \
+          for (int d = num_dims - 1; d >= 0; --d) {                           \
+            in_idx += in_coords[d] * stride;                                  \
+            stride *= input_dims[d];                                          \
+          }                                                                   \
+        } else {                                                              \
+          /* Calculate strided index */                                       \
+          in_idx = 0;                                                         \
+          for (size_t d = 0; d < num_dims; d++) {                             \
+            in_idx += in_coords[d] * input_strides[d];                        \
+          }                                                                   \
+        }                                                                     \
+                                                                              \
+        /* Copy value from input to output, including offset */               \
+        if (in_idx < num_els_in) {                                            \
+          out[id] = inp[input_offset + in_idx];                               \
+        }                                                                     \
+      }                                                                       \
+    }                                                                         \
+  }
+
+#define PAD_WITH_REFLECTION_OP(TYPENAME, FN_NAME)                             \
+  kernel void metal_##FN_NAME##_kernel(                                       \
+      device TYPENAME *out [[buffer(0)]],                                     \
+      const device TYPENAME *inp [[buffer(1)]],                               \
+      constant size_t& num_els_in [[buffer(2)]],                              \
+      constant size_t& num_els_out [[buffer(3)]],                             \
+      constant size_t& num_dims [[buffer(4)]],                                \
+      constant size_t *metadata [[buffer(5)]],                                \
+      uint thread_index [[thread_position_in_grid]],                          \
+      uint threads_per_grid [[threads_per_grid]]) {                           \
+                                                                              \
+    for (uint id = thread_index; id < num_els_out; id += threads_per_grid) {  \
+      if (!metadata || !inp || !out)                                          \
+        continue;                                                             \
+                                                                              \
+      const constant size_t *input_dims = metadata;                           \
+      const constant size_t *input_strides = metadata + num_dims;             \
+      const size_t input_offset = metadata ? *(metadata + 2 * num_dims) : 0;  \
+      const constant size_t *output_dims = metadata + 2 * num_dims + 1;       \
+      const constant size_t *paddings = metadata + 3 * num_dims + 1;          \
+                                                                              \
+      if (num_dims > MAX_DIMS)                                                \
+        continue;                                                             \
+                                                                              \
+      bool is_input_contiguous =                                              \
+          is_contiguous(num_dims, input_dims, input_strides);                 \
+                                                                              \
+      /* Calculate coordinates in output tensor */                            \
+      size_t out_coords[MAX_DIMS];                                            \
+      size_t tmp_i = id;                                                      \
+      for (int d = num_dims - 1; d >= 0; --d) {                               \
+        out_coords[d] = tmp_i % output_dims[d];                               \
+        tmp_i /= output_dims[d];                                              \
+      }                                                                       \
+                                                                              \
+      /* Calculate corresponding coordinates in input tensor with reflection */ \
+      size_t in_coords[MAX_DIMS];                                              \
+                                                                              \
+      for (size_t d = 0; d < num_dims; d++) {                                 \
+        size_t pad_before = paddings[d * 2];                                  \
+        size_t dim_size = input_dims[d];                                      \
+                                                                              \
+        /* Get position relative to the padded area */                        \
+        int pos = static_cast<int>(out_coords[d]) -                           \
+                  static_cast<int>(pad_before);                               \
+                                                                              \
+        /* Apply correct reflection padding */                                \
+        /* For an input [1,2,3,4] with pad=2, we want: [3,2,1,2,3,4,3,2] */   \
+                                                                              \
+        /* Basic reflection algorithm */                                      \
+        if (pos < 0) {                                                        \
+          /* Reflection for positions before array start */                   \
+          pos = -pos; /* First reflection at 0 */                             \
+        } else if (pos >= static_cast<int>(dim_size)) {                       \
+          /* Reflection for positions after array end */                      \
+          pos = 2 * static_cast<int>(dim_size) - pos -                        \
+                2; /* Reflect at (dim_size-1) */                              \
+        }                                                                     \
+                                                                              \
+        /* Handle multiple reflections if needed */                           \
+        while (pos < 0 || pos >= static_cast<int>(dim_size)) {                \
+          if (pos < 0) {                                                      \
+            pos = -pos; /* Reflect at 0 */                                    \
+          } else if (pos >= static_cast<int>(dim_size)) {                     \
+            pos = 2 * static_cast<int>(dim_size) - pos -                      \
+                  2; /* Reflect at (dim_size-1) */                            \
+          }                                                                   \
+        }                                                                     \
+                                                                              \
+        in_coords[d] = static_cast<size_t>(pos);                              \
+      }                                                                       \
+                                                                              \
       /* Calculate index for input with strides */                            \
       size_t in_idx;                                                          \
       if (is_input_contiguous) {                                              \
@@ -99,98 +202,6 @@ kernel void fill_kernel(device T *data [[buffer(0)]],
     }                                                                         \
   }
 
-#define PAD_WITH_REFLECTION_OP(TYPENAME, FN_NAME)                             \
-  kernel void metal_##FN_NAME##_kernel(                                       \
-      device TYPENAME *out [[buffer(0)]],                                     \
-      const device TYPENAME *inp [[buffer(1)]],                               \
-      constant size_t& num_els_in [[buffer(2)]],                              \
-      constant size_t& num_els_out [[buffer(3)]],                             \
-      constant size_t& num_dims [[buffer(4)]],                                \
-      constant size_t *metadata [[buffer(5)]],                                \
-      uint id [[thread_position_in_grid]]) {                                  \
-    if (id >= num_els_out) return;                                            \
-                                                                              \
-    const constant size_t *input_dims = metadata;                             \
-    const constant size_t *input_strides = metadata + num_dims;               \
-    const size_t input_offset = metadata ? *(metadata + 2 * num_dims) : 0;    \
-    const constant size_t *output_dims = metadata + 2 * num_dims + 1;         \
-    const constant size_t *paddings = metadata + 3 * num_dims + 1;            \
-                                                                              \
-    if (num_dims > MAX_DIMS)                                                  \
-      return;                                                                 \
-                                                                              \
-    bool is_input_contiguous =                                                \
-        is_contiguous(num_dims, input_dims, input_strides);                   \
-                                                                              \
-    /* Calculate coordinates in output tensor */                              \
-    size_t out_coords[MAX_DIMS];                                              \
-    size_t tmp_i = id;                                                        \
-    for (int d = num_dims - 1; d >= 0; --d) {                                 \
-      out_coords[d] = tmp_i % output_dims[d];                                 \
-      tmp_i /= output_dims[d];                                                \
-    }                                                                         \
-                                                                              \
-    /* Calculate corresponding coordinates in input tensor with reflection */ \
-    size_t in_coords[MAX_DIMS];                                               \
-                                                                              \
-    for (size_t d = 0; d < num_dims; d++) {                                   \
-      size_t pad_before = paddings[d * 2];                                    \
-      size_t dim_size = input_dims[d];                                        \
-                                                                              \
-      /* Get position relative to the padded area */                          \
-      int pos = static_cast<int>(out_coords[d]) -                             \
-                static_cast<int>(pad_before);                                 \
-                                                                              \
-      /* Apply correct reflection padding */                                  \
-      /* For an input [1,2,3,4] with pad=2, we want: [3,2,1,2,3,4,3,2] */     \
-                                                                              \
-      /* Basic reflection algorithm */                                        \
-      if (pos < 0) {                                                          \
-        /* Reflection for positions before array start */                     \
-        pos = -pos; /* First reflection at 0 */                               \
-      } else if (pos >= static_cast<int>(dim_size)) {                         \
-        /* Reflection for positions after array end */                        \
-        pos = 2 * static_cast<int>(dim_size) - pos -                          \
-              2; /* Reflect at (dim_size-1) */                                \
-      }                                                                       \
-                                                                              \
-      /* Handle multiple reflections if needed */                             \
-      while (pos < 0 || pos >= static_cast<int>(dim_size)) {                  \
-        if (pos < 0) {                                                        \
-          pos = -pos; /* Reflect at 0 */                                      \
-        } else if (pos >= static_cast<int>(dim_size)) {                       \
-          pos = 2 * static_cast<int>(dim_size) - pos -                        \
-                2; /* Reflect at (dim_size-1) */                              \
-        }                                                                     \
-      }                                                                       \
-                                                                              \
-      in_coords[d] = static_cast<size_t>(pos);                                \
-    }                                                                         \
-                                                                              \
-    /* Calculate index for input with strides */                              \
-    size_t in_idx;                                                            \
-    if (is_input_contiguous) {                                                \
-      /* Calculate linear index for contiguous input */                       \
-      in_idx = 0;                                                             \
-      size_t stride = 1;                                                      \
-      for (int d = num_dims - 1; d >= 0; --d) {                               \
-        in_idx += in_coords[d] * stride;                                      \
-        stride *= input_dims[d];                                              \
-      }                                                                       \
-    } else {                                                                  \
-      /* Calculate strided index */                                           \
-      in_idx = 0;                                                             \
-      for (size_t d = 0; d < num_dims; d++) {                                 \
-        in_idx += in_coords[d] * input_strides[d];                            \
-      }                                                                       \
-    }                                                                         \
-                                                                              \
-    /* Copy value from input to output, including offset */                   \
-    if (in_idx < num_els_in) {                                                \
-      out[id] = inp[input_offset + in_idx];                                   \
-    }                                                                         \
-  }
-
 #define PAD_WITH_REPLICATION_OP(TYPENAME, FN_NAME)                           \
   kernel void metal_##FN_NAME##_kernel(                                      \
       device TYPENAME *out [[buffer(0)]],                                    \
@@ -199,65 +210,70 @@ kernel void fill_kernel(device T *data [[buffer(0)]],
       constant size_t& num_els_out [[buffer(3)]],                            \
       constant size_t& num_dims [[buffer(4)]],                               \
       constant size_t *metadata [[buffer(5)]],                               \
-      uint id [[thread_position_in_grid]]) {                                 \
-    if (id >= num_els_out) return;                                           \
+      uint thread_index [[thread_position_in_grid]],                          \
+      uint threads_per_grid [[threads_per_grid]]) {                           \
+                                                                              \
+    for (uint id = thread_index; id < num_els_out; id += threads_per_grid) {  \
+      if (!metadata || !inp || !out)                                          \
+        continue;                                                             \
                                                                              \
-    const constant size_t *input_dims = metadata;                            \
-    const constant size_t *input_strides = metadata + num_dims;              \
-    const size_t input_offset = metadata ? *(metadata + 2 * num_dims) : 0;   \
-    const constant size_t *output_dims = metadata + 2 * num_dims + 1;        \
-    const constant size_t *paddings = metadata + 3 * num_dims + 1;           \
+      const constant size_t *input_dims = metadata;                            \
+      const constant size_t *input_strides = metadata + num_dims;              \
+      const size_t input_offset = metadata ? *(metadata + 2 * num_dims) : 0;   \
+      const constant size_t *output_dims = metadata + 2 * num_dims + 1;        \
+      const constant size_t *paddings = metadata + 3 * num_dims + 1;           \
                                                                              \
-    if (num_dims > MAX_DIMS)                                                 \
-      return;                                                                \
+      if (num_dims > MAX_DIMS)                                                \
+        continue;                                                             \
                                                                              \
-    bool is_input_contiguous =                                               \
-        is_contiguous(num_dims, input_dims, input_strides);                  \
+      bool is_input_contiguous =                                               \
+          is_contiguous(num_dims, input_dims, input_strides);                  \
                                                                              \
-    /* Calculate coordinates in output tensor */                             \
-    size_t out_coords[MAX_DIMS];                                             \
-    size_t tmp_i = id;                                                       \
-    for (int d = num_dims - 1; d >= 0; --d) {                                \
-      out_coords[d] = tmp_i % output_dims[d];                                \
-      tmp_i /= output_dims[d];                                               \
-    }                                                                        \
+      /* Calculate coordinates in output tensor */                             \
+      size_t out_coords[MAX_DIMS];                                             \
+      size_t tmp_i = id;                                                       \
+      for (int d = num_dims - 1; d >= 0; --d) {                                \
+        out_coords[d] = tmp_i % output_dims[d];                                \
+        tmp_i /= output_dims[d];                                               \
+      }                                                                        \
                                                                              \
-    /* Calculate corresponding coordinates in input tensor with replication */\
-    size_t in_coords[MAX_DIMS];                                              \
+      /* Calculate corresponding coordinates in input tensor with replication */\
+      size_t in_coords[MAX_DIMS];                                              \
                                                                              \
-    for (size_t d = 0; d < num_dims; d++) {                                  \
-      size_t pad_before = paddings[d * 2];                                   \
-      long pos = static_cast<long>(out_coords[d]) -                          \
-                 static_cast<long>(pad_before);                              \
+      for (size_t d = 0; d < num_dims; d++) {                                  \
+        size_t pad_before = paddings[d * 2];                                   \
+        long pos = static_cast<long>(out_coords[d]) -                          \
+                 static_cast<long>(pad_before);                               \
                                                                              \
-      /* Apply replication (clamp to valid range) */                         \
-      pos = max(0L, min(pos, static_cast<long>(input_dims[d] - 1)));         \
+        /* Apply replication (clamp to valid range) */                         \
+        pos = max(0L, min(pos, static_cast<long>(input_dims[d] - 1)));         \
                                                                              \
-      in_coords[d] = static_cast<size_t>(pos);                               \
-    }                                                                        \
+        in_coords[d] = static_cast<size_t>(pos);                               \
+      }                                                                        \
                                                                              \
-    /* Calculate index for input with strides */                             \
-    size_t in_idx;                                                           \
-    if (is_input_contiguous) {                                               \
-      /* Calculate linear index for contiguous input */                      \
-      in_idx = 0;                                                            \
-      size_t stride = 1;                                                     \
-      for (int d = num_dims - 1; d >= 0; --d) {                              \
-        in_idx += in_coords[d] * stride;                                     \
-        stride *= input_dims[d];                                             \
-      }                                                                      \
-    } else {                                                                 \
-      /* Calculate strided index */                                          \
-      in_idx = 0;                                                            \
-      for (size_t d = 0; d < num_dims; d++) {                                \
-        in_idx += in_coords[d] * input_strides[d];                           \
-      }                                                                      \
-    }                                                                        \
+      /* Calculate index for input with strides */                             \
+      size_t in_idx;                                                           \
+      if (is_input_contiguous) {                                               \
+        /* Calculate linear index for contiguous input */                      \
+        in_idx = 0;                                                            \
+        size_t stride = 1;                                                     \
+        for (int d = num_dims - 1; d >= 0; --d) {                              \
+          in_idx += in_coords[d] * stride;                                     \
+          stride *= input_dims[d];                                             \
+        }                                                                      \
+      } else {                                                                 \
+        /* Calculate strided index */                                          \
+        in_idx = 0;                                                            \
+        for (size_t d = 0; d < num_dims; d++) {                                \
+          in_idx += in_coords[d] * input_strides[d];                           \
+        }                                                                      \
+      }                                                                        \
                                                                              \
-    /* Copy value from input to output, including offset */                  \
-    if (in_idx < num_els_in) {                                               \
-      out[id] = inp[input_offset + in_idx];                                  \
-    }                                                                        \
+      /* Copy value from input to output, including offset */                  \
+      if (in_idx < num_els_in) {                                               \
+        out[id] = inp[input_offset + in_idx];                                  \
+      }                                                                        \
+    }                                                                          \
   }
 
 // Backward operations - fixed to remove unused input_offset
@@ -269,49 +285,151 @@ kernel void fill_kernel(device T *data [[buffer(0)]],
       constant size_t& num_els_out [[buffer(3)]],                             \
       constant size_t& num_dims [[buffer(4)]],                                \
       constant size_t *metadata [[buffer(5)]],                                \
-      uint id [[thread_position_in_grid]]) {                                  \
-    if (id >= num_els_out) return;                                            \
+      uint thread_index [[thread_position_in_grid]],                          \
+      uint threads_per_grid [[threads_per_grid]]) {                           \
                                                                               \
-    const constant size_t *input_dims = metadata;                             \
-    const constant size_t *input_strides = metadata + num_dims;               \
-    /* Removed unused input_offset variable */                                \
-    const constant size_t *output_dims = metadata + 2 * num_dims + 1;         \
-    const constant size_t *paddings = metadata + 3 * num_dims + 1;            \
+    for (uint id = thread_index; id < num_els_out; id += threads_per_grid) {  \
+      if (!metadata || !grad_out || !grad_in)                                 \
+        continue;                                                             \
                                                                               \
-    if (num_dims > MAX_DIMS)                                                  \
-      return;                                                                 \
+      const constant size_t *input_dims = metadata;                           \
+      const constant size_t *input_strides = metadata + num_dims;             \
+      /* Removed unused input_offset variable */                              \
+      const constant size_t *output_dims = metadata + 2 * num_dims + 1;       \
+      const constant size_t *paddings = metadata + 3 * num_dims + 1;          \
                                                                               \
-    bool is_input_contiguous =                                                \
-        is_contiguous(num_dims, input_dims, input_strides);                   \
+      if (num_dims > MAX_DIMS)                                                \
+        continue;                                                             \
                                                                               \
-    /* Calculate coordinates in output tensor */                              \
-    size_t out_coords[MAX_DIMS];                                              \
-    size_t tmp_i = id;                                                        \
-    for (int d = num_dims - 1; d >= 0; --d) {                                 \
-      out_coords[d] = tmp_i % output_dims[d];                                 \
-      tmp_i /= output_dims[d];                                                \
-    }                                                                         \
+      bool is_input_contiguous =                                              \
+          is_contiguous(num_dims, input_dims, input_strides);                 \
                                                                               \
-    /* Calculate corresponding coordinates in input tensor */                 \
-    bool in_bounds = true;                                                    \
-    size_t in_coords[MAX_DIMS];                                               \
-                                                                              \
-    for (size_t d = 0; d < num_dims; d++) {                                   \
-      size_t pad_before = paddings[d * 2];                                    \
-      int pos = (int)out_coords[d] - (int)pad_before;                         \
-                                                                              \
-      /* Check if this coordinate is within input bounds */                   \
-      if (pos < 0 || pos >= (int)input_dims[d]) {                             \
-        in_bounds = false;                                                    \
-        break;                                                                \
+      /* Calculate coordinates in output tensor */                            \
+      size_t out_coords[MAX_DIMS];                                            \
+      size_t tmp_i = id;                                                      \
+      for (int d = num_dims - 1; d >= 0; --d) {                               \
+        out_coords[d] = tmp_i % output_dims[d];                               \
+        tmp_i /= output_dims[d];                                              \
       }                                                                       \
                                                                               \
-      /* Adjust to input coordinates */                                       \
-      in_coords[d] = (size_t)pos;                                             \
-    }                                                                         \
+      /* Calculate corresponding coordinates in input tensor */               \
+      bool in_bounds = true;                                                  \
+      size_t in_coords[MAX_DIMS];                                             \
                                                                               \
-    /* If within bounds, accumulate gradient */                               \
-    if (in_bounds) {                                                          \
+      for (size_t d = 0; d < num_dims; d++) {                                 \
+        size_t pad_before = paddings[d * 2];                                  \
+        int pos = (int)out_coords[d] - (int)pad_before;                       \
+                                                                              \
+        /* Check if this coordinate is within input bounds */                 \
+        if (pos < 0 || pos >= (int)input_dims[d]) {                           \
+          in_bounds = false;                                                  \
+          break;                                                              \
+        }                                                                     \
+                                                                              \
+        /* Adjust to input coordinates */                                     \
+        in_coords[d] = (size_t)pos;                                           \
+      }                                                                       \
+                                                                              \
+      /* If within bounds, accumulate gradient */                             \
+      if (in_bounds) {                                                        \
+        /* Calculate index for input with strides */                          \
+        size_t in_idx;                                                        \
+        if (is_input_contiguous) {                                            \
+          /* Calculate linear index for contiguous input */                   \
+          in_idx = 0;                                                         \
+          size_t stride = 1;                                                  \
+          for (int d = num_dims - 1; d >= 0; --d) {                           \
+            in_idx += in_coords[d] * stride;                                  \
+            stride *= input_dims[d];                                          \
+          }                                                                   \
+        } else {                                                              \
+          /* Calculate strided index */                                       \
+          in_idx = 0;                                                         \
+          for (size_t d = 0; d < num_dims; d++) {                             \
+            in_idx += in_coords[d] * input_strides[d];                        \
+          }                                                                   \
+        }                                                                     \
+                                                                              \
+        /* Accumulate gradient */                                             \
+        if (in_idx < num_els_in) {                                            \
+          (void)ATOMIC_ADD_FUNC(&grad_in[in_idx], grad_out[id]);              \
+        }                                                                     \
+      }                                                                       \
+    }                                                                         \
+  }
+
+#define PAD_WITH_REFLECTION_BACKWARD_OP(TYPENAME, FN_NAME, ATOMIC_ADD_FUNC)   \
+  kernel void metal_##FN_NAME##_kernel(                                       \
+      device TYPENAME *grad_in [[buffer(0)]],                                 \
+      const device TYPENAME *grad_out [[buffer(1)]],                          \
+      constant size_t& num_els_in [[buffer(2)]],                              \
+      constant size_t& num_els_out [[buffer(3)]],                             \
+      constant size_t& num_dims [[buffer(4)]],                                \
+      constant size_t *metadata [[buffer(5)]],                                \
+      uint thread_index [[thread_position_in_grid]],                          \
+      uint threads_per_grid [[threads_per_grid]]) {                           \
+                                                                              \
+    for (uint id = thread_index; id < num_els_out; id += threads_per_grid) {  \
+      if (!metadata || !grad_out || !grad_in)                                 \
+        continue;                                                             \
+                                                                              \
+      const constant size_t *input_dims = metadata;                           \
+      const constant size_t *input_strides = metadata + num_dims;             \
+      /* Removed unused input_offset variable */                              \
+      const constant size_t *output_dims = metadata + 2 * num_dims + 1;       \
+      const constant size_t *paddings = metadata + 3 * num_dims + 1;          \
+                                                                              \
+      if (num_dims > MAX_DIMS)                                                \
+        continue;                                                             \
+                                                                              \
+      bool is_input_contiguous =                                              \
+          is_contiguous(num_dims, input_dims, input_strides);                 \
+                                                                              \
+      /* Calculate coordinates in output tensor */                            \
+      size_t out_coords[MAX_DIMS];                                            \
+      size_t tmp_i = id;                                                      \
+      for (int d = num_dims - 1; d >= 0; --d) {                               \
+        out_coords[d] = tmp_i % output_dims[d];                               \
+        tmp_i /= output_dims[d];                                              \
+      }                                                                       \
+                                                                              \
+      /* Calculate corresponding coordinates in input tensor with reflection */ \
+      size_t in_coords[MAX_DIMS];                                             \
+                                                                              \
+      for (size_t d = 0; d < num_dims; d++) {                                 \
+        size_t pad_before = paddings[d * 2];                                  \
+        size_t dim_size = input_dims[d];                                      \
+                                                                              \
+        /* Get position relative to the padded area */                        \
+        int pos = static_cast<int>(out_coords[d]) -                           \
+                  static_cast<int>(pad_before);                               \
+                                                                              \
+        /* Apply correct reflection padding */                                \
+        /* For an input [1,2,3,4] with pad=2, we want: [3,2,1,2,3,4,3,2] */   \
+                                                                              \
+        /* Basic reflection algorithm */                                      \
+        if (pos < 0) {                                                        \
+          /* Reflection for positions before array start */                   \
+          pos = -pos; /* First reflection at 0 */                             \
+        } else if (pos >= static_cast<int>(dim_size)) {                       \
+          /* Reflection for positions after array end */                      \
+          pos = 2 * static_cast<int>(dim_size) - pos -                        \
+                2; /* Reflect at (dim_size-1) */                              \
+        }                                                                     \
+                                                                              \
+        /* Handle multiple reflections if needed */                           \
+        while (pos < 0 || pos >= static_cast<int>(dim_size)) {                \
+          if (pos < 0) {                                                      \
+            pos = -pos; /* Reflect at 0 */                                    \
+          } else if (pos >= static_cast<int>(dim_size)) {                     \
+            pos = 2 * static_cast<int>(dim_size) - pos -                      \
+                  2; /* Reflect at (dim_size-1) */                            \
+          }                                                                   \
+        }                                                                     \
+                                                                              \
+        in_coords[d] = static_cast<size_t>(pos);                              \
+      }                                                                       \
+                                                                              \
       /* Calculate index for input with strides */                            \
       size_t in_idx;                                                          \
       if (is_input_contiguous) {                                              \
@@ -337,98 +455,6 @@ kernel void fill_kernel(device T *data [[buffer(0)]],
     }                                                                         \
   }
 
-#define PAD_WITH_REFLECTION_BACKWARD_OP(TYPENAME, FN_NAME, ATOMIC_ADD_FUNC)   \
-  kernel void metal_##FN_NAME##_kernel(                                       \
-      device TYPENAME *grad_in [[buffer(0)]],                                 \
-      const device TYPENAME *grad_out [[buffer(1)]],                          \
-      constant size_t& num_els_in [[buffer(2)]],                              \
-      constant size_t& num_els_out [[buffer(3)]],                             \
-      constant size_t& num_dims [[buffer(4)]],                                \
-      constant size_t *metadata [[buffer(5)]],                                \
-      uint id [[thread_position_in_grid]]) {                                  \
-    if (id >= num_els_out) return;                                            \
-                                                                              \
-    const constant size_t *input_dims = metadata;                             \
-    const constant size_t *input_strides = metadata + num_dims;               \
-    /* Removed unused input_offset variable */                                \
-    const constant size_t *output_dims = metadata + 2 * num_dims + 1;         \
-    const constant size_t *paddings = metadata + 3 * num_dims + 1;            \
-                                                                              \
-    if (num_dims > MAX_DIMS)                                                  \
-      return;                                                                 \
-                                                                              \
-    bool is_input_contiguous =                                                \
-        is_contiguous(num_dims, input_dims, input_strides);                   \
-                                                                              \
-    /* Calculate coordinates in output tensor */                              \
-    size_t out_coords[MAX_DIMS];                                              \
-    size_t tmp_i = id;                                                        \
-    for (int d = num_dims - 1; d >= 0; --d) {                                 \
-      out_coords[d] = tmp_i % output_dims[d];                                 \
-      tmp_i /= output_dims[d];                                                \
-    }                                                                         \
-                                                                              \
-    /* Calculate corresponding coordinates in input tensor with reflection */ \
-    size_t in_coords[MAX_DIMS];                                               \
-                                                                              \
-    for (size_t d = 0; d < num_dims; d++) {                                   \
-      size_t pad_before = paddings[d * 2];                                    \
-      size_t dim_size = input_dims[d];                                        \
-                                                                              \
-      /* Get position relative to the padded area */                          \
-      int pos = static_cast<int>(out_coords[d]) -                             \
-                static_cast<int>(pad_before);                                 \
-                                                                              \
-      /* Apply correct reflection padding */                                  \
-      /* For an input [1,2,3,4] with pad=2, we want: [3,2,1,2,3,4,3,2] */     \
-                                                                              \
-      /* Basic reflection algorithm */                                        \
-      if (pos < 0) {                                                          \
-        /* Reflection for positions before array start */                     \
-        pos = -pos; /* First reflection at 0 */                               \
-      } else if (pos >= static_cast<int>(dim_size)) {                         \
-        /* Reflection for positions after array end */                        \
-        pos = 2 * static_cast<int>(dim_size) - pos -                          \
-              2; /* Reflect at (dim_size-1) */                                \
-      }                                                                       \
-                                                                              \
-      /* Handle multiple reflections if needed */                             \
-      while (pos < 0 || pos >= static_cast<int>(dim_size)) {                  \
-        if (pos < 0) {                                                        \
-          pos = -pos; /* Reflect at 0 */                                      \
-        } else if (pos >= static_cast<int>(dim_size)) {                       \
-          pos = 2 * static_cast<int>(dim_size) - pos -                        \
-                2; /* Reflect at (dim_size-1) */                              \
-        }                                                                     \
-      }                                                                       \
-                                                                              \
-      in_coords[d] = static_cast<size_t>(pos);                                \
-    }                                                                         \
-                                                                              \
-    /* Calculate index for input with strides */                              \
-    size_t in_idx;                                                            \
-    if (is_input_contiguous) {                                                \
-      /* Calculate linear index for contiguous input */                       \
-      in_idx = 0;                                                             \
-      size_t stride = 1;                                                      \
-      for (int d = num_dims - 1; d >= 0; --d) {                               \
-        in_idx += in_coords[d] * stride;                                      \
-        stride *= input_dims[d];                                              \
-      }                                                                       \
-    } else {                                                                  \
-      /* Calculate strided index */                                           \
-      in_idx = 0;                                                             \
-      for (size_t d = 0; d < num_dims; d++) {                                 \
-        in_idx += in_coords[d] * input_strides[d];                            \
-      }                                                                       \
-    }                                                                         \
-                                                                              \
-    /* Accumulate gradient */                                                 \
-    if (in_idx < num_els_in) {                                                \
-      (void)ATOMIC_ADD_FUNC(&grad_in[in_idx], grad_out[id]);                  \
-    }                                                                         \
-  }
-
 #define PAD_WITH_REPLICATION_BACKWARD_OP(TYPENAME, FN_NAME, ATOMIC_ADD_FUNC)  \
   kernel void metal_##FN_NAME##_kernel(                                       \
       device TYPENAME *grad_in [[buffer(0)]],                                 \
@@ -437,64 +463,69 @@ kernel void fill_kernel(device T *data [[buffer(0)]],
       constant size_t& num_els_out [[buffer(3)]],                             \
       constant size_t& num_dims [[buffer(4)]],                                \
       constant size_t *metadata [[buffer(5)]],                                \
-      uint id [[thread_position_in_grid]]) {                                  \
-    if (id >= num_els_out) return;                                            \
+      uint thread_index [[thread_position_in_grid]],                          \
+      uint threads_per_grid [[threads_per_grid]]) {                           \
                                                                               \
-    const constant size_t *input_dims = metadata;                             \
-    const constant size_t *input_strides = metadata + num_dims;               \
-    /* Removed unused input_offset variable */                                \
-    const constant size_t *output_dims = metadata + 2 * num_dims + 1;         \
-    const constant size_t *paddings = metadata + 3 * num_dims + 1;            \
+    for (uint id = thread_index; id < num_els_out; id += threads_per_grid) {  \
+      if (!metadata || !grad_out || !grad_in)                                 \
+        continue;                                                             \
                                                                               \
-    if (num_dims > MAX_DIMS)                                                  \
-      return;                                                                 \
+      const constant size_t *input_dims = metadata;                           \
+      const constant size_t *input_strides = metadata + num_dims;             \
+      /* Removed unused input_offset variable */                              \
+      const constant size_t *output_dims = metadata + 2 * num_dims + 1;       \
+      const constant size_t *paddings = metadata + 3 * num_dims + 1;          \
                                                                               \
-    bool is_input_contiguous =                                                \
-        is_contiguous(num_dims, input_dims, input_strides);                   \
+      if (num_dims > MAX_DIMS)                                                \
+        continue;                                                             \
                                                                               \
-    /* Calculate coordinates in output tensor */                              \
-    size_t out_coords[MAX_DIMS];                                              \
-    size_t tmp_i = id;                                                        \
-    for (int d = num_dims - 1; d >= 0; --d) {                                 \
-      out_coords[d] = tmp_i % output_dims[d];                                 \
-      tmp_i /= output_dims[d];                                                \
-    }                                                                         \
+      bool is_input_contiguous =                                              \
+          is_contiguous(num_dims, input_dims, input_strides);                 \
                                                                               \
-    /* Calculate corresponding coordinates in input tensor with replication */ \
-    size_t in_coords[MAX_DIMS];                                               \
-                                                                              \
-    for (size_t d = 0; d < num_dims; d++) {                                   \
-      size_t pad_before = paddings[d * 2];                                    \
-      long pos = static_cast<long>(out_coords[d]) -                           \
-                 static_cast<long>(pad_before);                               \
-                                                                              \
-      /* Apply replication (clamp to valid range) */                          \
-      pos = max(0L, min(pos, static_cast<long>(input_dims[d] - 1)));          \
-                                                                              \
-      in_coords[d] = static_cast<size_t>(pos);                                \
-    }                                                                         \
-                                                                              \
-    /* Calculate index for input with strides */                              \
-    size_t in_idx;                                                            \
-    if (is_input_contiguous) {                                                \
-      /* Calculate linear index for contiguous input */                       \
-      in_idx = 0;                                                             \
-      size_t stride = 1;                                                      \
+      /* Calculate coordinates in output tensor */                            \
+      size_t out_coords[MAX_DIMS];                                            \
+      size_t tmp_i = id;                                                      \
       for (int d = num_dims - 1; d >= 0; --d) {                               \
-        in_idx += in_coords[d] * stride;                                      \
-        stride *= input_dims[d];                                              \
+        out_coords[d] = tmp_i % output_dims[d];                               \
+        tmp_i /= output_dims[d];                                              \
       }                                                                       \
-    } else {                                                                  \
-      /* Calculate strided index */                                           \
-      in_idx = 0;                                                             \
-      for (size_t d = 0; d < num_dims; d++) {                                 \
-        in_idx += in_coords[d] * input_strides[d];                            \
-      }                                                                       \
-    }                                                                         \
                                                                               \
-    /* Accumulate gradient */                                                 \
-    if (in_idx < num_els_in) {                                                \
-      (void)ATOMIC_ADD_FUNC(&grad_in[in_idx], grad_out[id]);                  \
+      /* Calculate corresponding coordinates in input tensor with replication */ \
+      size_t in_coords[MAX_DIMS];                                             \
+                                                                              \
+      for (size_t d = 0; d < num_dims; d++) {                                 \
+        size_t pad_before = paddings[d * 2];                                  \
+        long pos = static_cast<long>(out_coords[d]) -                         \
+                   static_cast<long>(pad_before);                             \
+                                                                              \
+        /* Apply replication (clamp to valid range) */                        \
+        pos = max(0L, min(pos, static_cast<long>(input_dims[d] - 1)));        \
+                                                                              \
+        in_coords[d] = static_cast<size_t>(pos);                              \
+      }                                                                       \
+                                                                              \
+      /* Calculate index for input with strides */                            \
+      size_t in_idx;                                                          \
+      if (is_input_contiguous) {                                              \
+        /* Calculate linear index for contiguous input */                     \
+        in_idx = 0;                                                           \
+        size_t stride = 1;                                                    \
+        for (int d = num_dims - 1; d >= 0; --d) {                             \
+          in_idx += in_coords[d] * stride;                                    \
+          stride *= input_dims[d];                                            \
+        }                                                                     \
+      } else {                                                                \
+        /* Calculate strided index */                                         \
+        in_idx = 0;                                                           \
+        for (size_t d = 0; d < num_dims; d++) {                               \
+          in_idx += in_coords[d] * input_strides[d];                          \
+        }                                                                     \
+      }                                                                       \
+                                                                              \
+      /* Accumulate gradient */                                               \
+      if (in_idx < num_els_in) {                                              \
+        (void)ATOMIC_ADD_FUNC(&grad_in[in_idx], grad_out[id]);                \
+      }                                                                       \
     }                                                                         \
   }
 

@@ -149,6 +149,11 @@ impl Tensor {
     }
 
     pub fn with_dtype(&mut self, dtype: DType) -> Result<()> {
+        #[cfg(feature = "mps")]
+        if self.device() == Device::MPS && dtype.size_in_bytes() == 8 {
+            return Err(Error::UnsupportedDType);
+        }
+
         let buffer_len = self.buffer().len(); // read lock for length
         let layout_size = self.size();
         let size = if buffer_len != layout_size { buffer_len } else { layout_size };
@@ -175,6 +180,11 @@ impl Tensor {
     }
 
     pub fn to_dtype(&self, dtype: DType) -> Result<Self> {
+        #[cfg(feature = "mps")]
+        if self.device() == Device::MPS && dtype.size_in_bytes() == 8 {
+            return Err(Error::UnsupportedDType);
+        }
+
         let old_dtype = self.dtype();
         if old_dtype == dtype {
             return Self::from_tensor(self);
@@ -213,7 +223,7 @@ impl Tensor {
     }
 
     pub fn with_grad(&mut self) -> Result<()> {
-        if matches!(self.metadata.dtype, DType::BOOL | DType::U8 | DType::U32) {
+        if !self.metadata.dtype.is_float() {
             return Err(Error::UnsupportedDType);
         }
 

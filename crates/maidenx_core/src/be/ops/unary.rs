@@ -489,7 +489,7 @@ declare_unary_op!(abs: standard, [BF16, F16, F32, F64, I8, I16, I32, I64]);
 declare_unary_op!(sign: standard, [BF16, F16, F32, F64, U8, U16, U32, U64, I8, I16, I32, I64]);
 declare_unary_op!(square: standard, [BF16, F16, F32, F64, U8, U16, U32, U64, I8, I16, I32, I64]);
 declare_unary_op!(sqrt: standard, [BF16, F16, F32, F64, U8, U16, U32, U64, I8, I16, I32, I64]);
-declare_unary_op!(relu: standard, [BF16, F16, F32, F64]);
+declare_unary_op!(relu: standard, [BF16, F16, F32, F64, U8, U16, U32, U64, I8, I16, I32, I64]);
 declare_unary_op!(sigmoid: standard, [BF16, F16, F32, F64]);
 declare_unary_op!(tanh: standard, [BF16, F16, F32, F64]);
 declare_unary_op!(gelu: standard, [BF16, F16, F32, F64]);

@@ -317,6 +317,47 @@ macro_rules! implement_matmul_ops {
     }
 }
 
+#[macro_export]
+macro_rules! implement_dummy_matmul_ops {
+    ($($dtype:ident => $ty:ty),*) => {
+        paste::paste! {
+            $(
+                /// # Safety
+                ///
+                /// This is a dummy function for 64-bit types in MPS which are not supported.
+                pub unsafe fn [<metal_matmul_ $dtype>](
+                    _num_els: usize,
+                    _metadata: *const usize,
+                    _a: *const $ty,
+                    _b: *const $ty,
+                    _c: *mut $ty,
+                ) {
+                    // MPS doesn't support 64-bit types, this is a dummy function
+                    eprintln!("MPS does not support 64-bit matmul operations");
+                }
+
+                /// # Safety
+                ///
+                /// This is a dummy function for 64-bit types in MPS which are not supported.
+                #[allow(clippy::too_many_arguments)]
+                pub unsafe fn [<metal_matmul_backward_ $dtype>](
+                    _num_els_a: usize,
+                    _num_els_b: usize,
+                    _metadata: *const usize,
+                    _grad_output: *const $ty,
+                    _a: *const $ty,
+                    _b: *const $ty,
+                    _grad_a: *mut $ty,
+                    _grad_b: *mut $ty,
+                ) {
+                    // MPS doesn't support 64-bit types, this is a dummy function
+                    eprintln!("MPS does not support 64-bit matmul backward operations");
+                }
+            )*
+        }
+    }
+}
+
 implement_matmul_ops! {
     bf16 => bf16,
     f16 => f16,
@@ -330,3 +371,8 @@ implement_matmul_ops! {
     i32 => i32
 }
 
+implement_dummy_matmul_ops! {
+    u64 => u64,
+    i64 => i64,
+    f64 => f64
+}

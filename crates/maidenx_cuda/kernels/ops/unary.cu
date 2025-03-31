@@ -142,6 +142,14 @@ UNARY_OP(int64_t, sqrt_i64, __double2ll_rn(sqrt(__ll2double_rn(abs(x)))));
 UNARY_OP(float, relu_f32, x > 0 ? x : 0);
 UNARY_OP(double, relu_f64, x > 0 ? x : 0);
 UNARY_OP(bool, relu_bool, x);
+UNARY_OP(uint8_t, relu_u8, x > 0 ? x : 0);
+UNARY_OP(uint16_t, relu_u16, x > 0 ? x : 0);
+UNARY_OP(uint32_t, relu_u32, x > 0 ? x : 0);
+UNARY_OP(uint64_t, relu_u64, x > 0 ? x : 0);
+UNARY_OP(int8_t, relu_i8, x > 0 ? x : 0);
+UNARY_OP(int16_t, relu_i16, x > 0 ? x : 0);
+UNARY_OP(int32_t, relu_i32, x > 0 ? x : 0);
+UNARY_OP(int64_t, relu_i64, x > 0 ? x : 0);
 
 UNARY_OP(float, sigmoid_f32, 1.0f / (1.0f + expf(-x)));
 UNARY_OP(double, sigmoid_f64, 1.0 / (1.0 + exp(-x)));

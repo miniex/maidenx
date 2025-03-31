@@ -205,6 +205,52 @@ macro_rules! implement_reduction_ops {
     }
 }
 
+macro_rules! implement_dummy_reduction_ops {
+    ($(
+        $dtype:ident => {
+            type: $ty:ty,
+            standard_ops: [$($std_op:ident),*],
+            shape_ops: [$($shape_op:ident),*]
+        }
+    ),*) => {
+        paste::paste! {
+            $(
+                $(
+                    /// # Safety
+                    ///
+                    /// This is a dummy function for 64-bit types in MPS which are not supported.
+                    pub unsafe fn [<metal_ $std_op _ $dtype:lower>](
+                        _num_els: usize,
+                        _num_dims: usize,
+                        _num_red_dims: usize,
+                        _metadata: *const usize,
+                        _inp: *const $ty,
+                        _out: *mut $ty,
+                    ) {
+                        // MPS doesn't support 64-bit types, this is a dummy function
+                        eprintln!("MPS does not support 64-bit {} operations", stringify!($std_op));
+                    }
+                )*
+                $(
+                    /// # Safety
+                    ///
+                    /// This is a dummy function for 64-bit types in MPS which are not supported.
+                    pub unsafe fn [<metal_ $shape_op _ $dtype:lower>](
+                        _num_els: usize,
+                        _num_dims: usize,
+                        _metadata: *const usize,
+                        _inp: *const $ty,
+                        _out: *mut $ty,
+                    ) {
+                        // MPS doesn't support 64-bit types, this is a dummy function
+                        eprintln!("MPS does not support 64-bit {} operations", stringify!($shape_op));
+                    }
+                )*
+            )*
+        }
+    }
+}
+
 implement_reduction_ops! {
     BF16 => {
         type: bf16,
@@ -249,6 +295,24 @@ implement_reduction_ops! {
     I32 => {
         type: i32,
         standard_ops: [sum, max, min],
+        shape_ops: [sum_to_shape, fold]
+    }
+}
+
+implement_dummy_reduction_ops! {
+    U64 => {
+        type: u64,
+        standard_ops: [sum, max, min],
+        shape_ops: [sum_to_shape, fold]
+    },
+    I64 => {
+        type: i64,
+        standard_ops: [sum, max, min],
+        shape_ops: [sum_to_shape, fold]
+    },
+    F64 => {
+        type: f64,
+        standard_ops: [sum, mean, max, min],
         shape_ops: [sum_to_shape, fold]
     }
 }

@@ -13,8 +13,10 @@ impl Tensor {
         let r_ndim = rhs.ndim();
 
         let target_dtype = match (self.dtype(), rhs.dtype()) {
-            (DType::I8, DType::I8) => DType::I32,
-            (DType::U8, DType::U8) => DType::I32,
+            (DType::U8, DType::U8) => DType::U16,
+            (DType::I8, DType::I8) => DType::I16,
+            (DType::U16, DType::U16) => DType::U32,
+            (DType::I16, DType::I16) => DType::I32,
             (dtype1, dtype2) if dtype1 != dtype2 => get_promoted_dtype(dtype1, dtype2),
             (dtype, _) => dtype,
         };

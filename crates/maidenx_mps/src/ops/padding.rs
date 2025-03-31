@@ -618,6 +618,105 @@ macro_rules! implement_padding_ops {
     }
 }
 
+macro_rules! implement_dummy_padding_ops {
+    ($($dtype:ident: $ty:ty),*) => {
+        paste::paste! {
+            $(
+                /// # Safety
+                ///
+                /// This is a dummy function for 64-bit types in MPS which are not supported.
+                pub unsafe fn [<metal_pad_with_constant_ $dtype:lower>](
+                    _num_els_in: usize,
+                    _num_els_out: usize,
+                    _num_dims: usize,
+                    _info: *const usize,
+                    _inp: *const $ty,
+                    _out: *mut $ty,
+                    _pad_value: $ty
+                ) {
+                    // MPS doesn't support 64-bit types, this is a dummy function
+                    eprintln!("MPS does not support 64-bit pad_with_constant operations");
+                }
+
+                /// # Safety
+                ///
+                /// This is a dummy function for 64-bit types in MPS which are not supported.
+                pub unsafe fn [<metal_pad_with_reflection_ $dtype:lower>](
+                    _num_els_in: usize,
+                    _num_els_out: usize,
+                    _num_dims: usize,
+                    _info: *const usize,
+                    _inp: *const $ty,
+                    _out: *mut $ty
+                ) {
+                    // MPS doesn't support 64-bit types, this is a dummy function
+                    eprintln!("MPS does not support 64-bit pad_with_reflection operations");
+                }
+
+                /// # Safety
+                ///
+                /// This is a dummy function for 64-bit types in MPS which are not supported.
+                pub unsafe fn [<metal_pad_with_replication_ $dtype:lower>](
+                    _num_els_in: usize,
+                    _num_els_out: usize,
+                    _num_dims: usize,
+                    _info: *const usize,
+                    _inp: *const $ty,
+                    _out: *mut $ty
+                ) {
+                    // MPS doesn't support 64-bit types, this is a dummy function
+                    eprintln!("MPS does not support 64-bit pad_with_replication operations");
+                }
+
+                /// # Safety
+                ///
+                /// This is a dummy function for 64-bit types in MPS which are not supported.
+                pub unsafe fn [<metal_pad_with_constant_backward_ $dtype:lower>](
+                    _num_els_in: usize,
+                    _num_els_out: usize,
+                    _num_dims: usize,
+                    _info: *const usize,
+                    _grad_out: *const $ty,
+                    _grad_in: *mut $ty
+                ) {
+                    // MPS doesn't support 64-bit types, this is a dummy function
+                    eprintln!("MPS does not support 64-bit pad_with_constant_backward operations");
+                }
+
+                /// # Safety
+                ///
+                /// This is a dummy function for 64-bit types in MPS which are not supported.
+                pub unsafe fn [<metal_pad_with_reflection_backward_ $dtype:lower>](
+                    _num_els_in: usize,
+                    _num_els_out: usize,
+                    _num_dims: usize,
+                    _info: *const usize,
+                    _grad_out: *const $ty,
+                    _grad_in: *mut $ty
+                ) {
+                    // MPS doesn't support 64-bit types, this is a dummy function
+                    eprintln!("MPS does not support 64-bit pad_with_reflection_backward operations");
+                }
+
+                /// # Safety
+                ///
+                /// This is a dummy function for 64-bit types in MPS which are not supported.
+                pub unsafe fn [<metal_pad_with_replication_backward_ $dtype:lower>](
+                    _num_els_in: usize,
+                    _num_els_out: usize,
+                    _num_dims: usize,
+                    _info: *const usize,
+                    _grad_out: *const $ty,
+                    _grad_in: *mut $ty
+                ) {
+                    // MPS doesn't support 64-bit types, this is a dummy function
+                    eprintln!("MPS does not support 64-bit pad_with_replication_backward operations");
+                }
+            )*
+        }
+    }
+}
+
 implement_padding_ops! {
     BF16: bf16,
     F16: f16,
@@ -628,4 +727,10 @@ implement_padding_ops! {
     I8: i8,
     I16: i16,
     I32: i32
+}
+
+implement_dummy_padding_ops! {
+    U64: u64,
+    I64: i64,
+    F64: f64
 }

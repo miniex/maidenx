@@ -220,6 +220,14 @@ unary_op!(sqrt_bf16, bf16, |x: bf16| bf16::from_f32(x.to_f32().sqrt()));
 unary_op!(relu_f32, f32, |x: f32| if x > 0.0 { x } else { 0.0 });
 unary_op!(relu_f64, f64, |x: f64| if x > 0.0 { x } else { 0.0 });
 unary_op!(relu_bool, bool, |x: bool| x);
+unary_op!(relu_u8, u8, |x: u8| if x > 0 { x } else { 0 });
+unary_op!(relu_u16, u16, |x: u16| if x > 0 { x } else { 0 });
+unary_op!(relu_u32, u32, |x: u32| if x > 0 { x } else { 0 });
+unary_op!(relu_u64, u64, |x: u64| if x > 0 { x } else { 0 });
+unary_op!(relu_i8, i8, |x: i8| if x > 0 { x } else { 0 });
+unary_op!(relu_i16, i16, |x: i16| if x > 0 { x } else { 0 });
+unary_op!(relu_i32, i32, |x: i32| if x > 0 { x } else { 0 });
+unary_op!(relu_i64, i64, |x: i64| if x > 0 { x } else { 0 });
 unary_op!(relu_f16, f16, |x: f16| {
     if x > f16::from_f32(0.0) {
         x
