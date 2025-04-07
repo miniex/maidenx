@@ -1,6 +1,6 @@
 [package]
 name = "maidenx_macro_utils"
-version = "0.1.0-dev"
+version = "0.1.5"
 description = "maidenx macro utils"
 license = "BSD-3-Clause"
 authors = ["Han Damin <miniex@daminstudio.net>"]

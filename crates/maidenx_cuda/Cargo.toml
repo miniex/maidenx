@@ -1,6 +1,6 @@
 [package]
 name = "maidenx_cuda"
-version = "0.1.0-dev"
+version = "0.1.5"
 description = "maidenx CUDA backend"
 license = "BSD-3-Clause"
 authors = ["Han Damin <miniex@daminstudio.net>"]

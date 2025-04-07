@@ -1,6 +1,6 @@
 [package]
 name = "maidenx_nn"
-version = "0.1.0-dev"
+version = "0.1.5"
 description = "maidenx nn"
 license = "BSD-3-Clause"
 authors = ["Han Damin <miniex@daminstudio.net>"]
@@ -23,12 +23,12 @@ cuda = ["maidenx_core/cuda", "maidenx_tensor/cuda"]
 mps = ["maidenx_core/mps", "maidenx_tensor/mps"]
 
 [dependencies]
-maidenx_nn_macros = { path = "macros", version = "0.1.0-dev" }
+maidenx_nn_macros = { path = "macros", version = "0.1.5" }
 
-maidenx_core = { path = "../maidenx_core", version = "0.1.0-dev", features = [
+maidenx_core = { path = "../maidenx_core", version = "0.1.5", features = [
     "nn",
 ] }
-maidenx_tensor = { path = "../maidenx_tensor", version = "0.1.0-dev", features = [
+maidenx_tensor = { path = "../maidenx_tensor", version = "0.1.5", features = [
     "nn",
 ] }
 serde = { workspace = true, optional = true }
