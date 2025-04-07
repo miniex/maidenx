@@ -5,6 +5,7 @@ use maidenx_core::{error::Result, scalar::Scalar};
 use maidenx_tensor::Tensor;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
+// Re-exports
 pub use softmax::*;
 
 #[derive(Layer, Clone)]
