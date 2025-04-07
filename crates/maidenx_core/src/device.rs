@@ -30,3 +30,12 @@ pub fn get_default_device() -> Device {
 pub fn set_default_device(device: Device) {
     DEFAULT_DEVICE.with(|d| d.set(device));
 }
+
+pub fn auto_set_device() {
+    #[cfg(feature = "cuda")]
+    set_default_device(Device::CUDA(0));
+    #[cfg(feature = "mps")]
+    set_default_device(Device::MPS);
+    #[cfg(not(any(feature = "cuda", feature = "mps")))]
+    set_default_device(Device::CPU);
+}

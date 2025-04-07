@@ -1,14 +1,16 @@
 use crate::{
     utils::{
-        broadcast::broadcast_tensor,
+        broadcast::broadcast_tensors,
         promotion::{get_promoted_dtype, promote_tensor},
     },
     Tensor, TensorNode,
 };
-use maidenx_core::{buffer::Buffer, dtype::DType, error::Result};
+use maidenx_core::{dtype::DType, error::Result};
 
 impl Tensor {
     pub fn add(&self, rhs: &Tensor) -> Result<Tensor> {
+        let original_lhs = self.clone();
+        let original_rhs = rhs.clone();
         let original_lhs_shape = self.shape().to_vec();
         let original_rhs_shape = rhs.shape().to_vec();
 
@@ -20,8 +22,7 @@ impl Tensor {
 
         let lhs = promote_tensor(self, target_dtype)?;
         let rhs = promote_tensor(rhs, target_dtype)?;
-        let lhs = broadcast_tensor(&lhs, &rhs)?;
-        let rhs = broadcast_tensor(&rhs, &lhs)?;
+        let (lhs, rhs) = broadcast_tensors(&lhs, &rhs)?;
 
         let mut result = Self::empty_with_spec(lhs.shape(), lhs.device(), lhs.dtype())?;
 
@@ -44,7 +45,7 @@ impl Tensor {
                 Ok(vec![grad_left, grad_right])
             });
 
-            let node = TensorNode::new("add".to_string(), vec![lhs, rhs], Some(backward_fn));
+            let node = TensorNode::new("add".to_string(), vec![original_lhs, original_rhs], Some(backward_fn));
             result.node = Some(node);
         }
 
@@ -52,6 +53,8 @@ impl Tensor {
     }
 
     pub fn sub(&self, rhs: &Tensor) -> Result<Tensor> {
+        let original_lhs = self.clone();
+        let original_rhs = rhs.clone();
         let original_lhs_shape = self.shape().to_vec();
         let original_rhs_shape = rhs.shape().to_vec();
 
@@ -63,8 +66,7 @@ impl Tensor {
 
         let lhs = promote_tensor(self, target_dtype)?;
         let rhs = promote_tensor(rhs, target_dtype)?;
-        let lhs = broadcast_tensor(&lhs, &rhs)?;
-        let rhs = broadcast_tensor(&rhs, &lhs)?;
+        let (lhs, rhs) = broadcast_tensors(&lhs, &rhs)?;
 
         let mut result = Self::empty_with_spec(lhs.shape(), lhs.device(), lhs.dtype())?;
 
@@ -87,7 +89,7 @@ impl Tensor {
                 Ok(vec![grad_left, grad_right])
             });
 
-            let node = TensorNode::new("sub".to_string(), vec![lhs, rhs], Some(backward_fn));
+            let node = TensorNode::new("sub".to_string(), vec![original_lhs, original_rhs], Some(backward_fn));
             result.node = Some(node);
         }
 
@@ -95,6 +97,8 @@ impl Tensor {
     }
 
     pub fn mul(&self, rhs: &Tensor) -> Result<Tensor> {
+        let original_lhs = self.clone();
+        let original_rhs = rhs.clone();
         let original_lhs_shape = self.shape().to_vec();
         let original_rhs_shape = rhs.shape().to_vec();
 
@@ -106,8 +110,7 @@ impl Tensor {
 
         let lhs = promote_tensor(self, target_dtype)?;
         let rhs = promote_tensor(rhs, target_dtype)?;
-        let lhs = broadcast_tensor(&lhs, &rhs)?;
-        let rhs = broadcast_tensor(&rhs, &lhs)?;
+        let (lhs, rhs) = broadcast_tensors(&lhs, &rhs)?;
 
         let mut result = Self::empty_with_spec(lhs.shape(), lhs.device(), lhs.dtype())?;
 
@@ -132,7 +135,7 @@ impl Tensor {
                 Ok(vec![grad_left, grad_right])
             });
 
-            let node = TensorNode::new("mul".to_string(), vec![lhs, rhs], Some(backward_fn));
+            let node = TensorNode::new("mul".to_string(), vec![original_lhs, original_rhs], Some(backward_fn));
             result.node = Some(node);
         }
 
@@ -140,6 +143,8 @@ impl Tensor {
     }
 
     pub fn div(&self, rhs: &Tensor) -> Result<Tensor> {
+        let original_lhs = self.clone();
+        let original_rhs = rhs.clone();
         let original_lhs_shape = self.shape().to_vec();
         let original_rhs_shape = rhs.shape().to_vec();
 
@@ -153,8 +158,7 @@ impl Tensor {
 
         let lhs = promote_tensor(self, target_dtype)?;
         let rhs = promote_tensor(rhs, target_dtype)?;
-        let lhs = broadcast_tensor(&lhs, &rhs)?;
-        let rhs = broadcast_tensor(&rhs, &lhs)?;
+        let (lhs, rhs) = broadcast_tensors(&lhs, &rhs)?;
 
         let mut result = Self::empty_with_spec(lhs.shape(), lhs.device(), lhs.dtype())?;
 
@@ -183,7 +187,7 @@ impl Tensor {
                 Ok(vec![grad_left, grad_right])
             });
 
-            let node = TensorNode::new("div".to_string(), vec![lhs, rhs], Some(backward_fn));
+            let node = TensorNode::new("div".to_string(), vec![original_lhs, original_rhs], Some(backward_fn));
             result.node = Some(node);
         }
 
@@ -191,6 +195,8 @@ impl Tensor {
     }
 
     pub fn maximum(&self, rhs: &Tensor) -> Result<Tensor> {
+        let original_lhs = self.clone();
+        let original_rhs = rhs.clone();
         let original_lhs_shape = self.shape().to_vec();
         let original_rhs_shape = rhs.shape().to_vec();
 
@@ -202,8 +208,7 @@ impl Tensor {
 
         let lhs = promote_tensor(self, target_dtype)?;
         let rhs = promote_tensor(rhs, target_dtype)?;
-        let lhs = broadcast_tensor(&lhs, &rhs)?;
-        let rhs = broadcast_tensor(&rhs, &lhs)?;
+        let (lhs, rhs) = broadcast_tensors(&lhs, &rhs)?;
 
         let mut result = Self::empty_with_spec(lhs.shape(), lhs.device(), lhs.dtype())?;
 
@@ -240,7 +245,7 @@ impl Tensor {
                 Ok(vec![grad_left, grad_right])
             });
 
-            let node = TensorNode::new("maximum".to_string(), vec![lhs, rhs], Some(backward_fn));
+            let node = TensorNode::new("maximum".to_string(), vec![original_lhs, original_rhs], Some(backward_fn));
             result.node = Some(node);
         }
 
@@ -248,6 +253,8 @@ impl Tensor {
     }
 
     pub fn minimum(&self, rhs: &Tensor) -> Result<Tensor> {
+        let original_lhs = self.clone();
+        let original_rhs = rhs.clone();
         let original_lhs_shape = self.shape().to_vec();
         let original_rhs_shape = rhs.shape().to_vec();
 
@@ -259,8 +266,7 @@ impl Tensor {
 
         let lhs = promote_tensor(self, target_dtype)?;
         let rhs = promote_tensor(rhs, target_dtype)?;
-        let lhs = broadcast_tensor(&lhs, &rhs)?;
-        let rhs = broadcast_tensor(&rhs, &lhs)?;
+        let (lhs, rhs) = broadcast_tensors(&lhs, &rhs)?;
 
         let mut result = Self::empty_with_spec(lhs.shape(), lhs.device(), lhs.dtype())?;
 
@@ -297,7 +303,7 @@ impl Tensor {
                 Ok(vec![grad_left, grad_right])
             });
 
-            let node = TensorNode::new("minimum".to_string(), vec![lhs, rhs], Some(backward_fn));
+            let node = TensorNode::new("minimum".to_string(), vec![original_lhs, original_rhs], Some(backward_fn));
             result.node = Some(node);
         }
 
@@ -313,8 +319,7 @@ impl Tensor {
 
         let lhs = promote_tensor(self, target_dtype)?;
         let rhs = promote_tensor(rhs, target_dtype)?;
-        let lhs = broadcast_tensor(&lhs, &rhs)?;
-        let rhs = broadcast_tensor(&rhs, &lhs)?;
+        let (lhs, rhs) = broadcast_tensors(&lhs, &rhs)?;
 
         let mut result = Self::empty_with_spec(lhs.shape(), lhs.device(), DType::BOOL)?;
 
@@ -339,8 +344,7 @@ impl Tensor {
 
         let lhs = promote_tensor(self, target_dtype)?;
         let rhs = promote_tensor(rhs, target_dtype)?;
-        let lhs = broadcast_tensor(&lhs, &rhs)?;
-        let rhs = broadcast_tensor(&rhs, &lhs)?;
+        let (lhs, rhs) = broadcast_tensors(&lhs, &rhs)?;
 
         let mut result = Self::empty_with_spec(lhs.shape(), lhs.device(), DType::BOOL)?;
 
@@ -365,8 +369,7 @@ impl Tensor {
 
         let lhs = promote_tensor(self, target_dtype)?;
         let rhs = promote_tensor(rhs, target_dtype)?;
-        let lhs = broadcast_tensor(&lhs, &rhs)?;
-        let rhs = broadcast_tensor(&rhs, &lhs)?;
+        let (lhs, rhs) = broadcast_tensors(&lhs, &rhs)?;
 
         let mut result = Self::empty_with_spec(lhs.shape(), lhs.device(), DType::BOOL)?;
 
@@ -391,8 +394,7 @@ impl Tensor {
 
         let lhs = promote_tensor(self, target_dtype)?;
         let rhs = promote_tensor(rhs, target_dtype)?;
-        let lhs = broadcast_tensor(&lhs, &rhs)?;
-        let rhs = broadcast_tensor(&rhs, &lhs)?;
+        let (lhs, rhs) = broadcast_tensors(&lhs, &rhs)?;
 
         let mut result = Self::empty_with_spec(lhs.shape(), lhs.device(), DType::BOOL)?;
 
@@ -417,8 +419,7 @@ impl Tensor {
 
         let lhs = promote_tensor(self, target_dtype)?;
         let rhs = promote_tensor(rhs, target_dtype)?;
-        let lhs = broadcast_tensor(&lhs, &rhs)?;
-        let rhs = broadcast_tensor(&rhs, &lhs)?;
+        let (lhs, rhs) = broadcast_tensors(&lhs, &rhs)?;
 
         let mut result = Self::empty_with_spec(lhs.shape(), lhs.device(), DType::BOOL)?;
 
@@ -443,8 +444,7 @@ impl Tensor {
 
         let lhs = promote_tensor(self, target_dtype)?;
         let rhs = promote_tensor(rhs, target_dtype)?;
-        let lhs = broadcast_tensor(&lhs, &rhs)?;
-        let rhs = broadcast_tensor(&rhs, &lhs)?;
+        let (lhs, rhs) = broadcast_tensors(&lhs, &rhs)?;
 
         let mut result = Self::empty_with_spec(lhs.shape(), lhs.device(), DType::BOOL)?;
 
@@ -469,8 +469,7 @@ impl Tensor {
 
         let lhs = promote_tensor(self, target_dtype)?;
         let rhs = promote_tensor(rhs, target_dtype)?;
-        let lhs = broadcast_tensor(&lhs, &rhs)?;
-        let rhs = broadcast_tensor(&rhs, &lhs)?;
+        let (lhs, rhs) = broadcast_tensors(&lhs, &rhs)?;
 
         let mut result = Self::empty_with_spec(lhs.shape(), lhs.device(), DType::BOOL)?;
 
@@ -495,8 +494,7 @@ impl Tensor {
 
         let lhs = promote_tensor(self, target_dtype)?;
         let rhs = promote_tensor(rhs, target_dtype)?;
-        let lhs = broadcast_tensor(&lhs, &rhs)?;
-        let rhs = broadcast_tensor(&rhs, &lhs)?;
+        let (lhs, rhs) = broadcast_tensors(&lhs, &rhs)?;
 
         let mut result = Self::empty_with_spec(lhs.shape(), lhs.device(), DType::BOOL)?;
 
@@ -521,8 +519,7 @@ impl Tensor {
 
         let lhs = promote_tensor(self, target_dtype)?;
         let rhs = promote_tensor(rhs, target_dtype)?;
-        let lhs = broadcast_tensor(&lhs, &rhs)?;
-        let rhs = broadcast_tensor(&rhs, &lhs)?;
+        let (lhs, rhs) = broadcast_tensors(&lhs, &rhs)?;
 
         let mut result = Self::empty_with_spec(lhs.shape(), lhs.device(), DType::BOOL)?;
 
@@ -551,16 +548,21 @@ impl Tensor {
             rhs.with_dtype(self.dtype())?;
         }
 
+        let mut result = Self::empty_with_spec(self.shape(), self.device(), self.dtype())?;
+
         let metadata = prepare_metadata(self, &rhs);
+        let offset = self.offset();
         let size = self.size();
         let ndim = self.ndim();
 
         unsafe {
-            self.with_buffer_mut(|out_buf| {
-                let lhs_in = &*out_buf as *const dyn Buffer;
-                let lhs_out = &mut *out_buf as *mut dyn Buffer;
-                maidenx_core::be::ops::binary::add(&mut *lhs_out, &*lhs_in, rhs.buffer(), size, ndim, Some(&metadata))?;
+            result.with_buffer_mut(|out_buf| {
+                maidenx_core::be::ops::binary::add(out_buf, self.buffer(), rhs.buffer(), size, ndim, Some(&metadata))?;
+                Ok(())
+            })?;
 
+            self.with_buffer_mut(|self_buf| {
+                self_buf.copy_from_with_device(result.buffer(), 0, offset, size)?;
                 Ok(())
             })?;
         }
@@ -579,16 +581,21 @@ impl Tensor {
             rhs.with_dtype(self.dtype())?;
         }
 
+        let mut result = Self::empty_with_spec(self.shape(), self.device(), self.dtype())?;
+
         let metadata = prepare_metadata(self, &rhs);
+        let offset = self.offset();
         let size = self.size();
         let ndim = self.ndim();
 
         unsafe {
-            self.with_buffer_mut(|out_buf| {
-                let lhs_in = &*out_buf as *const dyn Buffer;
-                let lhs_out = &mut *out_buf as *mut dyn Buffer;
-                maidenx_core::be::ops::binary::sub(&mut *lhs_out, &*lhs_in, rhs.buffer(), size, ndim, Some(&metadata))?;
+            result.with_buffer_mut(|out_buf| {
+                maidenx_core::be::ops::binary::sub(out_buf, self.buffer(), rhs.buffer(), size, ndim, Some(&metadata))?;
+                Ok(())
+            })?;
 
+            self.with_buffer_mut(|self_buf| {
+                self_buf.copy_from_with_device(result.buffer(), 0, offset, size)?;
                 Ok(())
             })?;
         }
@@ -607,16 +614,21 @@ impl Tensor {
             rhs.with_dtype(self.dtype())?;
         }
 
+        let mut result = Self::empty_with_spec(self.shape(), self.device(), self.dtype())?;
+
         let metadata = prepare_metadata(self, &rhs);
+        let offset = self.offset();
         let size = self.size();
         let ndim = self.ndim();
 
         unsafe {
-            self.with_buffer_mut(|out_buf| {
-                let lhs_in = &*out_buf as *const dyn Buffer;
-                let lhs_out = &mut *out_buf as *mut dyn Buffer;
-                maidenx_core::be::ops::binary::mul(&mut *lhs_out, &*lhs_in, rhs.buffer(), size, ndim, Some(&metadata))?;
+            result.with_buffer_mut(|out_buf| {
+                maidenx_core::be::ops::binary::mul(out_buf, self.buffer(), rhs.buffer(), size, ndim, Some(&metadata))?;
+                Ok(())
+            })?;
 
+            self.with_buffer_mut(|self_buf| {
+                self_buf.copy_from_with_device(result.buffer(), 0, offset, size)?;
                 Ok(())
             })?;
         }
@@ -635,16 +647,21 @@ impl Tensor {
             rhs.with_dtype(self.dtype())?;
         }
 
+        let mut result = Self::empty_with_spec(self.shape(), self.device(), self.dtype())?;
+
         let metadata = prepare_metadata(self, &rhs);
+        let offset = self.offset();
         let size = self.size();
         let ndim = self.ndim();
 
         unsafe {
-            self.with_buffer_mut(|out_buf| {
-                let lhs_in = &*out_buf as *const dyn Buffer;
-                let lhs_out = &mut *out_buf as *mut dyn Buffer;
-                maidenx_core::be::ops::binary::div(&mut *lhs_out, &*lhs_in, rhs.buffer(), size, ndim, Some(&metadata))?;
+            result.with_buffer_mut(|out_buf| {
+                maidenx_core::be::ops::binary::div(out_buf, self.buffer(), rhs.buffer(), size, ndim, Some(&metadata))?;
+                Ok(())
+            })?;
 
+            self.with_buffer_mut(|self_buf| {
+                self_buf.copy_from_with_device(result.buffer(), 0, offset, size)?;
                 Ok(())
             })?;
         }

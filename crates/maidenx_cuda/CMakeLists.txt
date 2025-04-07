@@ -13,6 +13,9 @@ set(CMAKE_CUDA_SEPARABLE_COMPILATION ON)
 set(CMAKE_CUDA_ARCHITECTURES 70 75 80 86 89)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+# Feature flag for NN (default OFF)
+option(BUILD_NN "Build the neural network library" OFF)
+
 # Optimization flags
 set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -O3")
 
@@ -78,10 +81,15 @@ set_target_properties(ops PROPERTIES
 )
 
 # Add "nn" library
-file(GLOB_RECURSE NN_SOURCES
-    kernels/nn/*.cu
-)
-add_cuda_library(nn "${NN_SOURCES}")
-set_target_properties(nn PROPERTIES
-    CUDA_SEPARABLE_COMPILATION OFF
-)
+if(BUILD_NN)
+    message(STATUS "Building with neural network support")
+    file(GLOB_RECURSE NN_SOURCES
+        kernels/nn/*.cu
+    )
+    add_cuda_library(nn "${NN_SOURCES}")
+    set_target_properties(nn PROPERTIES
+        CUDA_SEPARABLE_COMPILATION OFF
+    )
+else()
+    message(STATUS "Neural network support disabled")
+endif()

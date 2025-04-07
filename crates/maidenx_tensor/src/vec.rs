@@ -25,12 +25,9 @@ impl Tensor {
         let mut raw_data = vec![0u8; buffer_size];
 
         unsafe {
-            let buffer = tensor.buffer();
-            let available_size = buffer.len() * elem_size;
-
-            let copy_size = std::cmp::min(buffer_size, available_size);
-
-            tensor.buffer().copy_to_host(raw_data.as_mut_ptr() as *mut std::ffi::c_void, copy_size)?;
+            tensor
+                .buffer()
+                .copy_to_host(raw_data.as_mut_ptr() as *mut std::ffi::c_void, buffer_size, 0, 0)?;
         }
 
         let mut result = vec![T::default(); size];
@@ -119,3 +116,4 @@ fn get_dtype_for_type<T: 'static>() -> Option<DType> {
         None
     }
 }
+

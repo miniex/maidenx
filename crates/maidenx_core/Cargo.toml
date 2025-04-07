@@ -10,6 +10,9 @@ repository = "https://github.com/miniex/maidenx"
 
 [features]
 default = []
+
+nn = ["maidenx_cpu/nn", "maidenx_cuda?/nn"]
+
 cuda = ["dep:maidenx_cuda"]
 mps = ["dep:maidenx_mps"]
 

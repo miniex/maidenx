@@ -125,8 +125,11 @@ fn main() {
         fs::write(&clangd_path, clangd_content).expect("Failed to write .clangd file");
     }
 
+    let use_nn_feature = std::env::var("CARGO_FEATURE_NN").is_ok();
+
     let dst = cmake::Config::new(".")
         .define("CMAKE_BUILD_TYPE", "Release")
+        .define("BUILD_NN", if use_nn_feature { "ON" } else { "OFF" })
         .no_build_target(true)
         .build();
 
@@ -140,7 +143,9 @@ fn main() {
     // CUDA modules linking
     println!("cargo:rustc-link-arg=-Wl,--whole-archive");
     println!("cargo:rustc-link-lib=static=ops");
-    println!("cargo:rustc-link-lib=static=nn");
+    if use_nn_feature {
+        println!("cargo:rustc-link-lib=static=nn");
+    }
     println!("cargo:rustc-link-arg=-Wl,--no-whole-archive");
 
     // CUDA runtime and core libraries

@@ -33,6 +33,21 @@ impl CudaBuffer {
         }
         Ok(Self { ptr, size, dtype, device_id })
     }
+
+    // Helper function to calculate byte offset from element index
+    fn byte_offset(&self, element_offset: usize) -> usize {
+        element_offset * self.dtype.size_in_bytes()
+    }
+
+    // Helper function to get a pointer with the byte offset applied
+    unsafe fn ptr_with_offset(&self, element_offset: usize) -> *const c_void {
+        (self.ptr as *const u8).add(self.byte_offset(element_offset)) as *const c_void
+    }
+
+    // Helper function to get a mutable pointer with the byte offset applied
+    unsafe fn mut_ptr_with_offset(&mut self, element_offset: usize) -> *mut c_void {
+        (self.ptr as *mut u8).add(self.byte_offset(element_offset)) as *mut c_void
+    }
 }
 
 impl Drop for CudaBuffer {
@@ -66,58 +81,111 @@ impl Buffer for CudaBuffer {
         Device::CUDA(self.device_id)
     }
 
-    unsafe fn copy_from(&mut self, other: &dyn Buffer) -> Result<()> {
+    unsafe fn copy_from(&mut self, other: &dyn Buffer, src_offset: usize, dst_offset: usize, count: usize) -> Result<()> {
+        if src_offset + count > other.len() || dst_offset + count > self.len() {
+            return Err(Error::InvalidArgument("Offset and count exceed buffer dimensions".into()));
+        }
+
         if self.dtype() != other.dtype() {
             return Err(Error::InvalidArgument("DType mismatch in copy_from".into()));
         }
-        let size_in_bytes = self.size * self.dtype.size_in_bytes();
+
+        let element_size = self.dtype.size_in_bytes();
+        let size_in_bytes = count * element_size;
+
         if cuda_set_device(self.device_id as i32) != 0 {
             return Err(Error::InvalidArgument("Failed to set CUDA device".into()));
         }
+
+        // Get destination pointer with offset
+        let dst_ptr = self.mut_ptr_with_offset(dst_offset);
+
         let status = match other.device() {
-            Device::CPU => cuda_memcpy_h2d(self.ptr, other.as_ptr(), size_in_bytes),
-            Device::CUDA(_) => cuda_memcpy_d2d(self.ptr, other.as_ptr(), size_in_bytes),
+            Device::CPU => {
+                // Get source pointer with offset for CPU
+                let src_ptr = (other.as_ptr() as *const u8).add(src_offset * element_size);
+                cuda_memcpy_h2d(dst_ptr, src_ptr as *const c_void, size_in_bytes)
+            }
+            Device::CUDA(_) => {
+                // Get source pointer with offset for CUDA
+                let src_ptr = (other.as_ptr() as *const u8).add(src_offset * element_size);
+                cuda_memcpy_d2d(dst_ptr, src_ptr as *const c_void, size_in_bytes)
+            }
             #[cfg(feature = "mps")]
             Device::MPS => {
                 return Err(Error::InvalidArgument("Direct copy from MPS to CUDA is not supported".into()));
             }
         };
+
         if status != 0 {
             return Err(Error::InvalidArgument(format!("CUDA memcpy failed: {}", status)));
         }
+
         Ok(())
     }
 
-    unsafe fn copy_from_host(&mut self, src: *const c_void, size_in_bytes: usize) -> Result<()> {
-        let expected = self.size * self.dtype.size_in_bytes();
-        if size_in_bytes != expected {
-            return Err(Error::InvalidArgument("Size mismatch in copy_from_host".into()));
+    unsafe fn copy_from_host(&mut self, src: *const c_void, size_in_bytes: usize, src_offset: usize, dst_offset: usize) -> Result<()> {
+        // Check if destination has enough space
+        let dst_byte_offset = self.byte_offset(dst_offset);
+        let max_available = (self.size * self.dtype.size_in_bytes()).saturating_sub(dst_byte_offset);
+
+        if size_in_bytes > max_available {
+            return Err(Error::InvalidArgument(format!(
+                "Size mismatch in copy_from_host: requested {}, available {}",
+                size_in_bytes, max_available
+            )));
         }
+
         if cuda_set_device(self.device_id as i32) != 0 {
             return Err(Error::InvalidArgument("Failed to set CUDA device".into()));
         }
-        let status = cuda_memcpy_h2d(self.ptr, src, size_in_bytes);
+
+        // Calculate source pointer with offset
+        let element_size = self.dtype.size_in_bytes();
+        let src_byte_offset = src_offset * element_size;
+        let src_ptr = (src as *const u8).add(src_byte_offset) as *const c_void;
+
+        // Get destination pointer with offset
+        let dst_ptr = self.mut_ptr_with_offset(dst_offset);
+
+        let status = cuda_memcpy_h2d(dst_ptr, src_ptr, size_in_bytes);
         if status != 0 {
             return Err(Error::InvalidArgument(format!("CUDA H2D memcpy failed: {}", status)));
         }
+
         Ok(())
     }
 
-    unsafe fn copy_to_host(&self, dest: *mut c_void, size_in_bytes: usize) -> Result<()> {
-        let available = self.size * self.dtype.size_in_bytes();
+    unsafe fn copy_to_host(&self, dest: *mut c_void, size_in_bytes: usize, src_offset: usize, dst_offset: usize) -> Result<()> {
+        // Check if source has enough data
+        let src_byte_offset = self.byte_offset(src_offset);
+        let available = (self.size * self.dtype.size_in_bytes()).saturating_sub(src_byte_offset);
+
         if size_in_bytes > available {
             return Err(Error::InvalidArgument(format!(
                 "Size mismatch in copy_to_host: requested {}, available {}",
                 size_in_bytes, available
             )));
         }
+
         if cuda_set_device(self.device_id as i32) != 0 {
             return Err(Error::InvalidArgument("Failed to set CUDA device".into()));
         }
-        let status = cuda_memcpy_d2h(dest, self.ptr, size_in_bytes);
+
+        // Calculate destination pointer with offset
+        let element_size = self.dtype.size_in_bytes();
+        let dst_byte_offset = dst_offset * element_size;
+        let dst_ptr = (dest as *mut u8).add(dst_byte_offset) as *mut c_void;
+
+        // Get source pointer with offset
+        let src_ptr = self.ptr_with_offset(src_offset);
+
+        let status = cuda_memcpy_d2h(dst_ptr, src_ptr, size_in_bytes);
         if status != 0 {
             return Err(Error::InvalidArgument(format!("CUDA D2H memcpy failed: {}", status)));
         }
+
         Ok(())
     }
 }
+

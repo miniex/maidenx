@@ -74,7 +74,10 @@ impl Layout {
     pub fn transpose(&mut self, dim0: usize, dim1: usize) -> Result<()> {
         // Bounds check
         if dim0 >= self.ndim() || dim1 >= self.ndim() {
-            return Ok(());
+            return Err(Error::DimensionOutOfBounds {
+                dim: if dim0 >= self.ndim() { dim0 as i32 } else { dim1 as i32 },
+                ndim: self.ndim(),
+            });
         }
 
         // Swap shape and strides
@@ -119,14 +122,24 @@ impl Layout {
         };
 
         // Clamp indices to valid range
-        let start_idx = start_idx.clamp(0, dim_size);
-        let end_idx = end_idx.clamp(if step > 0 { start_idx } else { -1 }, dim_size);
+        let clamped_start = start_idx.clamp(0, dim_size);
+        let clamped_end = if step > 0 {
+            end_idx.clamp(0, dim_size)
+        } else {
+            end_idx.clamp(-1, dim_size - 1)
+        };
 
         // Calculate new size for the dimension
         let new_size = if step > 0 {
-            (end_idx - start_idx + step - 1) / step
+            if clamped_end > clamped_start {
+                (clamped_end - clamped_start + step - 1) / step
+            } else {
+                0
+            }
+        } else if clamped_start > clamped_end {
+            (clamped_start - clamped_end + (-step) - 1) / (-step)
         } else {
-            (start_idx - end_idx + (-step) - 1) / (-step)
+            0
         };
 
         if new_size <= 0 {
@@ -140,10 +153,10 @@ impl Layout {
         let mut new_strides = self.strides.clone();
 
         new_shape[dim] = new_size as usize;
-        new_strides[dim] *= step.unsigned_abs();
+        new_strides[dim] = self.strides[dim] * step.unsigned_abs();
 
         // Calculate new offset
-        let new_offset = self.offset + (start_idx as usize * self.strides[dim]);
+        let new_offset = self.offset + (clamped_start as usize * self.strides[dim]);
 
         Ok(Self {
             shape: new_shape,
@@ -246,3 +259,4 @@ impl Layout {
         true
     }
 }
+

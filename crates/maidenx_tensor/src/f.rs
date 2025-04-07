@@ -1,5 +1,11 @@
-use crate::Tensor;
-use maidenx_core::{device::Device, error::Result};
+use std::sync::Arc;
+
+use crate::{Tensor, TensorData, TensorMetadata};
+use maidenx_core::{
+    buffer::BufferManager,
+    device::Device,
+    error::{Error, Result},
+};
 
 impl Tensor {
     pub fn is_contiguous(&self) -> bool {
@@ -43,6 +49,32 @@ impl Tensor {
         }
 
         Ok(result)
+    }
+
+    pub fn copy(&self) -> Result<Self> {
+        let device = self.device();
+        let dtype = self.dtype();
+        let layout = self.layout().clone();
+
+        let mut buffer = BufferManager::create(self.buffer().len(), device, dtype)?;
+
+        {
+            let buffer_mut = Arc::get_mut(&mut buffer).ok_or(Error::BufferShared)?;
+            unsafe {
+                buffer_mut.copy_from(self.buffer(), 0, 0, self.buffer().len())?;
+            }
+        }
+
+        Ok(Self {
+            data: TensorData { buffer, grad: None },
+            metadata: TensorMetadata {
+                device,
+                dtype,
+                layout,
+                requires_grad: false,
+            },
+            node: None,
+        })
     }
 
     pub fn detach(&self) -> Result<Self> {

@@ -9,12 +9,19 @@ use maidenx_core::{
 
 impl Tensor {
     pub fn matmul(&self, rhs: &Tensor) -> Result<Tensor> {
+        let original_lhs = self.clone();
+        let original_rhs = rhs.clone();
+
         let l_ndim = self.ndim();
         let r_ndim = rhs.ndim();
 
         let target_dtype = match (self.dtype(), rhs.dtype()) {
-            (DType::I8, DType::I8) => DType::I32,
-            (DType::U8, DType::U8) => DType::I32,
+            (DType::U8, DType::U8) => DType::U16,
+            (DType::U8, DType::I8) | (DType::I8, DType::U8) => DType::I16,
+            (DType::I8, DType::I8) => DType::I16,
+            (DType::U16, DType::U16) => DType::U32,
+            (DType::U16, DType::I16) | (DType::I16, DType::U16) => DType::I32,
+            (DType::I16, DType::I16) => DType::I32,
             (dtype1, dtype2) if dtype1 != dtype2 => get_promoted_dtype(dtype1, dtype2),
             (dtype, _) => dtype,
         };
@@ -58,8 +65,12 @@ impl Tensor {
                 let rhs = &inputs[1];
 
                 let target_dtype = match (lhs.dtype(), rhs.dtype()) {
-                    (DType::I8, DType::I8) => DType::I32,
-                    (DType::U8, DType::U8) => DType::I32,
+                    (DType::U8, DType::U8) => DType::U16,
+                    (DType::U8, DType::I8) | (DType::I8, DType::U8) => DType::I16,
+                    (DType::I8, DType::I8) => DType::I16,
+                    (DType::U16, DType::U16) => DType::U32,
+                    (DType::U16, DType::I16) | (DType::I16, DType::U16) => DType::I32,
+                    (DType::I16, DType::I16) => DType::I32,
                     (dtype1, dtype2) if dtype1 != dtype2 => get_promoted_dtype(dtype1, dtype2),
                     (dtype, _) => dtype,
                 };
@@ -134,7 +145,7 @@ impl Tensor {
                 Ok(vec![grad_lhs, grad_rhs])
             });
 
-            let node = TensorNode::new("matmul".to_string(), vec![lhs, rhs], Some(backward_fn));
+            let node = TensorNode::new("matmul".to_string(), vec![original_lhs, original_rhs], Some(backward_fn));
             result.node = Some(node);
         }
 

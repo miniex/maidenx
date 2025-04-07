@@ -9,6 +9,7 @@ publish = true
 repository = "https://github.com/miniex/maidenx"
 
 [features]
+nn = []
 
 [dependencies]
 half = { workspace = true }

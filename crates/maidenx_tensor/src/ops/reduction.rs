@@ -630,7 +630,6 @@ impl Tensor {
 
         let n = input.shape()[dim] as f32;
         let divisor = if unbiased { n - 1.0 } else { n };
-
         let result = sum_squared_diff.div_scalar(divisor)?;
 
         Ok(result)

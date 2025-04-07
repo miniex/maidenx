@@ -55,4 +55,3 @@ impl Tensor {
         Ok(result)
     }
 }
-

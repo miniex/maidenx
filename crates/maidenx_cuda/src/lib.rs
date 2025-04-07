@@ -1,4 +1,6 @@
 #![allow(non_snake_case)]
+
+#[cfg(feature = "nn")]
 pub mod nn;
 pub mod ops;
 

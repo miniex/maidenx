@@ -310,7 +310,7 @@ macro_rules! fold_op {
                     coords
                 };
 
-                let mut src_idx = offset;
+                let mut src_idx = 0;
                 for d in 0..num_dims {
                     src_idx += coords[d] * input_strides[d];
                 }
@@ -570,3 +570,4 @@ min_op!(min_i8, i8, i8::MAX);
 min_op!(min_i16, i16, i16::MAX);
 min_op!(min_i32, i32, i32::MAX);
 min_op!(min_i64, i64, i64::MAX);
+

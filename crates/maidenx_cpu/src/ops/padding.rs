@@ -709,3 +709,4 @@ pad_with_replication_backward_op!(pad_with_replication_backward_i8, i8, 0i8);
 pad_with_replication_backward_op!(pad_with_replication_backward_i16, i16, 0i16);
 pad_with_replication_backward_op!(pad_with_replication_backward_i32, i32, 0i32);
 pad_with_replication_backward_op!(pad_with_replication_backward_i64, i64, 0i64);
+

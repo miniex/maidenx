@@ -1,11 +1,10 @@
 #![allow(non_upper_case_globals)]
 
 use crate::scalar::Scalar;
-
 pub use half::{bf16, f16};
+
 pub const bfloat16: DType = DType::BF16;
 pub const float16: DType = DType::F16;
-pub const half: DType = DType::F16;
 pub const float32: DType = DType::F32;
 pub const float64: DType = DType::F64;
 pub const bool: DType = DType::BOOL;

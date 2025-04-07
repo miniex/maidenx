@@ -58,13 +58,12 @@ impl Tensor {
 
             let input_shape = input.shape().to_vec();
             let input_strides = input.strides().to_vec();
-            let input_offset = input.offset();
             let paddings_vec = paddings.to_vec();
 
             let backward_fn = Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> {
                 let mut grad_in = Tensor::empty_with_spec(&input_shape, grad_out.device(), grad_out.dtype())?;
 
-                let metadata = prepare_metadata_for_padding_backward(&input_shape, &input_strides, input_offset, &paddings_vec);
+                let metadata = prepare_metadata_for_padding_backward(&input_shape, &input_strides, 0, &paddings_vec);
 
                 unsafe {
                     let grad_in_size = grad_in.size();
@@ -141,13 +140,12 @@ impl Tensor {
 
             let input_shape = input.shape().to_vec();
             let input_strides = input.strides().to_vec();
-            let input_offset = input.offset();
             let paddings_vec = paddings.to_vec();
 
             let backward_fn = Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> {
                 let mut grad_in = Tensor::empty_with_spec(&input_shape, grad_out.device(), grad_out.dtype())?;
 
-                let metadata = prepare_metadata_for_padding_backward(&input_shape, &input_strides, input_offset, &paddings_vec);
+                let metadata = prepare_metadata_for_padding_backward(&input_shape, &input_strides, 0, &paddings_vec);
 
                 unsafe {
                     let grad_in_size = grad_in.size();
@@ -216,13 +214,12 @@ impl Tensor {
 
             let input_shape = input.shape().to_vec();
             let input_strides = input.strides().to_vec();
-            let input_offset = input.offset();
             let paddings_vec = paddings.to_vec();
 
             let backward_fn = Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> {
                 let mut grad_in = Tensor::empty_with_spec(&input_shape, grad_out.device(), grad_out.dtype())?;
 
-                let metadata = prepare_metadata_for_padding_backward(&input_shape, &input_strides, input_offset, &paddings_vec);
+                let metadata = prepare_metadata_for_padding_backward(&input_shape, &input_strides, 0, &paddings_vec);
 
                 unsafe {
                     let grad_in_size = grad_in.size();
@@ -301,3 +298,4 @@ fn prepare_metadata_for_padding_backward(
 
     info
 }
+

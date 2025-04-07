@@ -1,9 +1,10 @@
 pub mod adapter;
-mod aliases;
 mod creation;
 mod d;
 mod f;
 mod iterator;
+#[cfg(feature = "nn")]
+mod nn_aliases;
 mod operators;
 pub(crate) mod ops;
 pub mod utils;
@@ -134,7 +135,7 @@ impl Tensor {
 
         unsafe {
             let buffer_ptr = Arc::into_raw(new_buffer) as *mut dyn Buffer;
-            (*buffer_ptr).copy_from(src_buffer)?;
+            (*buffer_ptr).copy_from(src_buffer, 0, 0, src_buffer.len())?;
             let new_buffer = Arc::from_raw(buffer_ptr);
             Ok(new_buffer)
         }

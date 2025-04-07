@@ -9,6 +9,8 @@ publish = true
 repository = "https://github.com/miniex/maidenx"
 
 [features]
+nn = ["maidenx_core/nn"]
+
 cuda = ["maidenx_core/cuda"]
 mps = ["maidenx_core/mps"]
 

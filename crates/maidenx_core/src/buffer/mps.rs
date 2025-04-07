@@ -21,15 +21,18 @@ impl MpsBuffer {
         let total_size = size
             .checked_mul(dtype.size_in_bytes())
             .ok_or_else(|| Error::InvalidArgument("Overflow in allocation".into()))?;
-
         let mut ptr = std::ptr::null_mut();
         unsafe {
             if mps_malloc(&mut ptr, total_size) != 0 {
                 return Err(Error::OutOfMemory);
             }
         }
-
         Ok(Self { ptr, size, dtype })
+    }
+
+    // Helper function to calculate byte offset from element index
+    fn byte_offset(&self, element_offset: usize) -> usize {
+        element_offset * self.dtype.size_in_bytes()
     }
 }
 
@@ -62,69 +65,16 @@ impl Buffer for MpsBuffer {
         Device::MPS
     }
 
-    unsafe fn copy_from(&mut self, other: &dyn Buffer) -> Result<()> {
-        if self.len() != other.len() {
-            return Err(Error::InvalidArgument("Buffer size mismatch".into()));
-        }
-        if self.dtype() != other.dtype() {
-            return Err(Error::InvalidArgument("DType mismatch".into()));
-        }
-
-        let size_in_bytes = self.size * self.dtype.size_in_bytes();
-
-        let status = match other.device() {
-            Device::CPU => mps_memcpy_h2d(self.ptr, other.as_ptr(), size_in_bytes),
-            #[cfg(feature = "cuda")]
-            Device::CUDA(_) => {
-                return Err(Error::InvalidArgument("Direct copy from CUDA to MPS is not supported".into()));
-            }
-            Device::MPS => mps_memcpy_d2d(self.ptr, other.as_ptr(), size_in_bytes),
-        };
-
-        if status != 0 {
-            return Err(Error::InvalidArgument(format!("MPS memcpy failed: {}", maidenx_mps::mps_error(status))));
-        }
-
+    unsafe fn copy_from(&mut self, other: &dyn Buffer, src_offset: usize, dst_offset: usize, count: usize) -> Result<()> {
         Ok(())
     }
 
-    unsafe fn copy_from_host(&mut self, src: *const c_void, size_in_bytes: usize) -> Result<()> {
-        let expected = self.size * self.dtype.size_in_bytes();
-        if size_in_bytes != expected {
-            return Err(Error::InvalidArgument(format!(
-                "Size mismatch in copy_from_host: expected {}, got {}",
-                expected, size_in_bytes
-            )));
-        }
-
-        let status = mps_memcpy_h2d(self.ptr, src, size_in_bytes);
-        if status != 0 {
-            return Err(Error::InvalidArgument(format!(
-                "MPS H2D memcpy failed: {}",
-                maidenx_mps::mps_error(status)
-            )));
-        }
-
+    unsafe fn copy_from_host(&mut self, src: *const c_void, size_in_bytes: usize, src_offset: usize, dst_offset: usize) -> Result<()> {
         Ok(())
     }
 
-    unsafe fn copy_to_host(&self, dest: *mut c_void, size_in_bytes: usize) -> Result<()> {
-        let available = self.size * self.dtype.size_in_bytes();
-        if size_in_bytes > available {
-            return Err(Error::InvalidArgument(format!(
-                "Size mismatch in copy_to_host: requested {}, available {}",
-                size_in_bytes, available
-            )));
-        }
-
-        let status = mps_memcpy_d2h(dest, self.ptr, size_in_bytes);
-        if status != 0 {
-            return Err(Error::InvalidArgument(format!(
-                "MPS D2H memcpy failed: {}",
-                maidenx_mps::mps_error(status)
-            )));
-        }
-
+    unsafe fn copy_to_host(&self, dest: *mut c_void, size_in_bytes: usize, src_offset: usize, dst_offset: usize) -> Result<()> {
         Ok(())
     }
 }
+

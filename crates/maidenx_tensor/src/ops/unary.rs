@@ -40,7 +40,7 @@ impl Tensor {
         let input = self.to_dtype(target_dtype)?;
 
         let mut result = if target_dtype.is_uint() {
-            Self::from_tensor(&input)?
+            input.clone()
         } else {
             let mut result = Self::empty_with_spec(input.shape(), input.device(), input.dtype())?;
             unsafe {

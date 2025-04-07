@@ -39,7 +39,7 @@ impl Tensor {
             if src_dtype == dtype {
                 unsafe {
                     let buffer_mut = Arc::get_mut(&mut buffer).ok_or(Error::BufferShared)?;
-                    buffer_mut.copy_from_host(src_data.as_ptr() as *const std::ffi::c_void, size * dtype.size_in_bytes())?;
+                    buffer_mut.copy_from_host(src_data.as_ptr() as *const std::ffi::c_void, size * dtype.size_in_bytes(), 0, 0)?;
                 }
             } else {
                 let mut converted_data = vec![0u8; size * dtype.size_in_bytes()];
@@ -54,7 +54,7 @@ impl Tensor {
 
                 unsafe {
                     let buffer_mut = Arc::get_mut(&mut buffer).ok_or(Error::BufferShared)?;
-                    buffer_mut.copy_from_host(converted_data.as_ptr() as *const std::ffi::c_void, size * dtype.size_in_bytes())?;
+                    buffer_mut.copy_from_host(converted_data.as_ptr() as *const std::ffi::c_void, size * dtype.size_in_bytes(), 0, 0)?;
                 }
             }
         }
@@ -71,30 +71,7 @@ impl Tensor {
         })
     }
 
-    pub fn from_tensor(target: &Tensor) -> Result<Self> {
-        let mut result = Self::empty_with_spec(target.shape(), target.device(), target.dtype())?;
-
-        if target.is_contiguous() {
-            unsafe {
-                result.with_buffer_mut(|buf| {
-                    buf.copy_from(target.buffer())?;
-                    Ok(())
-                })?;
-            }
-        } else {
-            let contiguous_target = target.contiguous()?;
-            unsafe {
-                result.with_buffer_mut(|buf| {
-                    buf.copy_from(contiguous_target.buffer())?;
-                    Ok(())
-                })?;
-            }
-        }
-
-        Ok(result)
-    }
-
-    pub fn share_data(target: &Tensor) -> Result<Self> {
+    pub fn share_buffer(target: &Tensor) -> Result<Self> {
         let tensor = Self {
             data: TensorData {
                 buffer: Arc::clone(&target.data.buffer),
@@ -165,7 +142,7 @@ impl Tensor {
         {
             unsafe {
                 let buffer_mut = Arc::get_mut(&mut buffer).ok_or(Error::BufferShared)?;
-                buffer_mut.copy_from_host(zero_buf.as_ptr() as *const std::ffi::c_void, size * dtype.size_in_bytes())?;
+                buffer_mut.copy_from_host(zero_buf.as_ptr() as *const std::ffi::c_void, size * dtype.size_in_bytes(), 0, 0)?;
             }
         }
 
@@ -224,7 +201,7 @@ impl Tensor {
         {
             unsafe {
                 let buffer_mut = Arc::get_mut(&mut buffer).ok_or(Error::BufferShared)?;
-                buffer_mut.copy_from_host(host_buf.as_ptr() as *const std::ffi::c_void, size * dtype.size_in_bytes())?;
+                buffer_mut.copy_from_host(host_buf.as_ptr() as *const std::ffi::c_void, size * dtype.size_in_bytes(), 0, 0)?;
             }
         }
 
@@ -284,7 +261,7 @@ impl Tensor {
         {
             unsafe {
                 let buffer_mut = Arc::get_mut(&mut buffer).ok_or(Error::BufferShared)?;
-                buffer_mut.copy_from_host(host_buf.as_ptr() as *const std::ffi::c_void, size * dtype.size_in_bytes())?;
+                buffer_mut.copy_from_host(host_buf.as_ptr() as *const std::ffi::c_void, size * dtype.size_in_bytes(), 0, 0)?;
             }
         }
 

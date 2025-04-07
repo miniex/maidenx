@@ -263,6 +263,7 @@ __global__ void fill_kernel(T *data, T value, size_t size) {
     }                                                                          \
     __syncthreads();                                                           \
                                                                                \
+    /* Check if input tensor is contiguous */                                  \
     bool is_contiguous = true;                                                 \
     size_t acc = 1;                                                            \
     for (int d = num_dims - 1; d >= 0; d--) {                                  \
@@ -277,9 +278,6 @@ __global__ void fill_kernel(T *data, T value, size_t size) {
     if (is_contiguous) {                                                       \
       for (unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;             \
            i < num_els; i += blockDim.x * gridDim.x) {                         \
-        size_t src_idx = i;                                                    \
-        size_t src_value_idx = (src_idx + offset) % num_els;                   \
-                                                                               \
         /* Calculate destination index */                                      \
         size_t dst_idx = i;                                                    \
         for (unsigned int nd = 0; nd < num_max_dims; ++nd) {                   \
@@ -290,13 +288,14 @@ __global__ void fill_kernel(T *data, T value, size_t size) {
         }                                                                      \
                                                                                \
         /* Update max value atomically */                                      \
-        atomicMax(out + dst_idx, inp[src_value_idx]);                          \
+        atomicMax(out + dst_idx, inp[i + offset]);                             \
       }                                                                        \
     } else {                                                                   \
       for (unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;             \
            i < num_els; i += blockDim.x * gridDim.x) {                         \
-        size_t src_idx = get_strided_index(i, num_dims, dims, strides);        \
-        size_t src_value_idx = (src_idx + offset) % num_els;                   \
+        /* Calculate source index */                                           \
+        size_t src_idx =                                                       \
+            offset + get_strided_index(i, num_dims, dims, strides);            \
                                                                                \
         /* Calculate destination index */                                      \
         size_t dst_idx = i;                                                    \
@@ -308,7 +307,7 @@ __global__ void fill_kernel(T *data, T value, size_t size) {
         }                                                                      \
                                                                                \
         /* Update max value atomically */                                      \
-        atomicMax(out + dst_idx, inp[src_value_idx]);                          \
+        atomicMax(out + dst_idx, inp[src_idx]);                                \
       }                                                                        \
     }                                                                          \
   }                                                                            \
@@ -353,6 +352,7 @@ __global__ void fill_kernel(T *data, T value, size_t size) {
     }                                                                          \
     __syncthreads();                                                           \
                                                                                \
+    /* Check if input tensor is contiguous */                                  \
     bool is_contiguous = true;                                                 \
     size_t acc = 1;                                                            \
     for (int d = num_dims - 1; d >= 0; d--) {                                  \
@@ -367,9 +367,6 @@ __global__ void fill_kernel(T *data, T value, size_t size) {
     if (is_contiguous) {                                                       \
       for (unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;             \
            i < num_els; i += blockDim.x * gridDim.x) {                         \
-        size_t src_idx = i;                                                    \
-        size_t src_value_idx = (src_idx + offset) % num_els;                   \
-                                                                               \
         /* Calculate destination index */                                      \
         size_t dst_idx = i;                                                    \
         for (unsigned int nd = 0; nd < num_min_dims; ++nd) {                   \
@@ -380,13 +377,14 @@ __global__ void fill_kernel(T *data, T value, size_t size) {
         }                                                                      \
                                                                                \
         /* Update min value atomically */                                      \
-        atomicMin(out + dst_idx, inp[src_value_idx]);                          \
+        atomicMin(out + dst_idx, inp[i + offset]);                             \
       }                                                                        \
     } else {                                                                   \
       for (unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;             \
            i < num_els; i += blockDim.x * gridDim.x) {                         \
-        size_t src_idx = get_strided_index(i, num_dims, dims, strides);        \
-        size_t src_value_idx = (src_idx + offset) % num_els;                   \
+        /* Calculate source index */                                           \
+        size_t src_idx =                                                       \
+            offset + get_strided_index(i, num_dims, dims, strides);            \
                                                                                \
         /* Calculate destination index */                                      \
         size_t dst_idx = i;                                                    \
@@ -398,7 +396,7 @@ __global__ void fill_kernel(T *data, T value, size_t size) {
         }                                                                      \
                                                                                \
         /* Update min value atomically */                                      \
-        atomicMin(out + dst_idx, inp[src_value_idx]);                          \
+        atomicMin(out + dst_idx, inp[src_idx]);                                \
       }                                                                        \
     }                                                                          \
   }                                                                            \
