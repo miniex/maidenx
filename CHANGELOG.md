@@ -1,6 +1,6 @@
 # MaidenX Changelog
 
-## Version 0.1.4
+## Version 0.1.5
 
 ### New Features
 - **Performance**: Enjoy enhanced performance on Apple Silicon devices with the new Metal Performance Shaders (MPS) backend support, enabling hardware acceleration for various tensor operations. [[#9](https://github.com/miniex/maidenx/pull/9)]
