@@ -591,4 +591,3 @@ pub trait Buffer: Send + Sync {
         }
     }
 }
-

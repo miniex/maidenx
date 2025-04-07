@@ -12,6 +12,8 @@ use half::{bf16, f16};
 use maidenx_cpu::nn::conv::*;
 #[cfg(feature = "cuda")]
 use maidenx_cuda::{cuda_alloc_and_copy_dims, cuda_free, cuda_set_device, nn::conv::*};
+#[cfg(feature = "mps")]
+use maidenx_mps::{mps_alloc_and_copy_dims, mps_free, nn::conv::*};
 
 #[macro_export]
 macro_rules! declare_conv2d_op {
@@ -23,11 +25,11 @@ macro_rules! declare_conv2d_op {
                 output: &mut dyn Buffer,
                 input: &dyn Buffer,
                 num_els: usize,
-                dims_and_strides: Option<&[usize]>,
+                metadata: Option<&[usize]>,
             ) -> Result<()> {
-                let (dims_and_strides, cleanup_fn): (*const usize, CleanupFn) = match output.device() {
+                let (metadata, cleanup_fn): (*const usize, CleanupFn) = match output.device() {
                     Device::CPU => (
-                        dims_and_strides.map_or(std::ptr::null(), |d| d.as_ptr()),
+                        metadata.map_or(std::ptr::null(), |d| d.as_ptr()),
                         None
                     ),
                     #[cfg(feature = "cuda")]
@@ -35,7 +37,7 @@ macro_rules! declare_conv2d_op {
                         if cuda_set_device(device_id as i32) != 0 {
                             return Err(Error::CudaError("Failed to set CUDA device".to_string()));
                         }
-                        let (ptr, _) = dims_and_strides
+                        let (ptr, _) = metadata
                             .map_or((std::ptr::null(), None), |dims| {
                                 let (p, _) = cuda_alloc_and_copy_dims(dims);
                                 (p as *const usize, Some(dims.len()))
@@ -51,7 +53,19 @@ macro_rules! declare_conv2d_op {
                     },
                     #[cfg(feature = "mps")]
                     Device::MPS => {
-                        return Err(Error::MpsError("Failed to MPS".to_string()));
+                        let (ptr, _) = metadata
+                            .map_or((std::ptr::null(), None), |dims| {
+                                let (p, len) = mps_alloc_and_copy_dims(dims);
+                                (p as *const usize, Some(len))
+                            });
+                        (
+                            ptr,
+                            Some(Box::new(move || {
+                                if !ptr.is_null() {
+                                    mps_free(ptr as *mut std::ffi::c_void);
+                                }
+                            }) as Box<dyn FnOnce()>)
+                        )
                     },
                 };
 
@@ -62,7 +76,7 @@ macro_rules! declare_conv2d_op {
                                 DType::$dtype => {
                                     [<conv2d_im2col_ $dtype:lower>](
                                         num_els,
-                                        dims_and_strides,
+                                        metadata,
                                         input.as_ptr() as *const [<$dtype:lower>],
                                         output.as_mut_ptr() as *mut [<$dtype:lower>],
                                     )
@@ -78,7 +92,7 @@ macro_rules! declare_conv2d_op {
                                 DType::$dtype => {
                                     [<cuda_conv2d_im2col_ $dtype:lower>](
                                         num_els,
-                                        dims_and_strides,
+                                        metadata,
                                         input.as_ptr() as *const [<$dtype:lower>],
                                         output.as_mut_ptr() as *mut [<$dtype:lower>],
                                     )
@@ -88,7 +102,21 @@ macro_rules! declare_conv2d_op {
                         }
                     },
                     #[cfg(feature = "mps")]
-                    Device::MPS => {},
+                    Device::MPS => {
+                        match input.dtype() {
+                            $(
+                                DType::$dtype => {
+                                    [<metal_conv2d_im2col_ $dtype:lower>](
+                                        num_els,
+                                        metadata as *const std::ffi::c_void,
+                                        input.as_ptr(),
+                                        output.as_ptr(),
+                                    )
+                                }
+                            )*
+                            _ => return Err(Error::UnsupportedDType)
+                        }
+                    },
                 }
 
                 if let Some(cleanup) = cleanup_fn {
@@ -105,11 +133,11 @@ macro_rules! declare_conv2d_op {
                 output: &dyn Buffer,
                 col: &dyn Buffer,
                 num_els: usize,
-                dims_and_strides: Option<&[usize]>,
+                metadata: Option<&[usize]>,
             ) -> Result<()> {
-                let (dims_and_strides, cleanup_fn): (*const usize, CleanupFn) = match output.device() {
+                let (metadata, cleanup_fn): (*const usize, CleanupFn) = match output.device() {
                     Device::CPU => (
-                        dims_and_strides.map_or(std::ptr::null(), |d| d.as_ptr()),
+                        metadata.map_or(std::ptr::null(), |d| d.as_ptr()),
                         None
                     ),
                     #[cfg(feature = "cuda")]
@@ -117,7 +145,7 @@ macro_rules! declare_conv2d_op {
                         if cuda_set_device(device_id as i32) != 0 {
                             return Err(Error::CudaError("Failed to set CUDA device".to_string()));
                         }
-                        let (ptr, _) = dims_and_strides
+                        let (ptr, _) = metadata
                             .map_or((std::ptr::null(), None), |dims| {
                                 let (p, _) = cuda_alloc_and_copy_dims(dims);
                                 (p as *const usize, Some(dims.len()))
@@ -133,7 +161,19 @@ macro_rules! declare_conv2d_op {
                     },
                     #[cfg(feature = "mps")]
                     Device::MPS => {
-                        return Err(Error::MpsError("Failed to MPS".to_string()));
+                        let (ptr, _) = metadata
+                            .map_or((std::ptr::null(), None), |dims| {
+                                let (p, len) = mps_alloc_and_copy_dims(dims);
+                                (p as *const usize, Some(len))
+                            });
+                        (
+                            ptr,
+                            Some(Box::new(move || {
+                                if !ptr.is_null() {
+                                    mps_free(ptr as *mut std::ffi::c_void);
+                                }
+                            }) as Box<dyn FnOnce()>)
+                        )
                     },
                 };
 
@@ -144,7 +184,7 @@ macro_rules! declare_conv2d_op {
                                 DType::$dtype => {
                                     [<conv2d_col2im_ $dtype:lower>](
                                         num_els,
-                                        dims_and_strides,
+                                        metadata,
                                         col.as_ptr() as *const [<$dtype:lower>],
                                         output.as_ptr() as *mut [<$dtype:lower>],
                                     )
@@ -160,7 +200,7 @@ macro_rules! declare_conv2d_op {
                                 DType::$dtype => {
                                     [<cuda_conv2d_col2im_ $dtype:lower>](
                                         num_els,
-                                        dims_and_strides,
+                                        metadata,
                                         col.as_ptr() as *const [<$dtype:lower>],
                                         output.as_ptr() as *mut [<$dtype:lower>],
                                     )
@@ -170,7 +210,21 @@ macro_rules! declare_conv2d_op {
                         }
                     },
                     #[cfg(feature = "mps")]
-                    Device::MPS => {},
+                    Device::MPS => {
+                        match output.dtype() {
+                            $(
+                                DType::$dtype => {
+                                    [<metal_conv2d_col2im_ $dtype:lower>](
+                                        num_els,
+                                        metadata as *const std::ffi::c_void,
+                                        col.as_ptr(),
+                                        output.as_ptr(),
+                                    )
+                                }
+                            )*
+                            _ => return Err(Error::UnsupportedDType)
+                        }
+                    },
                 }
 
                 if let Some(cleanup) = cleanup_fn {

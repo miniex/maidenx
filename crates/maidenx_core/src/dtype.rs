@@ -158,6 +158,32 @@ impl DType {
         }
     }
 
+    pub fn to_signed(&self) -> DType {
+        match self {
+            Self::BOOL => Self::I8,
+            Self::U8 => Self::I8,
+            Self::U16 => Self::I16,
+            Self::U32 => Self::I32,
+            Self::U64 => Self::I64,
+            _ => *self,
+        }
+    }
+
+    pub fn to_float(&self) -> DType {
+        match self {
+            Self::BOOL => Self::F32,
+            Self::U8 => Self::F32,
+            Self::U16 => Self::F32,
+            Self::U32 => Self::F32,
+            Self::U64 => Self::F64,
+            Self::I8 => Self::F32,
+            Self::I16 => Self::F32,
+            Self::I32 => Self::F32,
+            Self::I64 => Self::F64,
+            _ => *self,
+        }
+    }
+
     /// # Safety
     ///
     /// This function performs an unsafe read operation from the provided pointer.
@@ -289,4 +315,3 @@ pub fn get_default_dtype() -> DType {
 pub fn set_default_dtype(dtype: DType) {
     DEFAULT_DTYPE.with(|d| d.set(dtype));
 }
-

@@ -570,4 +570,3 @@ min_op!(min_i8, i8, i8::MAX);
 min_op!(min_i16, i16, i16::MAX);
 min_op!(min_i32, i32, i32::MAX);
 min_op!(min_i64, i64, i64::MAX);
-

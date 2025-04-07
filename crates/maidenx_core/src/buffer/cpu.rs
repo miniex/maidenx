@@ -6,6 +6,8 @@ use crate::{
 };
 #[cfg(feature = "cuda")]
 use maidenx_cuda::cuda_memcpy_d2h;
+#[cfg(feature = "mps")]
+use maidenx_mps::mps_memcpy_d2h;
 use std::{ffi::c_void, ptr};
 
 pub struct CpuBuffer {
@@ -85,7 +87,13 @@ impl Buffer for CpuBuffer {
                 Ok(())
             }
             #[cfg(feature = "mps")]
-            Device::MPS => Ok(()),
+            Device::MPS => {
+                let dst_ptr = self.data.as_mut_ptr().add(dst_byte_offset) as *mut c_void;
+
+                // Use base pointer and pass explicit offsets
+                mps_memcpy_d2h(dst_ptr, other.as_ptr(), byte_count, 0, src_byte_offset);
+                Ok(())
+            }
         }
     }
 

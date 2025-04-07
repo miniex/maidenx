@@ -9,3 +9,5 @@ pub mod scalar;
 pub use maidenx_cpu as cpu;
 #[cfg(feature = "cuda")]
 pub use maidenx_cuda as cuda;
+#[cfg(feature = "mps")]
+pub use maidenx_mps as mps;

@@ -63,6 +63,11 @@ impl Tensor {
     }
 
     pub fn with_dtype(&mut self, dtype: DType) -> Result<()> {
+        #[cfg(feature = "mps")]
+        if self.device() == Device::MPS && dtype.size_in_bytes() == 8 {
+            return Err(Error::UnsupportedDType);
+        }
+
         let buffer_len = self.buffer().len();
         let device = self.device();
 

@@ -188,4 +188,3 @@ impl Buffer for CudaBuffer {
         Ok(())
     }
 }
-

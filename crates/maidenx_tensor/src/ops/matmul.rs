@@ -213,24 +213,40 @@ fn expand_to_batch_shape(a_exp: &Tensor, leading_bc_shape: &[usize], last0: usiz
 }
 
 fn prepare_metadata(a: &Tensor, b: &Tensor) -> (Vec<usize>, Vec<usize>) {
-    let out_ndim = a.ndim();
-    let a_shape = a.shape();
-    let b_shape = b.shape();
-    let a_strides = a.strides();
-    let b_strides = b.strides();
-    let mut out_shape = a_shape[..out_ndim - 2].to_vec();
+    let (mut a_shape, mut b_shape) = (a.shape().to_vec(), b.shape().to_vec());
+    let (mut a_strides, mut b_strides) = (a.strides().to_vec(), b.strides().to_vec());
+
+    let mut out_shape = vec![];
+
+    // Handle 1-dimensional inputs by reshaping them explicitly
+    if a_shape.len() == 1 {
+        a_shape.insert(0, 1); // [K] -> [1, K]
+        a_strides.insert(0, a_strides[0] * a_shape[1]);
+    }
+
+    if b_shape.len() == 1 {
+        b_shape.push(1); // [K] -> [K, 1]
+        b_strides.push(1);
+    }
+
+    let out_ndim = a_shape.len();
+
+    // Now safely access dimensions
+    out_shape.extend_from_slice(&a_shape[..out_ndim - 2]);
     out_shape.push(a_shape[out_ndim - 2]);
     out_shape.push(b_shape[out_ndim - 1]);
+
     let mut metadata = Vec::new();
     metadata.push(out_ndim);
-    metadata.push(a.ndim());
-    metadata.push(b.ndim());
+    metadata.push(a_shape.len());
+    metadata.push(b_shape.len());
     metadata.extend_from_slice(&out_shape);
-    metadata.extend_from_slice(a_shape);
-    metadata.extend_from_slice(b_shape);
-    metadata.extend_from_slice(a_strides);
-    metadata.extend_from_slice(b_strides);
+    metadata.extend_from_slice(&a_shape);
+    metadata.extend_from_slice(&b_shape);
+    metadata.extend_from_slice(&a_strides);
+    metadata.extend_from_slice(&b_strides);
     metadata.push(a.offset());
     metadata.push(b.offset());
+
     (metadata, out_shape)
 }

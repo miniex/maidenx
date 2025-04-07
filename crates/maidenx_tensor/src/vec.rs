@@ -116,4 +116,3 @@ fn get_dtype_for_type<T: 'static>() -> Option<DType> {
         None
     }
 }
-

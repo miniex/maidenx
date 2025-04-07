@@ -97,4 +97,3 @@ pub fn auto_set_device() {
     #[cfg(not(any(feature = "cuda", feature = "mps")))]
     set_default_device(Device::CPU);
 }
-

@@ -10,6 +10,8 @@ use half::{bf16, f16};
 use maidenx_cpu::ops::padding::*;
 #[cfg(feature = "cuda")]
 use maidenx_cuda::{cuda_alloc_and_copy_dims, cuda_free, cuda_set_device, ops::padding::*};
+#[cfg(feature = "mps")]
+use maidenx_mps::{mps_alloc_and_copy_dims, mps_free, ops::padding::*};
 
 #[macro_export]
 macro_rules! declare_padding_op {
@@ -52,7 +54,19 @@ macro_rules! declare_padding_op {
                     },
                     #[cfg(feature = "mps")]
                     Device::MPS => {
-                        return Err(Error::MpsError("Failed to MPS".to_string()));
+                        let (ptr, _) = metadata
+                            .map_or((std::ptr::null(), None), |dims| {
+                                let (p, len) = mps_alloc_and_copy_dims(dims);
+                                (p as *const usize, Some(len))
+                            });
+                        (
+                            ptr,
+                            Some(Box::new(move || {
+                                if !ptr.is_null() {
+                                    mps_free(ptr as *mut std::ffi::c_void);
+                                }
+                            }) as Box<dyn FnOnce()>)
+                        )
                     },
                 };
 
@@ -95,7 +109,24 @@ macro_rules! declare_padding_op {
                         }
                     },
                     #[cfg(feature = "mps")]
-                    Device::MPS => {},
+                    Device::MPS => {
+                        match input.dtype() {
+                            $(
+                                DType::$dtype => {
+                                    [<metal_pad_with_constant_ $dtype:lower>](
+                                        num_els_in,
+                                        num_els_out,
+                                        num_dims,
+                                        metadata as *const std::ffi::c_void,
+                                        input.as_ptr(),
+                                        output.as_ptr(),
+                                        pad_value.[<as_ $dtype:lower>](),
+                                    )
+                                }
+                            )*
+                            _ => return Err(Error::UnsupportedDType)
+                        }
+                    },
                 }
 
                 if let Some(cleanup) = cleanup_fn {
@@ -144,7 +175,19 @@ macro_rules! declare_padding_op {
                     },
                     #[cfg(feature = "mps")]
                     Device::MPS => {
-                        return Err(Error::MpsError("Failed to MPS".to_string()));
+                        let (ptr, _) = metadata
+                            .map_or((std::ptr::null(), None), |dims| {
+                                let (p, len) = mps_alloc_and_copy_dims(dims);
+                                (p as *const usize, Some(len))
+                            });
+                        (
+                            ptr,
+                            Some(Box::new(move || {
+                                if !ptr.is_null() {
+                                    mps_free(ptr as *mut std::ffi::c_void);
+                                }
+                            }) as Box<dyn FnOnce()>)
+                        )
                     },
                 };
 
@@ -185,7 +228,23 @@ macro_rules! declare_padding_op {
                         }
                     },
                     #[cfg(feature = "mps")]
-                    Device::MPS => {},
+                    Device::MPS => {
+                        match input.dtype() {
+                            $(
+                                DType::$dtype => {
+                                    [<metal_pad_with_reflection_ $dtype:lower>](
+                                        num_els_in,
+                                        num_els_out,
+                                        num_dims,
+                                        metadata as *const std::ffi::c_void,
+                                        input.as_ptr(),
+                                        output.as_ptr(),
+                                    )
+                                }
+                            )*
+                            _ => return Err(Error::UnsupportedDType)
+                        }
+                    },
                 }
 
                 if let Some(cleanup) = cleanup_fn {
@@ -234,7 +293,19 @@ macro_rules! declare_padding_op {
                     },
                     #[cfg(feature = "mps")]
                     Device::MPS => {
-                        return Err(Error::MpsError("Failed to MPS".to_string()));
+                        let (ptr, _) = metadata
+                            .map_or((std::ptr::null(), None), |dims| {
+                                let (p, len) = mps_alloc_and_copy_dims(dims);
+                                (p as *const usize, Some(len))
+                            });
+                        (
+                            ptr,
+                            Some(Box::new(move || {
+                                if !ptr.is_null() {
+                                    mps_free(ptr as *mut std::ffi::c_void);
+                                }
+                            }) as Box<dyn FnOnce()>)
+                        )
                     },
                 };
 
@@ -275,7 +346,23 @@ macro_rules! declare_padding_op {
                         }
                     },
                     #[cfg(feature = "mps")]
-                    Device::MPS => {},
+                    Device::MPS => {
+                        match input.dtype() {
+                            $(
+                                DType::$dtype => {
+                                    [<metal_pad_with_replication_ $dtype:lower>](
+                                        num_els_in,
+                                        num_els_out,
+                                        num_dims,
+                                        metadata as *const std::ffi::c_void,
+                                        input.as_ptr(),
+                                        output.as_ptr(),
+                                    )
+                                }
+                            )*
+                            _ => return Err(Error::UnsupportedDType)
+                        }
+                    },
                 }
 
                 if let Some(cleanup) = cleanup_fn {
@@ -324,7 +411,19 @@ macro_rules! declare_padding_op {
                     },
                     #[cfg(feature = "mps")]
                     Device::MPS => {
-                        return Err(Error::MpsError("Failed to MPS".to_string()));
+                        let (ptr, _) = metadata
+                            .map_or((std::ptr::null(), None), |dims| {
+                                let (p, len) = mps_alloc_and_copy_dims(dims);
+                                (p as *const usize, Some(len))
+                            });
+                        (
+                            ptr,
+                            Some(Box::new(move || {
+                                if !ptr.is_null() {
+                                    mps_free(ptr as *mut std::ffi::c_void);
+                                }
+                            }) as Box<dyn FnOnce()>)
+                        )
                     },
                 };
 
@@ -365,7 +464,23 @@ macro_rules! declare_padding_op {
                         }
                     },
                     #[cfg(feature = "mps")]
-                    Device::MPS => {},
+                    Device::MPS => {
+                        match grad_out.dtype() {
+                            $(
+                                DType::$dtype => {
+                                    [<metal_pad_with_constant_backward_ $dtype:lower>](
+                                        num_els_in,
+                                        num_els_out,
+                                        num_dims,
+                                        metadata as *const std::ffi::c_void,
+                                        grad_out.as_ptr(),
+                                        grad_in.as_ptr(),
+                                    )
+                                }
+                            )*
+                            _ => return Err(Error::UnsupportedDType)
+                        }
+                    },
                 }
 
                 if let Some(cleanup) = cleanup_fn {
@@ -414,7 +529,19 @@ macro_rules! declare_padding_op {
                     },
                     #[cfg(feature = "mps")]
                     Device::MPS => {
-                        return Err(Error::MpsError("Failed to MPS".to_string()));
+                        let (ptr, _) = metadata
+                            .map_or((std::ptr::null(), None), |dims| {
+                                let (p, len) = mps_alloc_and_copy_dims(dims);
+                                (p as *const usize, Some(len))
+                            });
+                        (
+                            ptr,
+                            Some(Box::new(move || {
+                                if !ptr.is_null() {
+                                    mps_free(ptr as *mut std::ffi::c_void);
+                                }
+                            }) as Box<dyn FnOnce()>)
+                        )
                     },
                 };
 
@@ -455,7 +582,23 @@ macro_rules! declare_padding_op {
                         }
                     },
                     #[cfg(feature = "mps")]
-                    Device::MPS => {},
+                    Device::MPS => {
+                        match grad_out.dtype() {
+                            $(
+                                DType::$dtype => {
+                                    [<metal_pad_with_reflection_backward_ $dtype:lower>](
+                                        num_els_in,
+                                        num_els_out,
+                                        num_dims,
+                                        metadata as *const std::ffi::c_void,
+                                        grad_out.as_ptr(),
+                                        grad_in.as_ptr(),
+                                    )
+                                }
+                            )*
+                            _ => return Err(Error::UnsupportedDType)
+                        }
+                    },
                 }
 
                 if let Some(cleanup) = cleanup_fn {
@@ -504,7 +647,19 @@ macro_rules! declare_padding_op {
                     },
                     #[cfg(feature = "mps")]
                     Device::MPS => {
-                        return Err(Error::MpsError("Failed to MPS".to_string()));
+                        let (ptr, _) = metadata
+                            .map_or((std::ptr::null(), None), |dims| {
+                                let (p, len) = mps_alloc_and_copy_dims(dims);
+                                (p as *const usize, Some(len))
+                            });
+                        (
+                            ptr,
+                            Some(Box::new(move || {
+                                if !ptr.is_null() {
+                                    mps_free(ptr as *mut std::ffi::c_void);
+                                }
+                            }) as Box<dyn FnOnce()>)
+                        )
                     },
                 };
 
@@ -545,7 +700,23 @@ macro_rules! declare_padding_op {
                         }
                     },
                     #[cfg(feature = "mps")]
-                    Device::MPS => {},
+                    Device::MPS => {
+                        match grad_out.dtype() {
+                            $(
+                                DType::$dtype => {
+                                    [<metal_pad_with_replication_backward_ $dtype:lower>](
+                                        num_els_in,
+                                        num_els_out,
+                                        num_dims,
+                                        metadata as *const std::ffi::c_void,
+                                        grad_out.as_ptr(),
+                                        grad_in.as_ptr(),
+                                    )
+                                }
+                            )*
+                            _ => return Err(Error::UnsupportedDType)
+                        }
+                    },
                 }
 
                 if let Some(cleanup) = cleanup_fn {

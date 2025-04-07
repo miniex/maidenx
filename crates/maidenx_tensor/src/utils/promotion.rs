@@ -1,6 +1,7 @@
-use maidenx_core::{dtype::DType, error::Result};
-
 use crate::Tensor;
+#[cfg(feature = "mps")]
+use maidenx_core::device::Device;
+use maidenx_core::{dtype::DType, error::Result, scalar::Scalar};
 
 pub fn get_signed_dtype(dtype: DType) -> DType {
     match dtype {
@@ -45,18 +46,18 @@ pub fn get_promoted_dtype(dtype1: DType, dtype2: DType) -> DType {
     }
 }
 
-pub fn get_promoted_dtype_with_scalar(tensor_dtype: DType, scalar_dtype: DType) -> DType {
-    let tensor_dtype = if tensor_dtype == DType::BOOL { DType::U8 } else { tensor_dtype };
-
-    let scalar_dtype = if scalar_dtype == DType::BOOL { DType::U8 } else { scalar_dtype };
-
-    match (tensor_dtype, scalar_dtype) {
-        (tensor_dtype, scalar_dtype) if tensor_dtype == scalar_dtype => tensor_dtype,
-
-        (t_dtype, s_dtype) if t_dtype.is_int() && s_dtype.is_float() => s_dtype,
-        _ => tensor_dtype,
-    }
-}
+// pub fn get_promoted_dtype_with_scalar(tensor_dtype: DType, scalar_dtype: DType) -> DType {
+//     let tensor_dtype = if tensor_dtype == DType::BOOL { DType::U8 } else { tensor_dtype };
+//
+//     let scalar_dtype = if scalar_dtype == DType::BOOL { DType::U8 } else { scalar_dtype };
+//
+//     match (tensor_dtype, scalar_dtype) {
+//         (tensor_dtype, scalar_dtype) if tensor_dtype == scalar_dtype => tensor_dtype,
+//
+//         (t_dtype, s_dtype) if t_dtype.is_int() && s_dtype.is_float() => s_dtype,
+//         _ => tensor_dtype,
+//     }
+// }
 
 pub fn promote_tensor(src: &Tensor, target_dtype: DType) -> Result<Tensor> {
     let src = if src.dtype() != target_dtype {
@@ -67,6 +68,33 @@ pub fn promote_tensor(src: &Tensor, target_dtype: DType) -> Result<Tensor> {
     } else {
         src.clone()
     };
+
+    Ok(src)
+}
+
+pub fn promote_scalar_for_tensor(src: Scalar, target_dtype: DType, with_tensor: &Tensor) -> Result<Scalar> {
+    let src = if src.dtype() != target_dtype {
+        let src = src.to_dtype(target_dtype);
+
+        src
+    } else {
+        src.clone()
+    };
+
+    #[cfg(feature = "mps")]
+    let src = if with_tensor.device() == Device::MPS {
+        match src.dtype() {
+            DType::U64 => src.to_dtype(DType::U32),
+            DType::I64 => src.to_dtype(DType::I32),
+            DType::F64 => src.to_dtype(DType::F32),
+            _ => src,
+        }
+    } else {
+        src
+    };
+
+    #[cfg(not(feature = "mps"))]
+    let _ = with_tensor;
 
     Ok(src)
 }

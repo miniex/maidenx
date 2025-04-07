@@ -44,5 +44,9 @@ name = "cuda"
 path = "examples/device/cuda.rs"
 
 [[example]]
+name = "mps"
+path = "examples/device/mps.rs"
+
+[[example]]
 name = "serde"
 path = "examples/serde/serde.rs"
