@@ -36,9 +36,13 @@ mps = ["maidenx_internal/mps"]
 maidenx_internal = { path = "crates/maidenx_internal", version = "0.1.0-dev" }
 
 [[example]]
-name = "simple-cpu"
-path = "examples/simple-cpu.rs"
+name = "cpu"
+path = "examples/device/cpu.rs"
 
 [[example]]
-name = "simple-cuda"
-path = "examples/simple-cuda.rs"
+name = "cuda"
+path = "examples/device/cuda.rs"
+
+[[example]]
+name = "serde"
+path = "examples/serde/serde.rs"
