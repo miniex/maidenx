@@ -3,6 +3,7 @@
 crates=(
     maidenx_cpu
     maidenx_cuda
+    maidenx_mps
 
     maidenx_macro_utils
 
