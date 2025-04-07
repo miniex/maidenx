@@ -1,5 +1,20 @@
 # MaidenX Changelog
 
+## Version 0.1.4
+
+### New Features
+- **Performance**: Enjoy enhanced performance on Apple Silicon devices with the new Metal Performance Shaders (MPS) backend support, enabling hardware acceleration for various tensor operations. [[#9](https://github.com/miniex/maidenx/pull/9)]
+- **Buffer Management**: Experience improved data handling with the new BufferManager, designed to streamline memory management and enhance performance. [[993a075](https://github.com/miniex/maidenx/commit/993a075)]
+- **Serialization**: Benefit from the new serialization and deserialization support, allowing for easier data handling and storage across different formats. [[b726e79](https://github.com/miniex/maidenx/commit/b726e79)]
+- **Examples**: Explore new examples demonstrating serialization features and reorganized device examples for better clarity and usability. [[0a26aa8](https://github.com/miniex/maidenx/commit/0a26aa8)]
+
+### Improvements
+- **Core Functionality**: The buffer interface is redesigned to include offset support, providing more flexibility in data management and safer memory access. [[c9b8180](https://github.com/miniex/maidenx/commit/c9b8180)]
+- **Tensor Operations**: The to_flatten_vec method now supports additional data types (u16, u64, i16), enhancing its versatility for various applications. [[cffeaf1](https://github.com/miniex/maidenx/commit/cffeaf1)]
+
+### Others
+- **Documentation**: The feature support tables are updated to replace CPU, CUDA, and MPS columns with a new Notes column for clearer information presentation. [[6dc7c23](https://github.com/miniex/maidenx/commit/6dc7c23)]
+
 ## Version 0.1.3
 
 ### New Features
