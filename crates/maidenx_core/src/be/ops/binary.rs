@@ -12,44 +12,56 @@ use half::{bf16, f16};
 use maidenx_cpu::ops::binary::*;
 #[cfg(feature = "cuda")]
 use maidenx_cuda::{cuda_alloc_and_copy_dims, cuda_free, cuda_set_device, ops::binary::*};
+#[cfg(feature = "mps")]
+use maidenx_mps::{mps_alloc_and_copy_dims, mps_free, ops::binary::*};
 
 macro_rules! impl_for_type {
-    ($name:ident, $size:expr, $num_dims:expr, $dims:expr, $lhs:expr, $rhs:expr, $out:expr, $type:ty, true, $device:expr) => {
+    ($name:ident, $size:expr, $num_dims:expr, $metadata:expr, $lhs:expr, $rhs:expr, $out:expr, $type:ty, true, $device:expr) => {
         match $device {
             Device::CPU => paste::paste! {
-                [<$name _ $type>]($size, $num_dims, $dims,
+                [<$name _ $type>]($size, $num_dims, $metadata,
                     $lhs.as_ptr() as *const $type,
                     $rhs.as_ptr() as *const $type,
                     $out.as_mut_ptr() as *mut bool)
             },
             #[cfg(feature = "cuda")]
             Device::CUDA(_) => paste::paste! {
-                [<cuda_ $name _ $type>]($size, $num_dims, $dims,
+                [<cuda_ $name _ $type>]($size, $num_dims, $metadata,
                     $lhs.as_ptr() as *const $type,
                     $rhs.as_ptr() as *const $type,
                     $out.as_mut_ptr() as *mut bool)
             },
             #[cfg(feature = "mps")]
-            Device::MPS => {}
+            Device::MPS => paste::paste! {
+                [<metal_ $name _ $type>]($size, $num_dims, $metadata as *const std::ffi::c_void,
+                    $lhs.as_ptr(),
+                    $rhs.as_ptr(),
+                    $out.as_ptr())
+            },
         }
     };
-    ($name:ident, $size:expr, $num_dims:expr, $dims:expr, $lhs:expr, $rhs:expr, $out:expr, $type:ty, false, $device:expr) => {
+    ($name:ident, $size:expr, $num_dims:expr, $metadata:expr, $lhs:expr, $rhs:expr, $out:expr, $type:ty, false, $device:expr) => {
         match $device {
             Device::CPU => paste::paste! {
-                [<$name _ $type>]($size, $num_dims, $dims,
+                [<$name _ $type>]($size, $num_dims, $metadata,
                     $lhs.as_ptr() as *const $type,
                     $rhs.as_ptr() as *const $type,
                     $out.as_mut_ptr() as *mut $type)
             },
             #[cfg(feature = "cuda")]
             Device::CUDA(_) => paste::paste! {
-                [<cuda_ $name _ $type>]($size, $num_dims, $dims,
+                [<cuda_ $name _ $type>]($size, $num_dims, $metadata,
                     $lhs.as_ptr() as *const $type,
                     $rhs.as_ptr() as *const $type,
                     $out.as_mut_ptr() as *mut $type)
             },
             #[cfg(feature = "mps")]
-            Device::MPS => {}
+            Device::MPS => paste::paste! {
+                [<metal_ $name _ $type>]($size, $num_dims, $metadata as *const std::ffi::c_void,
+                    $lhs.as_ptr(),
+                    $rhs.as_ptr(),
+                    $out.as_ptr())
+            },
         }
     };
 }
@@ -102,7 +114,19 @@ macro_rules! declare_binary_op {
                     },
                     #[cfg(feature = "mps")]
                     Device::MPS => {
-                        return Err(Error::MpsError("Failed to MPS".to_string()));
+                        let (ptr, _) = metadata
+                            .map_or((std::ptr::null(), None), |dims| {
+                                let (p, len) = mps_alloc_and_copy_dims(dims);
+                                (p as *const usize, Some(len))
+                            });
+                        (
+                            ptr,
+                            Some(Box::new(move || {
+                                if !ptr.is_null() {
+                                    mps_free(ptr as *mut std::ffi::c_void);
+                                }
+                            }) as Box<dyn FnOnce()>)
+                        )
                     },
                 };
 

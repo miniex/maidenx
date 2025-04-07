@@ -337,4 +337,3 @@ mod test_functions {
 test_ops!([index_add_inplace, index_select, index_put_inplace, gather, scatter_add_inplace]);
 
 test_ops_only_integer!([bincount]);
-

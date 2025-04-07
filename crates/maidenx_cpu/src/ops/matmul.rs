@@ -281,4 +281,3 @@ matmul_backward_op!(matmul_backward_i32, i32, 0i32);
 matmul_backward_op!(matmul_backward_i64, i64, 0i64);
 matmul_backward_op!(matmul_backward_f16, f16, f16::from_f32(0.0));
 matmul_backward_op!(matmul_backward_bf16, bf16, bf16::from_f32(0.0));
-

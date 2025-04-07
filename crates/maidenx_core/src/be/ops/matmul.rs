@@ -12,6 +12,8 @@ use half::{bf16, f16};
 use maidenx_cpu::ops::matmul::*;
 #[cfg(feature = "cuda")]
 use maidenx_cuda::{cuda_alloc_and_copy_dims, cuda_free, cuda_set_device, ops::matmul::*};
+#[cfg(feature = "mps")]
+use maidenx_mps::{mps_alloc_and_copy_dims, mps_free, ops::matmul::*};
 
 #[macro_export]
 macro_rules! declare_matmul_op {
@@ -54,7 +56,19 @@ macro_rules! declare_matmul_op {
                     },
                     #[cfg(feature = "mps")]
                     Device::MPS => {
-                        return Err(Error::MpsError("Failed to MPS".to_string()));
+                        let (ptr, _) = metadata
+                            .map_or((std::ptr::null(), None), |dims| {
+                                let (p, len) = mps_alloc_and_copy_dims(dims);
+                                (p as *const usize, Some(len))
+                            });
+                        (
+                            ptr,
+                            Some(Box::new(move || {
+                                if !ptr.is_null() {
+                                    mps_free(ptr as *mut std::ffi::c_void);
+                                }
+                            }) as Box<dyn FnOnce()>)
+                        )
                     },
                 };
 
@@ -94,7 +108,20 @@ macro_rules! declare_matmul_op {
                     },
                     #[cfg(feature = "mps")]
                     Device::MPS => {
-                        return Err(Error::MpsError("Failed to MPS".to_string()));
+                        match lhs.dtype() {
+                            $(
+                                DType::$dtype => {
+                                    [<metal_matmul_ $dtype:lower>](
+                                        num_els,
+                                        metadata as *const std::ffi::c_void,
+                                        lhs.as_ptr(),
+                                        rhs.as_ptr(),
+                                        output.as_ptr(),
+                                    )
+                                }
+                            )*
+                            _ => return Err(Error::UnsupportedDType)
+                        }
                     },
                 }
 
@@ -147,7 +174,19 @@ macro_rules! declare_matmul_op {
                     },
                     #[cfg(feature = "mps")]
                     Device::MPS => {
-                        return Err(Error::MpsError("Failed to MPS".to_string()));
+                        let (ptr, _) = metadata
+                            .map_or((std::ptr::null(), None), |dims| {
+                                let (p, len) = mps_alloc_and_copy_dims(dims);
+                                (p as *const usize, Some(len))
+                            });
+                        (
+                            ptr,
+                            Some(Box::new(move || {
+                                if !ptr.is_null() {
+                                    mps_free(ptr as *mut std::ffi::c_void);
+                                }
+                            }) as Box<dyn FnOnce()>)
+                        )
                     },
                 };
 
@@ -193,7 +232,23 @@ macro_rules! declare_matmul_op {
                     },
                     #[cfg(feature = "mps")]
                     Device::MPS => {
-                        return Err(Error::MpsError("Failed to MPS".to_string()));
+                        match lhs.dtype() {
+                            $(
+                                DType::$dtype => {
+                                    [<metal_matmul_backward_ $dtype:lower>](
+                                        num_els_a,
+                                        num_els_b,
+                                        metadata as *const std::ffi::c_void,
+                                        grad_output.as_ptr(),
+                                        lhs.as_ptr(),
+                                        rhs.as_ptr(),
+                                        grad_lhs.map_or(std::ptr::null_mut(), |buf| buf.as_ptr()),
+                                        grad_rhs.map_or(std::ptr::null_mut(), |buf| buf.as_ptr()),
+                                    )
+                                }
+                            )*
+                            _ => return Err(Error::UnsupportedDType)
+                        }
                     },
                 }
 
@@ -208,4 +263,3 @@ macro_rules! declare_matmul_op {
 }
 
 declare_matmul_op!([BF16, F16, F32, F64, U8, U16, U32, U64, I8, I16, I32, I64]);
-

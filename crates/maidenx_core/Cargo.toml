@@ -11,7 +11,7 @@ repository = "https://github.com/miniex/maidenx"
 [features]
 default = []
 
-nn = ["maidenx_cpu/nn", "maidenx_cuda?/nn"]
+nn = ["maidenx_cpu/nn", "maidenx_cuda?/nn", "maidenx_mps?/nn"]
 serde = ["dep:serde"]
 
 cuda = ["dep:maidenx_cuda"]

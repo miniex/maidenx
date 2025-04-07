@@ -1031,4 +1031,3 @@ pub(crate) fn prepare_metadata(tensor: &Tensor) -> Vec<usize> {
 
     info
 }
-

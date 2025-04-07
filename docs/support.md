@@ -10,7 +10,7 @@ Blank: Upcoming support
 
 - CPU
 - CUDA
-- MPS (ongoing...)
+- MPS
 - Vulkan (planned)
 
 ## DType

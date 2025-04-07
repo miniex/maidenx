@@ -1612,4 +1612,3 @@ test_logical_ops!([
     gt_scalar,
     ge_scalar
 ]);
-
