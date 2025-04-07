@@ -1,6 +1,8 @@
 use maidenx_core::error::Result;
 pub use maidenx_nn_macros::Layer;
 use maidenx_tensor::Tensor;
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 
 pub trait Layer<I = &'static Tensor> {
     fn forward(&self, input: I) -> Result<Tensor>;
@@ -12,6 +14,7 @@ pub trait Layer<I = &'static Tensor> {
 }
 
 #[derive(Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct LayerState {
     training: bool,
 }

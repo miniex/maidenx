@@ -5,8 +5,11 @@ use maidenx_core::{
     error::{Error, Result},
 };
 use maidenx_tensor::Tensor;
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 
 #[derive(Layer, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Embedding {
     weight: Tensor,
     padding_idx: Option<usize>,

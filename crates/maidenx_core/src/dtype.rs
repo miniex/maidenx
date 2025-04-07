@@ -1,10 +1,13 @@
 #![allow(non_upper_case_globals)]
 
 use crate::scalar::Scalar;
-pub use half::{bf16, f16};
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
+pub use half::{bf16, f16};
 pub const bfloat16: DType = DType::BF16;
 pub const float16: DType = DType::F16;
+pub const half: DType = DType::F16;
 pub const float32: DType = DType::F32;
 pub const float64: DType = DType::F64;
 pub const bool: DType = DType::BOOL;
@@ -32,6 +35,58 @@ pub enum DType {
     I16,
     I32,
     I64,
+}
+
+#[cfg(feature = "serde")]
+impl Serialize for DType {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        serializer.serialize_str(self.as_str())
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de> Deserialize<'de> for DType {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        struct DTypeVisitor;
+
+        impl serde::de::Visitor<'_> for DTypeVisitor {
+            type Value = DType;
+
+            fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+                formatter.write_str("a string representing a DType")
+            }
+
+            fn visit_str<E>(self, value: &str) -> Result<Self::Value, E>
+            where
+                E: serde::de::Error,
+            {
+                match value {
+                    "bf16" => Ok(DType::BF16),
+                    "f16" => Ok(DType::F16),
+                    "f32" => Ok(DType::F32),
+                    "f64" => Ok(DType::F64),
+                    "bool" => Ok(DType::BOOL),
+                    "u8" => Ok(DType::U8),
+                    "u16" => Ok(DType::U16),
+                    "u32" => Ok(DType::U32),
+                    "u64" => Ok(DType::U64),
+                    "i8" => Ok(DType::I8),
+                    "i16" => Ok(DType::I16),
+                    "i32" => Ok(DType::I32),
+                    "i64" => Ok(DType::I64),
+                    _ => Err(E::custom(format!("unknown DType: {}", value))),
+                }
+            }
+        }
+
+        deserializer.deserialize_str(DTypeVisitor)
+    }
 }
 
 impl std::fmt::Display for DType {
@@ -234,3 +289,4 @@ pub fn get_default_dtype() -> DType {
 pub fn set_default_dtype(dtype: DType) {
     DEFAULT_DTYPE.with(|d| d.set(dtype));
 }
+

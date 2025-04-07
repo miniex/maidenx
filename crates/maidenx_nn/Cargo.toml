@@ -11,6 +11,14 @@ repository = "https://github.com/miniex/maidenx"
 [features]
 default = []
 
+serde = [
+    "dep:serde",
+    "dep:serde_json",
+    "dep:bincode",
+    "maidenx_nn_macros/serde",
+    "maidenx_core/serde",
+]
+
 cuda = ["maidenx_core/cuda", "maidenx_tensor/cuda"]
 mps = ["maidenx_core/mps", "maidenx_tensor/mps"]
 
@@ -23,3 +31,6 @@ maidenx_core = { path = "../maidenx_core", version = "0.1.0-dev", features = [
 maidenx_tensor = { path = "../maidenx_tensor", version = "0.1.0-dev", features = [
     "nn",
 ] }
+serde = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true }
+bincode = { workspace = true, optional = true, features = ["serde"] }

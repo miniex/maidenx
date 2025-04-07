@@ -1,11 +1,14 @@
+pub mod softmax;
+
 use crate::layer::{Layer, LayerState};
 use maidenx_core::{error::Result, scalar::Scalar};
 use maidenx_tensor::Tensor;
-
-pub mod softmax;
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 pub use softmax::*;
 
 #[derive(Layer, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct ReLU {
     state: LayerState,
 }
@@ -25,6 +28,7 @@ impl ReLU {
 }
 
 #[derive(Layer, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Sigmoid {
     state: LayerState,
 }
@@ -44,6 +48,7 @@ impl Sigmoid {
 }
 
 #[derive(Layer, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Tanh {
     state: LayerState,
 }
@@ -63,6 +68,7 @@ impl Tanh {
 }
 
 #[derive(Layer, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct LeakyReLU {
     exponent: Scalar,
 
@@ -87,6 +93,7 @@ impl LeakyReLU {
 }
 
 #[derive(Layer, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct GELU {
     state: LayerState,
 }
@@ -106,6 +113,7 @@ impl GELU {
 }
 
 #[derive(Layer, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct ELU {
     exponent: Scalar,
 

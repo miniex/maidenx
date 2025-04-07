@@ -10,6 +10,7 @@ repository = "https://github.com/miniex/maidenx"
 
 [features]
 nn = ["maidenx_core/nn", "maidenx_tensor/nn", "dep:maidenx_nn"]
+serde = ["maidenx_core/serde", "maidenx_tensor/serde", "maidenx_nn?/serde"]
 
 cuda = ["maidenx_core/cuda", "maidenx_tensor/cuda"]
 mps = ["maidenx_core/mps", "maidenx_tensor/mps"]

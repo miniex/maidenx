@@ -7,6 +7,8 @@ use maidenx_core::{
     error::{Error, Result},
 };
 use maidenx_tensor::{Tensor, TensorNode};
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 
 // #[derive(Layer, Clone)]
 // pub struct Conv1d {
@@ -103,6 +105,7 @@ use maidenx_tensor::{Tensor, TensorNode};
 // }
 
 #[derive(Layer, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Conv2d {
     weight: Tensor,
     bias: Option<Tensor>,

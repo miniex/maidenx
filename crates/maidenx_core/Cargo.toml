@@ -12,6 +12,7 @@ repository = "https://github.com/miniex/maidenx"
 default = []
 
 nn = ["maidenx_cpu/nn", "maidenx_cuda?/nn"]
+serde = ["dep:serde"]
 
 cuda = ["dep:maidenx_cuda"]
 mps = ["dep:maidenx_mps"]
@@ -22,3 +23,4 @@ maidenx_cuda = { path = "../maidenx_cuda", version = "0.1.0-dev", optional = tru
 maidenx_mps = { path = "../maidenx_mps", version = "0.1.0-dev", optional = true }
 half = { workspace = true }
 paste = { workspace = true }
+serde = { workspace = true, optional = true, features = ["derive"] }

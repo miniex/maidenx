@@ -1,6 +1,9 @@
 use crate::error::{Error, Result};
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Layout {
     shape: Vec<usize>,
     strides: Vec<usize>,
@@ -259,4 +262,3 @@ impl Layout {
         true
     }
 }
-

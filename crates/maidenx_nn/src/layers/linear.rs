@@ -5,8 +5,11 @@ use maidenx_core::{
     error::Result,
 };
 use maidenx_tensor::Tensor;
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 
 #[derive(Layer, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Linear {
     weight: Tensor,
     bias: Option<Tensor>,
@@ -138,7 +141,7 @@ mod tests {
 
         if let Some(bias) = linear.bias() {
             let bias_grad = bias.grad()?.expect("Bias gradient should exist");
-            assert_eq!(bias_grad.shape(), &[]);
+            assert!(bias_grad.shape().is_empty());
         }
 
         Ok(())

@@ -20,7 +20,7 @@ mod test_functions {
                 let result = x.sum(0, false)?;
 
                 assert_eq!(result.to_flatten_vec::<f32>()?, vec![10.0]);
-                assert_eq!(result.shape(), &[]); // Scalar result
+                assert!(result.shape().is_empty()); // Scalar result
 
                 // Test 1D sum (keep_dim=true)
                 let x = setup_tensor_with_shape(TEST_DATA_F32_1D.to_vec(), dtype, &[4])?;
@@ -65,7 +65,7 @@ mod test_functions {
 
                 let result_vec = result.to_flatten_vec::<f32>()?;
                 assert!((result_vec[0] - 10.0).abs() < 0.1, "Expected close to 10.0, got {}", result_vec[0]);
-                assert_eq!(result.shape(), &[]); // Scalar result
+                assert!(result.shape().is_empty()); // Scalar result
 
                 if let Some(g) = x.grad()? {
                     let grad_data = g.to_flatten_vec::<f32>()?;
@@ -133,7 +133,7 @@ mod test_functions {
                 result.backward()?;
 
                 assert_eq!(result.to_flatten_vec::<f32>()?, vec![10.0]);
-                assert_eq!(result.shape(), &[]); // Scalar result
+                assert!(result.shape().is_empty()); // Scalar result
                 if let Some(g) = x.grad()? {
                     assert_eq!(g.to_flatten_vec::<f32>()?, vec![1.0, 1.0, 1.0, 1.0]);
                 }

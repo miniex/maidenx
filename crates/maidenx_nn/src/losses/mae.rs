@@ -1,8 +1,11 @@
 use crate::layer::{Layer, LayerState};
 use maidenx_core::{error::Result, scalar::Scalar};
 use maidenx_tensor::Tensor;
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 
 #[derive(Layer, Clone, Default)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[layer(inputs = 2)]
 pub struct MAELoss {
     state: LayerState,

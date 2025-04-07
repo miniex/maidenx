@@ -1,8 +1,11 @@
 use crate::layer::{Layer, LayerState};
 use maidenx_core::{dtype::DType, error::Result};
 use maidenx_tensor::{Tensor, TensorNode};
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 
 #[derive(Layer, Clone)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Dropout {
     p: f32,
 

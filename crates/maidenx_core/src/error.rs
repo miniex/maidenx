@@ -49,6 +49,11 @@ pub enum Error {
         size: usize,
     },
     ConversionError(String),
+    // serde
+    #[cfg(feature = "serde")]
+    SerializationError(String),
+    #[cfg(feature = "serde")]
+    DeserializationError(String),
     //
     Internal {
         message: String,
@@ -104,6 +109,14 @@ impl fmt::Display for Error {
             Self::ConversionError(msg) => {
                 write!(f, "Type conversion error: {}", msg)
             }
+            #[cfg(feature = "serde")]
+            Self::SerializationError(msg) => {
+                write!(f, "Serialization error: {}", msg)
+            }
+            #[cfg(feature = "serde")]
+            Self::DeserializationError(msg) => {
+                write!(f, "Deserialization error: {}", msg)
+            }
             Self::Internal { message } => {
                 write!(f, "Internal error: {}", message)
             }
@@ -133,3 +146,4 @@ impl Error {
         Self::MpsError(mps_error(error_code))
     }
 }
+

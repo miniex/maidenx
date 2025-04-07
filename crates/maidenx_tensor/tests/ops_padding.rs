@@ -260,7 +260,7 @@ mod test_functions {
                 let x = setup_tensor_with_shape(vec![42.0], dtype, &[])?;
                 let padded = x.pad_with_replication(&[])?;
 
-                assert_eq!(padded.shape(), &[]);
+                assert!(padded.shape().is_empty());
                 let padded_data = padded.to_flatten_vec::<f32>()?;
                 let expected = vec![42.0];
                 assert_eq!(padded_data, expected, "0D replication padding results don't match");
@@ -304,7 +304,7 @@ mod test_functions {
                 let x = setup_grad_tensor_with_shape(vec![42.0], dtype, &[])?;
                 let padded = x.pad_with_replication(&[])?;
 
-                assert_eq!(padded.shape(), &[]);
+                assert!(padded.shape().is_empty());
                 let padded_data = padded.to_flatten_vec::<f32>()?;
                 let expected = vec![42.0];
                 assert_close_vectors(&padded_data, &expected, 0.01, "0D replication padding results don't match");
@@ -352,7 +352,7 @@ mod test_functions {
                 let x = setup_grad_tensor_with_shape(vec![42.0], dtype, &[])?;
                 let padded = x.pad_with_replication(&[])?;
 
-                assert_eq!(padded.shape(), &[]);
+                assert!(padded.shape().is_empty());
                 let padded_data = padded.to_flatten_vec::<f32>()?;
                 let expected = vec![42.0];
                 assert_eq!(padded_data, expected, "0D replication padding results don't match");
@@ -363,4 +363,3 @@ mod test_functions {
 }
 
 test_ops!([pad_with_constant, pad_with_reflection, pad_with_replication]);
-

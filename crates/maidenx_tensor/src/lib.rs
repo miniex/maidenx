@@ -7,6 +7,8 @@ mod iterator;
 mod nn_aliases;
 mod operators;
 pub(crate) mod ops;
+#[cfg(feature = "serde")]
+mod serde;
 pub mod utils;
 mod vec;
 mod wt;
