@@ -111,6 +111,26 @@ macro_rules! numeric_variants {
                 }
             }
 
+            #[inline]
+            pub fn is_integer_value(&self) -> bool {
+                if self.is_int() {
+                    return true;
+                }
+
+                match self {
+                    Self::BF16(v) => {
+                        let f = f32::from(*v);
+                        f == f.trunc()
+                    },
+                    Self::F16(v) => {
+                        let f = f32::from(*v);
+                        f == f.trunc()
+                    },
+                    Self::F32(v) => *v == v.trunc(),
+                    Self::F64(v) => *v == v.trunc(),
+                    _ => self.is_int(),
+                }
+            }
 
             #[inline]
             pub fn as_f64_any(&self) -> f64 {

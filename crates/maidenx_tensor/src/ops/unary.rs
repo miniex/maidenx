@@ -1,18 +1,13 @@
 use crate::{
-    utils::promotion::{get_promoted_dtype_with_scalar, get_signed_dtype, promote_tensor},
+    utils::promotion::{promote_scalar_for_tensor, promote_tensor},
     Tensor, TensorNode,
 };
 use maidenx_core::{dtype::DType, error::Result, scalar::Scalar};
 
 impl Tensor {
     pub fn neg(&self) -> Result<Tensor> {
-        let target_dtype = if self.dtype().is_bool() {
-            DType::I8
-        } else if self.dtype().is_uint() {
-            get_signed_dtype(self.dtype())
-        } else {
-            self.dtype()
-        };
+        let target_dtype = if self.dtype().is_bool() { DType::U8 } else { self.dtype() };
+        let target_dtype = target_dtype.to_signed();
         let input = self.to_dtype(target_dtype)?;
 
         let mut result = Self::empty_with_spec(input.shape(), input.device(), input.dtype())?;
@@ -109,8 +104,8 @@ impl Tensor {
 
     pub fn sqrt(&self) -> Result<Tensor> {
         let target_dtype = if self.dtype().is_float() { self.dtype() } else { DType::F32 };
-
         let input = promote_tensor(self, target_dtype)?;
+
         let mut result = Self::empty_with_spec(input.shape(), input.device(), input.dtype())?;
 
         unsafe {
@@ -135,8 +130,8 @@ impl Tensor {
 
     pub fn relu(&self) -> Result<Tensor> {
         let target_dtype = if self.dtype().is_float() { self.dtype() } else { DType::F32 };
-
         let input = promote_tensor(self, target_dtype)?;
+
         let mut result = Self::empty_with_spec(input.shape(), input.device(), input.dtype())?;
 
         unsafe {
@@ -573,10 +568,14 @@ impl Tensor {
 impl Tensor {
     pub fn add_scalar(&self, scalar: impl Into<Scalar>) -> Result<Tensor> {
         let scalar = scalar.into();
-        let target_dtype = get_promoted_dtype_with_scalar(self.dtype(), scalar.dtype());
-
+        let target_dtype = if scalar.is_float() && !scalar.is_integer_value() {
+            DType::F32
+        } else {
+            self.dtype()
+        };
         let input = promote_tensor(self, target_dtype)?;
-        let scalar = scalar.to_dtype(target_dtype);
+        let scalar = promote_scalar_for_tensor(scalar, target_dtype, self)?;
+
         let mut result = Self::empty_with_spec(input.shape(), input.device(), input.dtype())?;
 
         unsafe {
@@ -596,7 +595,7 @@ impl Tensor {
         if self.requires_grad() {
             result.with_grad()?;
             let backward_fn = Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> { Ok(vec![grad_out.clone()]) });
-            let node = TensorNode::new("add_scalar".to_string(), vec![input], Some(backward_fn));
+            let node = TensorNode::new("add_scalar".to_string(), vec![self.clone()], Some(backward_fn));
             result.node = Some(node);
         }
 
@@ -605,10 +604,14 @@ impl Tensor {
 
     pub fn sub_scalar(&self, scalar: impl Into<Scalar>) -> Result<Tensor> {
         let scalar = scalar.into();
-        let target_dtype = get_promoted_dtype_with_scalar(self.dtype(), scalar.dtype());
-
+        let target_dtype = if scalar.is_float() && !scalar.is_integer_value() {
+            DType::F32
+        } else {
+            self.dtype()
+        };
         let input = promote_tensor(self, target_dtype)?;
-        let scalar = scalar.to_dtype(target_dtype);
+        let scalar = promote_scalar_for_tensor(scalar, target_dtype, self)?;
+
         let mut result = Self::empty_with_spec(input.shape(), input.device(), input.dtype())?;
 
         unsafe {
@@ -628,7 +631,7 @@ impl Tensor {
         if self.requires_grad() {
             result.with_grad()?;
             let backward_fn = Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> { Ok(vec![grad_out.clone()]) });
-            let node = TensorNode::new("sub_scalar".to_string(), vec![input], Some(backward_fn));
+            let node = TensorNode::new("sub_scalar".to_string(), vec![self.clone()], Some(backward_fn));
             result.node = Some(node);
         }
 
@@ -637,10 +640,14 @@ impl Tensor {
 
     pub fn mul_scalar(&self, scalar: impl Into<Scalar>) -> Result<Tensor> {
         let scalar = scalar.into();
-        let target_dtype = get_promoted_dtype_with_scalar(self.dtype(), scalar.dtype());
-
+        let target_dtype = if scalar.is_float() && !scalar.is_integer_value() {
+            DType::F32
+        } else {
+            self.dtype()
+        };
         let input = promote_tensor(self, target_dtype)?;
-        let scalar = scalar.to_dtype(target_dtype);
+        let scalar = promote_scalar_for_tensor(scalar, target_dtype, self)?;
+
         let mut result = Self::empty_with_spec(input.shape(), input.device(), input.dtype())?;
 
         unsafe {
@@ -662,7 +669,7 @@ impl Tensor {
             let scalar_clone = scalar;
             let backward_fn =
                 Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> { Ok(vec![grad_out.mul_scalar(scalar_clone)?]) });
-            let node = TensorNode::new("mul_scalar".to_string(), vec![input], Some(backward_fn));
+            let node = TensorNode::new("mul_scalar".to_string(), vec![self.clone()], Some(backward_fn));
             result.node = Some(node);
         }
 
@@ -671,11 +678,10 @@ impl Tensor {
 
     pub fn div_scalar(&self, scalar: impl Into<Scalar>) -> Result<Tensor> {
         let scalar = scalar.into();
-        let target_dtype = get_promoted_dtype_with_scalar(self.dtype(), scalar.dtype());
-        let target_dtype = if target_dtype.is_int() { DType::F32 } else { target_dtype };
+        let target_dtype = if self.dtype().is_int() { DType::F32 } else { self.dtype() };
 
         let input = promote_tensor(self, target_dtype)?;
-        let scalar = scalar.to_dtype(target_dtype);
+        let scalar = promote_scalar_for_tensor(scalar, target_dtype, self)?;
         let mut result = Self::empty_with_spec(input.shape(), input.device(), input.dtype())?;
 
         unsafe {
@@ -697,7 +703,7 @@ impl Tensor {
             let scalar_clone = scalar;
             let backward_fn =
                 Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> { Ok(vec![grad_out.div_scalar(scalar_clone)?]) });
-            let node = TensorNode::new("div_scalar".to_string(), vec![input], Some(backward_fn));
+            let node = TensorNode::new("div_scalar".to_string(), vec![self.clone()], Some(backward_fn));
             result.node = Some(node);
         }
 
@@ -706,10 +712,14 @@ impl Tensor {
 
     pub fn maximum_scalar(&self, scalar: impl Into<Scalar>) -> Result<Tensor> {
         let scalar = scalar.into();
-        let target_dtype = get_promoted_dtype_with_scalar(self.dtype(), scalar.dtype());
-
+        let target_dtype = if scalar.is_float() && !scalar.is_integer_value() {
+            DType::F32
+        } else {
+            self.dtype()
+        };
         let input = promote_tensor(self, target_dtype)?;
-        let scalar = scalar.to_dtype(target_dtype);
+        let scalar = promote_scalar_for_tensor(scalar, target_dtype, self)?;
+
         let mut result = Self::empty_with_spec(input.shape(), input.device(), input.dtype())?;
 
         unsafe {
@@ -749,10 +759,14 @@ impl Tensor {
 
     pub fn minimum_scalar(&self, scalar: impl Into<Scalar>) -> Result<Tensor> {
         let scalar = scalar.into();
-        let target_dtype = get_promoted_dtype_with_scalar(self.dtype(), scalar.dtype());
-
+        let target_dtype = if scalar.is_float() && !scalar.is_integer_value() {
+            DType::F32
+        } else {
+            self.dtype()
+        };
         let input = promote_tensor(self, target_dtype)?;
-        let scalar = scalar.to_dtype(target_dtype);
+        let scalar = promote_scalar_for_tensor(scalar, target_dtype, self)?;
+
         let mut result = Self::empty_with_spec(input.shape(), input.device(), input.dtype())?;
 
         unsafe {
@@ -792,11 +806,14 @@ impl Tensor {
 
     pub fn pow(&self, exponent: impl Into<Scalar>) -> Result<Tensor> {
         let exponent = exponent.into();
-        let target_dtype = get_promoted_dtype_with_scalar(self.dtype(), exponent.dtype());
-        let target_dtype = if target_dtype.is_int() { DType::F32 } else { target_dtype };
+        let target_dtype = if exponent.is_float() && !exponent.is_integer_value() {
+            exponent.dtype()
+        } else {
+            self.dtype()
+        };
 
         let input = promote_tensor(self, target_dtype)?;
-        let exponent = exponent.to_dtype(target_dtype);
+        let exponent = promote_scalar_for_tensor(exponent, target_dtype, self)?;
         let mut result = Self::empty_with_spec(input.shape(), input.device(), input.dtype())?;
 
         unsafe {
@@ -829,11 +846,10 @@ impl Tensor {
 
     pub fn leaky_relu(&self, exponent: impl Into<Scalar>) -> Result<Tensor> {
         let exponent = exponent.into();
-        let target_dtype = get_promoted_dtype_with_scalar(self.dtype(), exponent.dtype());
-        let target_dtype = if target_dtype.is_int() { DType::F32 } else { target_dtype };
+        let target_dtype = if self.dtype().is_int() { DType::F32 } else { self.dtype() };
 
         let input = promote_tensor(self, target_dtype)?;
-        let exponent = exponent.to_dtype(target_dtype);
+        let exponent = promote_scalar_for_tensor(exponent, target_dtype, self)?;
         let mut result = Self::empty_with_spec(input.shape(), input.device(), input.dtype())?;
 
         unsafe {
@@ -871,11 +887,10 @@ impl Tensor {
 
     pub fn elu(&self, exponent: impl Into<Scalar>) -> Result<Tensor> {
         let exponent = exponent.into();
-        let target_dtype = get_promoted_dtype_with_scalar(self.dtype(), exponent.dtype());
-        let target_dtype = if target_dtype.is_int() { DType::F32 } else { target_dtype };
+        let target_dtype = if self.dtype().is_int() { DType::F32 } else { self.dtype() };
 
         let input = promote_tensor(self, target_dtype)?;
-        let exponent = exponent.to_dtype(target_dtype);
+        let exponent = promote_scalar_for_tensor(exponent, target_dtype, self)?;
         let mut result = Self::empty_with_spec(input.shape(), input.device(), input.dtype())?;
 
         unsafe {
@@ -915,22 +930,12 @@ impl Tensor {
     // Comparison operators
     pub fn eq_scalar(&self, scalar: impl Into<Scalar>) -> Result<Tensor> {
         let scalar = scalar.into();
-        let target_dtype = get_promoted_dtype_with_scalar(self.dtype(), scalar.dtype());
-
-        let input = promote_tensor(self, target_dtype)?;
-        let scalar = scalar.to_dtype(target_dtype);
-        let mut result = Self::empty_with_spec(input.shape(), input.device(), DType::BOOL)?;
+        let scalar = promote_scalar_for_tensor(scalar, self.dtype(), self)?;
+        let mut result = Self::empty_with_spec(self.shape(), self.device(), DType::BOOL)?;
 
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::be::ops::unary::eq_scalar(
-                    out_buf,
-                    input.buffer(),
-                    scalar,
-                    input.size(),
-                    input.ndim(),
-                    Some(&prepare_metadata(&input)),
-                )?;
+                maidenx_core::be::ops::unary::eq_scalar(out_buf, self.buffer(), scalar, self.size(), self.ndim(), Some(&prepare_metadata(self)))?;
                 Ok(())
             })?;
         }
@@ -940,22 +945,12 @@ impl Tensor {
 
     pub fn ne_scalar(&self, scalar: impl Into<Scalar>) -> Result<Tensor> {
         let scalar = scalar.into();
-        let target_dtype = get_promoted_dtype_with_scalar(self.dtype(), scalar.dtype());
-
-        let input = promote_tensor(self, target_dtype)?;
-        let scalar = scalar.to_dtype(target_dtype);
-        let mut result = Self::empty_with_spec(input.shape(), input.device(), DType::BOOL)?;
+        let scalar = promote_scalar_for_tensor(scalar, self.dtype(), self)?;
+        let mut result = Self::empty_with_spec(self.shape(), self.device(), DType::BOOL)?;
 
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::be::ops::unary::ne_scalar(
-                    out_buf,
-                    input.buffer(),
-                    scalar,
-                    input.size(),
-                    input.ndim(),
-                    Some(&prepare_metadata(&input)),
-                )?;
+                maidenx_core::be::ops::unary::ne_scalar(out_buf, self.buffer(), scalar, self.size(), self.ndim(), Some(&prepare_metadata(self)))?;
                 Ok(())
             })?;
         }
@@ -965,22 +960,12 @@ impl Tensor {
 
     pub fn lt_scalar(&self, scalar: impl Into<Scalar>) -> Result<Tensor> {
         let scalar = scalar.into();
-        let target_dtype = get_promoted_dtype_with_scalar(self.dtype(), scalar.dtype());
-
-        let input = promote_tensor(self, target_dtype)?;
-        let scalar = scalar.to_dtype(target_dtype);
-        let mut result = Self::empty_with_spec(input.shape(), input.device(), DType::BOOL)?;
+        let scalar = promote_scalar_for_tensor(scalar, self.dtype(), self)?;
+        let mut result = Self::empty_with_spec(self.shape(), self.device(), DType::BOOL)?;
 
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::be::ops::unary::lt_scalar(
-                    out_buf,
-                    input.buffer(),
-                    scalar,
-                    input.size(),
-                    input.ndim(),
-                    Some(&prepare_metadata(&input)),
-                )?;
+                maidenx_core::be::ops::unary::lt_scalar(out_buf, self.buffer(), scalar, self.size(), self.ndim(), Some(&prepare_metadata(self)))?;
                 Ok(())
             })?;
         }
@@ -990,22 +975,12 @@ impl Tensor {
 
     pub fn le_scalar(&self, scalar: impl Into<Scalar>) -> Result<Tensor> {
         let scalar = scalar.into();
-        let target_dtype = get_promoted_dtype_with_scalar(self.dtype(), scalar.dtype());
-
-        let input = promote_tensor(self, target_dtype)?;
-        let scalar = scalar.to_dtype(target_dtype);
-        let mut result = Self::empty_with_spec(input.shape(), input.device(), DType::BOOL)?;
+        let scalar = promote_scalar_for_tensor(scalar, self.dtype(), self)?;
+        let mut result = Self::empty_with_spec(self.shape(), self.device(), DType::BOOL)?;
 
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::be::ops::unary::le_scalar(
-                    out_buf,
-                    input.buffer(),
-                    scalar,
-                    input.size(),
-                    input.ndim(),
-                    Some(&prepare_metadata(&input)),
-                )?;
+                maidenx_core::be::ops::unary::le_scalar(out_buf, self.buffer(), scalar, self.size(), self.ndim(), Some(&prepare_metadata(self)))?;
                 Ok(())
             })?;
         }
@@ -1015,22 +990,12 @@ impl Tensor {
 
     pub fn gt_scalar(&self, scalar: impl Into<Scalar>) -> Result<Tensor> {
         let scalar = scalar.into();
-        let target_dtype = get_promoted_dtype_with_scalar(self.dtype(), scalar.dtype());
-
-        let input = promote_tensor(self, target_dtype)?;
-        let scalar = scalar.to_dtype(target_dtype);
-        let mut result = Self::empty_with_spec(input.shape(), input.device(), DType::BOOL)?;
+        let scalar = promote_scalar_for_tensor(scalar, self.dtype(), self)?;
+        let mut result = Self::empty_with_spec(self.shape(), self.device(), DType::BOOL)?;
 
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::be::ops::unary::gt_scalar(
-                    out_buf,
-                    input.buffer(),
-                    scalar,
-                    input.size(),
-                    input.ndim(),
-                    Some(&prepare_metadata(&input)),
-                )?;
+                maidenx_core::be::ops::unary::gt_scalar(out_buf, self.buffer(), scalar, self.size(), self.ndim(), Some(&prepare_metadata(self)))?;
                 Ok(())
             })?;
         }
@@ -1040,22 +1005,12 @@ impl Tensor {
 
     pub fn ge_scalar(&self, scalar: impl Into<Scalar>) -> Result<Tensor> {
         let scalar = scalar.into();
-        let target_dtype = get_promoted_dtype_with_scalar(self.dtype(), scalar.dtype());
-
-        let input = promote_tensor(self, target_dtype)?;
-        let scalar = scalar.to_dtype(target_dtype);
-        let mut result = Self::empty_with_spec(input.shape(), input.device(), DType::BOOL)?;
+        let scalar = promote_scalar_for_tensor(scalar, self.dtype(), self)?;
+        let mut result = Self::empty_with_spec(self.shape(), self.device(), DType::BOOL)?;
 
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::be::ops::unary::ge_scalar(
-                    out_buf,
-                    input.buffer(),
-                    scalar,
-                    input.size(),
-                    input.ndim(),
-                    Some(&prepare_metadata(&input)),
-                )?;
+                maidenx_core::be::ops::unary::ge_scalar(out_buf, self.buffer(), scalar, self.size(), self.ndim(), Some(&prepare_metadata(self)))?;
                 Ok(())
             })?;
         }
@@ -1076,3 +1031,4 @@ pub(crate) fn prepare_metadata(tensor: &Tensor) -> Vec<usize> {
 
     info
 }
+
