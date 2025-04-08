@@ -155,13 +155,11 @@ template <typename T> __device__ T minimum(T x, T y) { return (x < y) ? x : y; }
                                                                                \
   extern "C" void cuda_##FN_NAME(size_t num_els, size_t num_dims,              \
                                  const size_t *metadata, TYPENAME *lhs,        \
-                                 const TYPENAME *rhs, TYPENAME *out) {         \
-    /* out parameter is not used as the operation is performed in-place        \
-       on lhs, but must be provided to maintain API compatibility */           \
+                                 const TYPENAME *rhs) {                        \
     dim3 block_dim(256);                                                       \
     dim3 grid_dim((num_els + block_dim.x - 1) / block_dim.x);                  \
     cuda_##FN_NAME##_kernel<<<grid_dim, block_dim>>>(num_els, num_dims,        \
-                                                     metadata, lhs, rhs, out); \
+                                                     metadata, lhs, rhs);      \
   }
 
 BINARY_OP(float, float, add_f32, x + y);
