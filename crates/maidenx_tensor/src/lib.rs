@@ -86,10 +86,15 @@ impl TensorNode {
     pub fn backward(&self, grad_output: &Tensor) -> Result<()> {
         if let Some(ref func) = self.backward_fn {
             let grads_for_inputs = (func)(&self.inputs, grad_output)?;
-            for (input, grad_in) in self.inputs.iter().zip(grads_for_inputs.iter()) {
+
+            for (idx, input) in self.inputs.iter().enumerate() {
                 if input.requires_grad() {
-                    input.accumulate_grad(grad_in)?;
-                    input._backward(grad_in)?;
+                    if let Some(grad) = grads_for_inputs.get(idx) {
+                        if grad.any()? {
+                            input.accumulate_grad(grad)?;
+                            input._backward(grad)?;
+                        }
+                    }
                 }
             }
         }
@@ -203,8 +208,7 @@ impl Tensor {
     pub fn accumulate_grad(&self, grad_in: &Tensor) -> Result<()> {
         if let Some(grad_mutex) = &self.data.grad {
             let mut guard = grad_mutex.lock().map_err(|_| Error::GradLocked)?;
-            let updated = guard.add(grad_in)?;
-            *guard = updated;
+            guard.add_(grad_in)?;
         }
         Ok(())
     }
