@@ -131,6 +131,34 @@ macro_rules! declare_extern_binary_ops {
                         rhs: *const $ty,
                         out: *mut bool,
                     );
+                    pub fn [<cuda_add_inplace_ $dtype>](
+                        num_els: usize,
+                        num_dims: usize,
+                        metadata: *const usize,
+                        lhs: *mut $ty,
+                        rhs: *const $ty,
+                    );
+                    pub fn [<cuda_sub_inplace_ $dtype>](
+                        num_els: usize,
+                        num_dims: usize,
+                        metadata: *const usize,
+                        lhs: *mut $ty,
+                        rhs: *const $ty,
+                    );
+                    pub fn [<cuda_mul_inplace_ $dtype>](
+                        num_els: usize,
+                        num_dims: usize,
+                        metadata: *const usize,
+                        lhs: *mut $ty,
+                        rhs: *const $ty,
+                    );
+                    pub fn [<cuda_div_inplace_ $dtype>](
+                        num_els: usize,
+                        num_dims: usize,
+                        metadata: *const usize,
+                        lhs: *mut $ty,
+                        rhs: *const $ty,
+                    );
                 )*
             }
         }

@@ -64,6 +64,27 @@ macro_rules! impl_for_type {
             },
         }
     };
+    ($name:ident, $size:expr, $num_dims:expr, $metadata:expr, $lhs:expr, $rhs:expr, $type:ty, $device:expr) => {
+        match $device {
+            Device::CPU => paste::paste! {
+                [<$name _ $type>]($size, $num_dims, $metadata,
+                    $lhs.as_mut_ptr() as *mut $type,
+                    $rhs.as_ptr() as *const $type)
+            },
+            #[cfg(feature = "cuda")]
+            Device::CUDA(_) => paste::paste! {
+                [<cuda_ $name _ $type>]($size, $num_dims, $metadata,
+                    $lhs.as_mut_ptr() as *mut $type,
+                    $rhs.as_ptr() as *const $type)
+            },
+            #[cfg(feature = "mps")]
+            Device::MPS => paste::paste! {
+                [<metal_ $name _ $type>]($size, $num_dims, $metadata as *const std::ffi::c_void,
+                    $lhs.as_ptr(),
+                    $rhs.as_ptr())
+            },
+        }
+    };
 }
 
 #[macro_export]
@@ -147,6 +168,80 @@ macro_rules! declare_binary_op {
     };
 }
 
+#[macro_export]
+macro_rules! declare_binary_op_inplace {
+    ($name:ident, [$($dtype:ident),* $(,)?]) => {
+        paste::paste! {
+            /// # Safety
+            /// This function is unsafe because it performs raw pointer operations.
+            pub unsafe fn $name(
+                lhs: &mut dyn Buffer,
+                rhs: &dyn Buffer,
+                size: usize,
+                num_dims: usize,
+                metadata: Option<&[usize]>,
+            ) -> Result<()> {
+                assert_eq!(lhs.dtype(), rhs.dtype(), concat!("DType mismatch in ", stringify!($name)));
+
+                let (metadata, cleanup_fn): (*const usize, CleanupFn) = match lhs.device() {
+                    Device::CPU => (
+                        metadata.map_or(std::ptr::null(), |d| d.as_ptr()),
+                        None
+                    ),
+                    #[cfg(feature = "cuda")]
+                    Device::CUDA(device_id) => {
+                        if cuda_set_device(device_id as i32) != 0 {
+                            return Err(Error::CudaError("Failed to set CUDA device".to_string()));
+                        }
+                        let (ptr, _) = metadata
+                            .map_or((std::ptr::null(), None), |dims| {
+                                let (p, _) = cuda_alloc_and_copy_dims(dims);
+                                (p as *const usize, Some(dims.len()))
+                            });
+                        (
+                            ptr,
+                            Some(Box::new(move || {
+                                if !ptr.is_null() {
+                                    cuda_free(ptr as *mut std::ffi::c_void);
+                                }
+                            }) as Box<dyn FnOnce()>)
+                        )
+                    },
+                    #[cfg(feature = "mps")]
+                    Device::MPS => {
+                        let (ptr, _) = metadata
+                            .map_or((std::ptr::null(), None), |dims| {
+                                let (p, len) = mps_alloc_and_copy_dims(dims);
+                                (p as *const usize, Some(len))
+                            });
+                        (
+                            ptr,
+                            Some(Box::new(move || {
+                                if !ptr.is_null() {
+                                    mps_free(ptr as *mut std::ffi::c_void);
+                                }
+                            }) as Box<dyn FnOnce()>)
+                        )
+                    },
+                };
+
+                match lhs.dtype() {
+                    $(
+                        DType::$dtype => impl_for_type!($name, size, num_dims, metadata, lhs, rhs, [<$dtype:lower>], lhs.device()),
+                    )*
+                    _ => return Err(Error::UnsupportedDType)
+                };
+
+                if let Some(cleanup) = cleanup_fn {
+                    cleanup();
+                }
+
+                Ok(())
+            }
+        }
+    };
+}
+
 declare_binary_op!(add, false, [BF16, F16, F32, F64, U8, U16, U32, U64, I8, I16, I32, I64]);
 declare_binary_op!(sub, false, [BF16, F16, F32, F64, U8, U16, U32, U64, I8, I16, I32, I64]);
 declare_binary_op!(mul, false, [BF16, F16, F32, F64, U8, U16, U32, U64, I8, I16, I32, I64]);
@@ -164,3 +259,8 @@ declare_binary_op!(lt, true, [BF16, F16, F32, F64, BOOL, U8, U16, U32, U64, I8, 
 declare_binary_op!(le, true, [BF16, F16, F32, F64, BOOL, U8, U16, U32, U64, I8, I16, I32, I64]);
 declare_binary_op!(gt, true, [BF16, F16, F32, F64, BOOL, U8, U16, U32, U64, I8, I16, I32, I64]);
 declare_binary_op!(ge, true, [BF16, F16, F32, F64, BOOL, U8, U16, U32, U64, I8, I16, I32, I64]);
+
+declare_binary_op_inplace!(add_inplace, [BF16, F16, F32, F64, U8, U16, U32, U64, I8, I16, I32, I64]);
+declare_binary_op_inplace!(sub_inplace, [BF16, F16, F32, F64, U8, U16, U32, U64, I8, I16, I32, I64]);
+declare_binary_op_inplace!(mul_inplace, [BF16, F16, F32, F64, U8, U16, U32, U64, I8, I16, I32, I64]);
+declare_binary_op_inplace!(div_inplace, [BF16, F16, F32, F64, U8, U16, U32, U64, I8, I16, I32, I64]);

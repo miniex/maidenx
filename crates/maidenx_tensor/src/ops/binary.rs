@@ -548,21 +548,13 @@ impl Tensor {
             rhs.with_dtype(self.dtype())?;
         }
 
-        let mut result = Self::empty_with_spec(self.shape(), self.device(), self.dtype())?;
-
         let metadata = prepare_metadata(self, &rhs);
-        let offset = self.offset();
         let size = self.size();
         let ndim = self.ndim();
 
         unsafe {
-            result.with_buffer_mut(|out_buf| {
-                maidenx_core::be::ops::binary::add(out_buf, self.buffer(), rhs.buffer(), size, ndim, Some(&metadata))?;
-                Ok(())
-            })?;
-
             self.with_buffer_mut(|self_buf| {
-                self_buf.copy_from_with_device(result.buffer(), 0, offset, size)?;
+                maidenx_core::be::ops::binary::add_inplace(self_buf, rhs.buffer(), size, ndim, Some(&metadata))?;
                 Ok(())
             })?;
         }
@@ -581,21 +573,13 @@ impl Tensor {
             rhs.with_dtype(self.dtype())?;
         }
 
-        let mut result = Self::empty_with_spec(self.shape(), self.device(), self.dtype())?;
-
         let metadata = prepare_metadata(self, &rhs);
-        let offset = self.offset();
         let size = self.size();
         let ndim = self.ndim();
 
         unsafe {
-            result.with_buffer_mut(|out_buf| {
-                maidenx_core::be::ops::binary::sub(out_buf, self.buffer(), rhs.buffer(), size, ndim, Some(&metadata))?;
-                Ok(())
-            })?;
-
             self.with_buffer_mut(|self_buf| {
-                self_buf.copy_from_with_device(result.buffer(), 0, offset, size)?;
+                maidenx_core::be::ops::binary::sub_inplace(self_buf, rhs.buffer(), size, ndim, Some(&metadata))?;
                 Ok(())
             })?;
         }
@@ -614,21 +598,13 @@ impl Tensor {
             rhs.with_dtype(self.dtype())?;
         }
 
-        let mut result = Self::empty_with_spec(self.shape(), self.device(), self.dtype())?;
-
         let metadata = prepare_metadata(self, &rhs);
-        let offset = self.offset();
         let size = self.size();
         let ndim = self.ndim();
 
         unsafe {
-            result.with_buffer_mut(|out_buf| {
-                maidenx_core::be::ops::binary::mul(out_buf, self.buffer(), rhs.buffer(), size, ndim, Some(&metadata))?;
-                Ok(())
-            })?;
-
             self.with_buffer_mut(|self_buf| {
-                self_buf.copy_from_with_device(result.buffer(), 0, offset, size)?;
+                maidenx_core::be::ops::binary::mul_inplace(self_buf, rhs.buffer(), size, ndim, Some(&metadata))?;
                 Ok(())
             })?;
         }
@@ -647,21 +623,13 @@ impl Tensor {
             rhs.with_dtype(self.dtype())?;
         }
 
-        let mut result = Self::empty_with_spec(self.shape(), self.device(), self.dtype())?;
-
         let metadata = prepare_metadata(self, &rhs);
-        let offset = self.offset();
         let size = self.size();
         let ndim = self.ndim();
 
         unsafe {
-            result.with_buffer_mut(|out_buf| {
-                maidenx_core::be::ops::binary::div(out_buf, self.buffer(), rhs.buffer(), size, ndim, Some(&metadata))?;
-                Ok(())
-            })?;
-
             self.with_buffer_mut(|self_buf| {
-                self_buf.copy_from_with_device(result.buffer(), 0, offset, size)?;
+                maidenx_core::be::ops::binary::div_inplace(self_buf, rhs.buffer(), size, ndim, Some(&metadata))?;
                 Ok(())
             })?;
         }

@@ -86,6 +86,84 @@ template <typename T> __device__ T minimum(T x, T y) { return (x < y) ? x : y; }
                                                      metadata, lhs, rhs, out); \
   }
 
+#define BINARY_OP_INPLACE(TYPENAME, FN_NAME, FUNC)                             \
+  extern "C" __global__ void cuda_##FN_NAME##_kernel(                          \
+      const size_t num_els, const size_t num_dims, const size_t *metadata,     \
+      TYPENAME *lhs, const TYPENAME *rhs) {                                    \
+    const size_t *dims = metadata;                                             \
+    const size_t *lhs_strides = metadata + 1 * num_dims;                       \
+    const size_t *rhs_strides = metadata + 2 * num_dims;                       \
+    const size_t lhs_offset = metadata ? metadata[3 * num_dims] : 0;           \
+    const size_t rhs_offset = metadata ? metadata[3 * num_dims + 1] : 0;       \
+    bool lhs_cont =                                                            \
+        metadata == nullptr || is_contiguous(num_dims, dims, lhs_strides);     \
+    bool rhs_cont =                                                            \
+        metadata == nullptr || is_contiguous(num_dims, dims, rhs_strides);     \
+    if (lhs_cont && rhs_cont) {                                                \
+      for (unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;             \
+           i < num_els; i += blockDim.x * gridDim.x) {                         \
+        TYPENAME x = lhs[lhs_offset + i];                                      \
+        TYPENAME y = rhs[rhs_offset + i];                                      \
+        lhs[lhs_offset + i] = FUNC;                                            \
+      }                                                                        \
+    } else if (lhs_cont) {                                                     \
+      for (unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;             \
+           i < num_els; i += blockDim.x * gridDim.x) {                         \
+        unsigned int tmp_i = i;                                                \
+        unsigned int rhs_i = 0;                                                \
+        for (int d = num_dims - 1; d >= 0; d--) {                              \
+          unsigned int i_dim = tmp_i % dims[d];                                \
+          rhs_i += i_dim * rhs_strides[d];                                     \
+          tmp_i /= dims[d];                                                    \
+        }                                                                      \
+        TYPENAME x = lhs[lhs_offset + i];                                      \
+        TYPENAME y = rhs[rhs_offset + rhs_i];                                  \
+        lhs[lhs_offset + i] = FUNC;                                            \
+      }                                                                        \
+    } else if (rhs_cont) {                                                     \
+      for (unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;             \
+           i < num_els; i += blockDim.x * gridDim.x) {                         \
+        unsigned int tmp_i = i;                                                \
+        unsigned int lhs_i = 0;                                                \
+        for (int d = num_dims - 1; d >= 0; d--) {                              \
+          unsigned int i_dim = tmp_i % dims[d];                                \
+          lhs_i += i_dim * lhs_strides[d];                                     \
+          tmp_i /= dims[d];                                                    \
+        }                                                                      \
+        TYPENAME x = lhs[lhs_offset + lhs_i];                                  \
+        TYPENAME y = rhs[rhs_offset + i];                                      \
+        lhs[lhs_offset + lhs_i] = FUNC;                                        \
+      }                                                                        \
+    } else {                                                                   \
+      for (unsigned int i = blockIdx.x * blockDim.x + threadIdx.x;             \
+           i < num_els; i += blockDim.x * gridDim.x) {                         \
+        unsigned int tmp_i = i;                                                \
+        unsigned int lhs_i = 0;                                                \
+        unsigned int rhs_i = 0;                                                \
+        for (int d = num_dims - 1; d >= 0; d--) {                              \
+          unsigned int i_dim = tmp_i % dims[d];                                \
+          lhs_i += i_dim * lhs_strides[d];                                     \
+          rhs_i += i_dim * rhs_strides[d];                                     \
+          tmp_i /= dims[d];                                                    \
+        }                                                                      \
+        TYPENAME x = lhs[lhs_offset + lhs_i];                                  \
+        TYPENAME y = rhs[rhs_offset + rhs_i];                                  \
+        lhs[lhs_offset + lhs_i] = FUNC;                                        \
+      }                                                                        \
+    }                                                                          \
+  }                                                                            \
+                                                                               \
+  extern "C" void cuda_##FN_NAME(size_t num_els, size_t num_dims,              \
+                                 const size_t *metadata, TYPENAME *lhs,        \
+                                 const TYPENAME *rhs, TYPENAME *out) {         \
+    /* out parameter is not used as the operation is performed in-place        \
+       on lhs, but must be provided to maintain API compatibility */           \
+    dim3 block_dim(256);                                                       \
+    dim3 grid_dim((num_els + block_dim.x - 1) / block_dim.x);                  \
+    cuda_##FN_NAME##_kernel<<<grid_dim, block_dim>>>(num_els, num_dims,        \
+                                                     metadata, lhs, rhs, out); \
+  }
+
 BINARY_OP(float, float, add_f32, x + y);
 BINARY_OP(float, float, sub_f32, x - y);
 BINARY_OP(float, float, mul_f32, x *y);
@@ -256,6 +334,51 @@ BINARY_OP(int64_t, bool, le_i64, x <= y);
 BINARY_OP(int64_t, bool, gt_i64, x > y);
 BINARY_OP(int64_t, bool, ge_i64, x >= y);
 
+BINARY_OP_INPLACE(float, add_inplace_f32, x + y);
+BINARY_OP_INPLACE(float, sub_inplace_f32, x - y);
+BINARY_OP_INPLACE(float, mul_inplace_f32, x *y);
+BINARY_OP_INPLACE(float, div_inplace_f32, x / y);
+BINARY_OP_INPLACE(double, add_inplace_f64, x + y);
+BINARY_OP_INPLACE(double, sub_inplace_f64, x - y);
+BINARY_OP_INPLACE(double, mul_inplace_f64, x *y);
+BINARY_OP_INPLACE(double, div_inplace_f64, x / y);
+BINARY_OP_INPLACE(bool, add_inplace_bool, x + y);
+BINARY_OP_INPLACE(bool, sub_inplace_bool, x - y);
+BINARY_OP_INPLACE(bool, mul_inplace_bool, x *y);
+BINARY_OP_INPLACE(bool, div_inplace_bool, x &&y);
+BINARY_OP_INPLACE(uint8_t, add_inplace_u8, x + y);
+BINARY_OP_INPLACE(uint8_t, sub_inplace_u8, sub_with_clamp(x, y));
+BINARY_OP_INPLACE(uint8_t, mul_inplace_u8, x *y);
+BINARY_OP_INPLACE(uint8_t, div_inplace_u8, x / y);
+BINARY_OP_INPLACE(uint16_t, add_inplace_u16, x + y);
+BINARY_OP_INPLACE(uint16_t, sub_inplace_u16, sub_with_clamp(x, y));
+BINARY_OP_INPLACE(uint16_t, mul_inplace_u16, x *y);
+BINARY_OP_INPLACE(uint16_t, div_inplace_u16, x / y);
+BINARY_OP_INPLACE(uint32_t, add_inplace_u32, x + y);
+BINARY_OP_INPLACE(uint32_t, sub_inplace_u32, sub_with_clamp(x, y));
+BINARY_OP_INPLACE(uint32_t, mul_inplace_u32, x *y);
+BINARY_OP_INPLACE(uint32_t, div_inplace_u32, x / y);
+BINARY_OP_INPLACE(uint64_t, add_inplace_u64, x + y);
+BINARY_OP_INPLACE(uint64_t, sub_inplace_u64, sub_with_clamp(x, y));
+BINARY_OP_INPLACE(uint64_t, mul_inplace_u64, x *y);
+BINARY_OP_INPLACE(uint64_t, div_inplace_u64, x / y);
+BINARY_OP_INPLACE(int8_t, add_inplace_i8, x + y);
+BINARY_OP_INPLACE(int8_t, sub_inplace_i8, x - y);
+BINARY_OP_INPLACE(int8_t, mul_inplace_i8, x *y);
+BINARY_OP_INPLACE(int8_t, div_inplace_i8, x / y);
+BINARY_OP_INPLACE(int16_t, add_inplace_i16, x + y);
+BINARY_OP_INPLACE(int16_t, sub_inplace_i16, x - y);
+BINARY_OP_INPLACE(int16_t, mul_inplace_i16, x *y);
+BINARY_OP_INPLACE(int16_t, div_inplace_i16, x / y);
+BINARY_OP_INPLACE(int32_t, add_inplace_i32, x + y);
+BINARY_OP_INPLACE(int32_t, sub_inplace_i32, x - y);
+BINARY_OP_INPLACE(int32_t, mul_inplace_i32, x *y);
+BINARY_OP_INPLACE(int32_t, div_inplace_i32, x / y);
+BINARY_OP_INPLACE(int64_t, add_inplace_i64, x + y);
+BINARY_OP_INPLACE(int64_t, sub_inplace_i64, x - y);
+BINARY_OP_INPLACE(int64_t, mul_inplace_i64, x *y);
+BINARY_OP_INPLACE(int64_t, div_inplace_i64, x / y);
+
 // __half
 BINARY_OP(__half, __half, add_f16, x + y);
 BINARY_OP(__half, __half, sub_f16, x - y);
@@ -278,6 +401,11 @@ BINARY_OP(__half, bool, le_f16, x <= y);
 BINARY_OP(__half, bool, gt_f16, x > y);
 BINARY_OP(__half, bool, ge_f16, x >= y);
 
+BINARY_OP_INPLACE(__half, add_inplace_f16, x + y);
+BINARY_OP_INPLACE(__half, sub_inplace_f16, x - y);
+BINARY_OP_INPLACE(__half, mul_inplace_f16, x *y);
+BINARY_OP_INPLACE(__half, div_inplace_f16, x / y);
+
 // __nv_bfloat16
 BINARY_OP(__nv_bfloat16, __nv_bfloat16, add_bf16, x + y);
 BINARY_OP(__nv_bfloat16, __nv_bfloat16, sub_bf16, x - y);
@@ -299,3 +427,8 @@ BINARY_OP(__nv_bfloat16, bool, lt_bf16, x < y);
 BINARY_OP(__nv_bfloat16, bool, le_bf16, x <= y);
 BINARY_OP(__nv_bfloat16, bool, gt_bf16, x > y);
 BINARY_OP(__nv_bfloat16, bool, ge_bf16, x >= y);
+
+BINARY_OP_INPLACE(__nv_bfloat16, add_inplace_bf16, x + y);
+BINARY_OP_INPLACE(__nv_bfloat16, sub_inplace_bf16, x - y);
+BINARY_OP_INPLACE(__nv_bfloat16, mul_inplace_bf16, x *y);
+BINARY_OP_INPLACE(__nv_bfloat16, div_inplace_bf16, x / y);
