@@ -57,6 +57,22 @@ impl Layout {
         self.shape.iter().product()
     }
 
+    pub fn is_contiguous(&self) -> bool {
+        if self.ndim() == 0 {
+            return true;
+        }
+
+        let mut expected_stride = 1;
+        for i in (0..self.ndim()).rev() {
+            if self.strides()[i] != expected_stride {
+                return false;
+            }
+            expected_stride *= self.shape()[i];
+        }
+
+        true
+    }
+
     pub fn view(&mut self, new_shape: &[usize]) -> Result<()> {
         let old_size = self.size();
         let new_size = new_shape.iter().product();
@@ -68,8 +84,14 @@ impl Layout {
             )));
         }
 
-        self.shape = new_shape.to_vec();
-        self.strides = Self::compute_strides(new_shape);
+        if self.is_contiguous() {
+            self.shape = new_shape.to_vec();
+            self.strides = Self::compute_strides(new_shape);
+        } else {
+            return Err(Error::InvalidOperation(
+                "Cannot view a non-contiguous tensor. Use .contiguous() before .view()".to_string(),
+            ));
+        }
 
         Ok(())
     }
@@ -221,6 +243,83 @@ impl Layout {
             strides: new_strides,
             offset: self.offset,
         })
+    }
+
+    pub fn broadcast_to(&self, target_shape: &[usize]) -> Result<Self> {
+        let self_shape = &self.shape;
+
+        if self_shape.len() > target_shape.len() {
+            return Err(Error::InvalidArgument(format!(
+                "Cannot broadcast tensor of rank {} to rank {}",
+                self_shape.len(),
+                target_shape.len()
+            )));
+        }
+
+        let rank_diff = target_shape.len() - self_shape.len();
+        let mut padded_shape = vec![1; rank_diff];
+        padded_shape.extend_from_slice(self_shape);
+
+        let mut new_strides = vec![0; target_shape.len()];
+
+        for i in 0..target_shape.len() {
+            let src_dim = padded_shape[i];
+            let tgt_dim = target_shape[i];
+
+            if src_dim == tgt_dim {
+                if i < rank_diff {
+                    new_strides[i] = 0;
+                } else {
+                    new_strides[i] = self.strides[i - rank_diff];
+                }
+            } else if src_dim == 1 {
+                new_strides[i] = 0;
+            } else {
+                return Err(Error::InvalidShape {
+                    message: format!("Cannot broadcast shape {:?} to shape {:?} at dimension {}", self_shape, target_shape, i),
+                });
+            }
+        }
+
+        Ok(Self {
+            shape: target_shape.to_vec(),
+            strides: new_strides,
+            offset: self.offset,
+        })
+    }
+
+    pub fn broadcast_layouts(lhs: &Self, rhs: &Self) -> Result<(Self, Self)> {
+        let lhs_shape = &lhs.shape;
+        let rhs_shape = &rhs.shape;
+
+        let max_rank = lhs_shape.len().max(rhs_shape.len());
+        let mut broadcast_shape = Vec::with_capacity(max_rank);
+
+        let lhs_padded = {
+            let mut padded = vec![1; max_rank - lhs_shape.len()];
+            padded.extend_from_slice(lhs_shape);
+            padded
+        };
+
+        let rhs_padded = {
+            let mut padded = vec![1; max_rank - rhs_shape.len()];
+            padded.extend_from_slice(rhs_shape);
+            padded
+        };
+
+        for (i, (&dim1, &dim2)) in lhs_padded.iter().zip(rhs_padded.iter()).enumerate() {
+            if dim1 != 1 && dim2 != 1 && dim1 != dim2 {
+                return Err(Error::InvalidShape {
+                    message: format!("Cannot broadcast shapes {:?} and {:?} at dimension {}", lhs_shape, rhs_shape, i),
+                });
+            }
+            broadcast_shape.push(dim1.max(dim2));
+        }
+
+        let lhs_broadcast = lhs.broadcast_to(&broadcast_shape)?;
+        let rhs_broadcast = rhs.broadcast_to(&broadcast_shape)?;
+
+        Ok((lhs_broadcast, rhs_broadcast))
     }
 
     // helper

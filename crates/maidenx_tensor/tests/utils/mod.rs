@@ -80,6 +80,29 @@ where
     Ok(tensor)
 }
 
+pub fn setup_contiguous_tensor_with_shape<T: Clone + Default + 'static>(data: Vec<T>, dtype: DType, shape: &[usize]) -> Result<Tensor>
+where
+    Vec<T>: TensorAdapter,
+{
+    auto_set_device();
+
+    let mut tensor = Tensor::new(data)?;
+    tensor.with_dtype(dtype)?;
+    tensor.with_shape(shape)?;
+
+    Ok(tensor)
+}
+
+pub fn setup_grad_contiguous_tensor_with_shape<T: Clone + Default + 'static>(data: Vec<T>, dtype: DType, shape: &[usize]) -> Result<Tensor>
+where
+    Vec<T>: TensorAdapter,
+{
+    let mut tensor = setup_contiguous_tensor_with_shape(data, dtype, shape)?;
+    tensor.with_grad().ok();
+
+    Ok(tensor)
+}
+
 #[macro_export]
 macro_rules! test_ops {
     ([$($op:ident),*]) => {

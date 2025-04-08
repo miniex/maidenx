@@ -18,9 +18,7 @@ impl Tensor {
         let strides = tensor.strides();
         let offset = tensor.offset();
         let elem_size = tensor.dtype().size_in_bytes();
-
-        let max_offset = calculate_max_offset(shape, strides, offset);
-        let buffer_size = (max_offset + 1) * elem_size;
+        let buffer_size = tensor.buffer().len() * elem_size;
 
         let mut raw_data = vec![0u8; buffer_size];
 
@@ -70,19 +68,6 @@ impl Tensor {
             }
         }
     }
-}
-
-fn calculate_max_offset(shape: &[usize], strides: &[usize], base_offset: usize) -> usize {
-    let mut max_offset = base_offset;
-
-    for (i, &dim_size) in shape.iter().enumerate() {
-        if dim_size > 0 {
-            let max_idx = dim_size - 1;
-            max_offset += max_idx * strides[i];
-        }
-    }
-
-    max_offset
 }
 
 fn get_dtype_for_type<T: 'static>() -> Option<DType> {

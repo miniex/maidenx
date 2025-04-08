@@ -54,8 +54,8 @@ impl Tensor {
                 } else {
                     let mut grad_shape = input_shape.clone();
                     grad_shape[dim] = 1;
-                    let viewed_grad = grad_out.view(&grad_shape)?;
-                    Ok(vec![viewed_grad.broadcast(&input_shape)?])
+                    let reshaped_grad = grad_out.reshape(&grad_shape)?;
+                    Ok(vec![reshaped_grad.broadcast(&input_shape)?])
                 }
             });
 

@@ -8,22 +8,6 @@ use maidenx_core::{
 };
 
 impl Tensor {
-    pub fn is_contiguous(&self) -> bool {
-        if self.ndim() == 0 {
-            return true;
-        }
-
-        let mut expected_stride = 1;
-        for i in (0..self.ndim()).rev() {
-            if self.strides()[i] != expected_stride {
-                return false;
-            }
-            expected_stride *= self.shape()[i];
-        }
-
-        true
-    }
-
     pub fn contiguous(&self) -> Result<Self> {
         if self.is_contiguous() {
             return Ok(self.clone());
@@ -45,7 +29,11 @@ impl Tensor {
                 result = contiguous_temp.to_device(Device::CUDA(device_id))?;
             }
             #[cfg(feature = "mps")]
-            Device::MPS => {}
+            Device::MPS => {
+                let temp = self.to_device(Device::CPU)?;
+                let contiguous_temp = temp.contiguous()?;
+                result = contiguous_temp.to_device(Device::MPS)?;
+            }
         }
 
         Ok(result)

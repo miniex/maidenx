@@ -194,6 +194,10 @@ impl Tensor {
         self.metadata.layout.dim_size(dim)
     }
 
+    pub fn is_contiguous(&self) -> bool {
+        self.metadata.layout.is_contiguous()
+    }
+
     // data - grad
 
     pub fn grad(&self) -> Result<Option<Tensor>> {

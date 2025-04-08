@@ -19,6 +19,7 @@ pub enum Error {
     UnsupportedDType,
     InvalidArgument(String),
     InvalidDevice(String),
+    InvalidOperation(String),
     IncompatibleShape(String),
     #[cfg(feature = "cuda")]
     CudaError(String),
@@ -78,6 +79,7 @@ impl fmt::Display for Error {
             Self::UnsupportedDType => write!(f, "Unsupported data type"),
             Self::InvalidArgument(msg) => write!(f, "Invalid argument: {}", msg),
             Self::InvalidDevice(msg) => write!(f, "Invalid device: {}", msg),
+            Self::InvalidOperation(msg) => write!(f, "Invalid operation: {}", msg),
             Self::IncompatibleShape(msg) => write!(f, "Incompatible shape: {}", msg),
             #[cfg(feature = "cuda")]
             Self::CudaError(msg) => write!(f, "CUDA error: {}", msg),

@@ -16,7 +16,8 @@ impl Tensor {
             result.with_grad()?;
 
             let orig_shape = self.shape().to_vec();
-            let backward_fn = Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> { Ok(vec![grad_out.view(&orig_shape)?]) });
+            let backward_fn =
+                Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> { Ok(vec![grad_out.reshape(&orig_shape)?]) });
 
             let node = TensorNode::new("view".to_string(), vec![self.clone()], Some(backward_fn));
             result.node = Some(node);
@@ -58,7 +59,8 @@ impl Tensor {
             result.with_grad()?;
 
             let orig_shape = self.shape().to_vec();
-            let backward_fn = Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> { Ok(vec![grad_out.view(&orig_shape)?]) });
+            let backward_fn =
+                Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> { Ok(vec![grad_out.reshape(&orig_shape)?]) });
 
             let node = TensorNode::new("squeeze".to_string(), vec![self.clone()], Some(backward_fn));
             result.node = Some(node);
@@ -76,7 +78,8 @@ impl Tensor {
             result.with_grad()?;
 
             let orig_shape = self.shape().to_vec();
-            let backward_fn = Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> { Ok(vec![grad_out.view(&orig_shape)?]) });
+            let backward_fn =
+                Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> { Ok(vec![grad_out.reshape(&orig_shape)?]) });
 
             let node = TensorNode::new("squeeze_all".to_string(), vec![self.clone()], Some(backward_fn));
             result.node = Some(node);
@@ -110,7 +113,8 @@ impl Tensor {
             result.with_grad()?;
 
             let orig_shape = self.shape().to_vec();
-            let backward_fn = Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> { Ok(vec![grad_out.view(&orig_shape)?]) });
+            let backward_fn =
+                Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> { Ok(vec![grad_out.reshape(&orig_shape)?]) });
 
             let node = TensorNode::new("unsqueeze".to_string(), vec![self.clone()], Some(backward_fn));
             result.node = Some(node);
@@ -118,6 +122,8 @@ impl Tensor {
 
         Ok(result)
     }
+
+    // ==== layout ops ====
 
     pub fn transpose(&self, dim0: impl Into<Scalar>, dim1: impl Into<Scalar>) -> Result<Self> {
         let dim0_i32 = dim0.into().as_i32();
@@ -239,7 +245,7 @@ impl Tensor {
                 let grad_input = grad_out.fold(orig_dim, orig_size, orig_step)?;
 
                 if grad_input.shape() != orig_shape {
-                    return Ok(vec![grad_input.view(&orig_shape)?]);
+                    return Ok(vec![grad_input.reshape(&orig_shape)?]);
                 }
 
                 Ok(vec![grad_input])
@@ -249,6 +255,74 @@ impl Tensor {
         }
 
         Ok(result)
+    }
+
+    // ==== broadcast ops ====
+
+    pub fn broadcast(&self, shape: &[usize]) -> Result<Self> {
+        if self.shape() == shape {
+            return Ok(self.clone());
+        }
+
+        let old_shape = self.shape();
+
+        if old_shape.is_empty() {
+            return self.broadcast_scalar_to(shape);
+        }
+
+        if shape.is_empty() {
+            if !old_shape.is_empty() {
+                return Err(Error::InvalidShape {
+                    message: format!("Cannot broadcast non-scalar shape {:?} to scalar ()", old_shape),
+                });
+            } else {
+                return Ok(self.clone());
+            }
+        }
+
+        let new_layout = self.layout().broadcast_to(shape)?;
+        let mut result = Self::share_buffer(self)?;
+        *result.layout_mut() = new_layout;
+
+        if self.requires_grad() {
+            result.with_grad()?;
+            let orig_shape = self.shape().to_vec();
+            let backward_fn =
+                Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> { Ok(vec![grad_out.sum_to_shape(&orig_shape)?]) });
+            let node = TensorNode::new("broadcast".to_string(), vec![self.clone()], Some(backward_fn));
+            result.node = Some(node);
+        }
+
+        Ok(result)
+    }
+
+    pub fn broadcast_like(&self, other: &Self) -> Result<Self> {
+        self.broadcast(other.shape())
+    }
+
+    pub fn broadcast_left(&self, batch_dims: &[usize]) -> Result<Self> {
+        let mut new_shape = batch_dims.as_ref().to_vec();
+        new_shape.extend(self.shape());
+        self.broadcast(&new_shape)
+    }
+
+    fn broadcast_scalar_to(&self, shape: &[usize]) -> Result<Self> {
+        let scalar_value = self.item()?;
+        let result = Self::fill_with_spec(shape, scalar_value, self.device(), self.dtype())?;
+
+        if self.requires_grad() {
+            let mut result_with_grad = result;
+            result_with_grad.with_grad()?;
+
+            let backward_fn = Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> { Ok(vec![grad_out.sum_all()?]) });
+
+            let node = TensorNode::new("broadcast_scalar".to_string(), vec![self.clone()], Some(backward_fn));
+            result_with_grad.node = Some(node);
+
+            Ok(result_with_grad)
+        } else {
+            Ok(result)
+        }
     }
 
     // ==== reshape ops ====
@@ -265,7 +339,7 @@ impl Tensor {
 
                 let orig_shape = self.shape().to_vec();
                 let backward_fn =
-                    Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> { Ok(vec![grad_out.view(&orig_shape)?]) });
+                    Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> { Ok(vec![grad_out.reshape(&orig_shape)?]) });
 
                 let node = TensorNode::new("reshape".to_string(), vec![self.clone()], Some(backward_fn));
                 result.node = Some(node);
@@ -279,7 +353,7 @@ impl Tensor {
             if self.requires_grad() {
                 let orig_shape = self.shape().to_vec();
                 let backward_fn =
-                    Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> { Ok(vec![grad_out.view(&orig_shape)?]) });
+                    Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> { Ok(vec![grad_out.reshape(&orig_shape)?]) });
 
                 let node = TensorNode::new("reshape".to_string(), vec![self.clone()], Some(backward_fn));
                 result.node = Some(node);

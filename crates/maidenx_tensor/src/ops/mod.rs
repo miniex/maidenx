@@ -1,5 +1,4 @@
 mod binary;
-mod broadcasting;
 mod indexing;
 mod matmul;
 mod padding;

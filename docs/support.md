@@ -143,15 +143,16 @@ Blank: Upcoming support
 |            | `squeeze`          | ✓ |   |
 |            | `squeeze_all`      | ✓ |   |
 |            | `unsqueeze`        | ✓ |   |
+| layout operations |
 |            | `transpose`        | ✓ |   |
 |            | `slice`            | ✓ |   |
 |            | `unfold`           | ✓ |   |
-| reshape operations |
-|            | `reshape`          | ✓ |   |
-| **Broadcasting Operations** |
+| broadcast operations |
 |            | `broadcast`        | ✓ |   |
 |            | `broadcast_like`   | ✓ |   |
 |            | `broadcast_left`   | ✓ |   |
+| reshape operations |
+|            | `reshape`          | ✓ |   |
 | **Padding Operations** |
 |            | `pad`                                | ✓ |   |
 |            | `pad_with_constant`                  | ✓ |   |
