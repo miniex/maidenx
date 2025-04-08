@@ -90,10 +90,8 @@ impl TensorNode {
             for (idx, input) in self.inputs.iter().enumerate() {
                 if input.requires_grad() {
                     if let Some(grad) = grads_for_inputs.get(idx) {
-                        if grad.any()? {
-                            input.accumulate_grad(grad)?;
-                            input._backward(grad)?;
-                        }
+                        input.accumulate_grad(grad)?;
+                        input._backward(grad)?;
                     }
                 }
             }
