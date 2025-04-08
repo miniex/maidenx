@@ -26,7 +26,11 @@ use maidenx_core::{
     layout::Layout,
     scalar::Scalar,
 };
-use std::sync::{Arc, Mutex};
+use std::{
+    collections::HashSet,
+    hash::{DefaultHasher, Hash, Hasher},
+    sync::{Arc, Mutex},
+};
 
 #[derive(Clone)]
 pub struct TensorData {
@@ -84,6 +88,11 @@ impl TensorNode {
     }
 
     pub fn backward(&self, grad_output: &Tensor) -> Result<()> {
+        let mut visited = std::collections::HashSet::<u64>::new();
+        self.backward_with_tracking(grad_output, &mut visited)
+    }
+
+    pub fn backward_with_tracking(&self, grad_output: &Tensor, visited: &mut std::collections::HashSet<u64>) -> Result<()> {
         if let Some(ref func) = self.backward_fn {
             let grads_for_inputs = (func)(&self.inputs, grad_output)?;
 
@@ -91,7 +100,7 @@ impl TensorNode {
                 if input.requires_grad() {
                     if let Some(grad) = grads_for_inputs.get(idx) {
                         input.accumulate_grad(grad)?;
-                        input._backward(grad)?;
+                        input._backward_with_tracking(grad, visited)?;
                     }
                 }
             }
@@ -209,27 +218,67 @@ impl Tensor {
 
     pub fn accumulate_grad(&self, grad_in: &Tensor) -> Result<()> {
         if let Some(grad_mutex) = &self.data.grad {
-            let mut guard = grad_mutex.lock().map_err(|_| Error::GradLocked)?;
-            guard.add_(grad_in)?;
+            if Arc::strong_count(grad_mutex) == 1 {
+                let grad = unsafe {
+                    let raw_ptr = Arc::as_ptr(grad_mutex);
+                    &mut *(raw_ptr as *mut Mutex<Tensor>)
+                };
+
+                if let Ok(tensor) = grad.get_mut() {
+                    tensor.add_(grad_in)?;
+                } else {
+                    let mut guard = grad_mutex.lock().map_err(|_| Error::GradLocked)?;
+                    guard.add_(grad_in)?;
+                }
+            } else {
+                let mut guard = grad_mutex.lock().map_err(|_| Error::GradLocked)?;
+                guard.add_(grad_in)?;
+            }
         }
         Ok(())
     }
 
     pub fn zero_grad(&self) -> Result<()> {
+        let mut visited = HashSet::<u64>::new();
+        self._zero_grad_impl(&mut visited)
+    }
+
+    fn _zero_grad_impl(&self, visited: &mut HashSet<u64>) -> Result<()> {
+        let ptr = Arc::as_ptr(&self.data.buffer);
+        let mut hasher = DefaultHasher::new();
+        ptr.hash(&mut hasher);
+        let tensor_id = hasher.finish();
+
+        if !visited.insert(tensor_id) {
+            return Ok(());
+        }
+
         if let Some(grad_mutex) = &self.data.grad {
-            let mut guard = grad_mutex.lock().map_err(|_| Error::GradLocked)?;
-            let zero_tensor = Tensor::zeros_like(&guard)?;
-            *guard = zero_tensor;
+            if Arc::strong_count(grad_mutex) == 1 {
+                let grad = unsafe {
+                    let raw_ptr = Arc::as_ptr(grad_mutex);
+                    &mut *(raw_ptr as *mut Mutex<Tensor>)
+                };
+
+                if let Ok(tensor) = grad.get_mut() {
+                    *tensor = Tensor::zeros_like(&tensor)?;
+                } else {
+                    let mut guard = grad_mutex.lock().map_err(|_| Error::GradLocked)?;
+                    *guard = Tensor::zeros_like(&guard)?;
+                }
+            } else {
+                let mut guard = grad_mutex.lock().map_err(|_| Error::GradLocked)?;
+                *guard = Tensor::zeros_like(&guard)?;
+            }
         }
 
         if let Some(node) = &self.node {
             for input in node.inputs() {
                 if input.requires_grad() {
-                    input.zero_grad()?;
+                    input._zero_grad_impl(visited)?;
                 }
             }
         }
-
         Ok(())
     }
 
@@ -242,15 +291,30 @@ impl Tensor {
     pub fn backward(&self) -> Result<()> {
         if self.requires_grad() {
             let grad_out = Self::ones_like(self)?;
-            self._backward(&grad_out)?;
+            let mut visited = std::collections::HashSet::<u64>::new();
+            self._backward_with_tracking(&grad_out, &mut visited)?;
         }
 
         Ok(())
     }
 
     fn _backward(&self, grad_out: &Tensor) -> Result<()> {
+        let mut visited = std::collections::HashSet::<u64>::new();
+        self._backward_with_tracking(grad_out, &mut visited)
+    }
+
+    fn _backward_with_tracking(&self, grad_out: &Tensor, visited: &mut std::collections::HashSet<u64>) -> Result<()> {
+        let ptr = Arc::as_ptr(&self.data.buffer);
+        let mut hasher = DefaultHasher::new();
+        ptr.hash(&mut hasher);
+        let tensor_id = hasher.finish();
+
+        if !visited.insert(tensor_id) {
+            return Ok(());
+        }
+
         if let Some(ref node) = self.node {
-            node.backward(grad_out)?;
+            node.backward_with_tracking(grad_out, visited)?;
         }
 
         Ok(())
