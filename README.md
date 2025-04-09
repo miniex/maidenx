@@ -6,12 +6,14 @@ This library prioritizes code readability, ensuring that anyone can easily under
 [![License](https://img.shields.io/badge/license-BSD--3--Clause-blue.svg)](https://github.com/miniex/maidenx#license)
 [![Crates.io](https://img.shields.io/crates/v/maidenx.svg)](https://crates.io/crates/maidenx)
 
-## Project Status 🚧
-
-This is a personal learning and development project. As such:
-- The framework is under active development
-- Features may be experimental or incomplete
-- Functionality is not guaranteed for production use
+> [!WARNING]
+>
+> This is a personal learning and development project. As such:
+> - The framework is under active development
+> - Features may be experimental or incomplete
+> - Functionality is not guaranteed for production use
+> 
+> It is recommended to use the latest version.
 
 The project serves primarily as a testbed for AI engine development and learning purposes.
 
