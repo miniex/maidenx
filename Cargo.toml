@@ -24,10 +24,11 @@ serde_json = "1.0.140"
 bincode = "2.0.1"
 
 [features]
-default = ["nn", "serde"]
+default = ["nn", "serde", "graph"]
 
 nn = ["maidenx_internal/nn"]
 serde = ["maidenx_internal/serde"]
+graph = ["maidenx_internal/graph"]
 
 cuda = ["maidenx_internal/cuda"]
 mps = ["maidenx_internal/mps"]

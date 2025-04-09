@@ -28,9 +28,7 @@ maidenx_nn_macros = { path = "macros", version = "0.1.0-dev" }
 maidenx_core = { path = "../maidenx_core", version = "0.1.0-dev", features = [
     "nn",
 ] }
-maidenx_tensor = { path = "../maidenx_tensor", version = "0.1.0-dev", features = [
-    "nn",
-] }
+maidenx_tensor = { path = "../maidenx_tensor", version = "0.1.0-dev" }
 serde = { workspace = true, optional = true }
 serde_json = { workspace = true, optional = true }
 bincode = { workspace = true, optional = true, features = ["serde"] }

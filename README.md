@@ -21,7 +21,36 @@ MaidenX is being developed with a vision to create a lightweight, fast, and huma
 The library focuses on simplicity, performance, and user convenience, ensuring that developers can work effortlessly while enjoying robust machine learning capabilities.
 As the project evolves, MaidenX aims to serve as a foundation for innovative AI solutions and advanced learning resources.
 
-## Examples
+## Guide
+
+### Features
+
+MaidenX organizes its functionality into separate features, allowing users to select only what they need. More features will be added as the project evolves.
+
+#### Default Features
+
+These are included by default and recommended for most use cases:
+
+|feature name|description|
+|-|-|
+|nn|Core neural network functionality that provides implementations of neural network components and architectures|
+|serde|Integration with Rust's serde framework enabling serialization/deserialization of tensors and neural network layers for saving and loading models|
+|graph|Enables computational graph mode where tensor operations are executed as deferred operations within a compuation graph rather than immediately, providing an alternative execution model|
+
+#### Optional Features
+
+|feature name|description|
+|-|-|
+|cuda|GPU acceleration support using NVIDIA CUDA for significantly faster tensor operations and model training|
+|mps|Apple Metal Performance Shaders support for hardware acceleration on macOS devices|
+
+### Docs
+
+This [document][supported] provides a complete list of all operations and layers currently supported by MaidenX.
+
+[supported]: docs/supported.md
+
+### Examples
 
 ```rust
 use maidenx::nn::*;

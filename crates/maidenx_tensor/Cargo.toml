@@ -9,8 +9,8 @@ publish = true
 repository = "https://github.com/miniex/maidenx"
 
 [features]
-nn = ["maidenx_core/nn"]
 serde = ["maidenx_core/serde", "dep:serde", "dep:serde_json", "dep:bincode"]
+graph = []
 
 cuda = ["maidenx_core/cuda"]
 mps = ["maidenx_core/mps"]

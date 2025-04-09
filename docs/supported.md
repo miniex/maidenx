@@ -167,13 +167,6 @@ Blank: Upcoming support
 |            | `scatter_add_`     | ✗ |   |
 |            | `bincount`         | ✗ |   |
 
-| Category | Name | Autograd | Notes |
-|---|---|---|---|
-| **NN Aliases** |
-| activation |
-|            | `softmax`          | ✓ |   | 
-
-
 <br/>
 
 ### Tensor Functions
