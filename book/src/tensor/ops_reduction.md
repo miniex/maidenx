@@ -230,6 +230,22 @@ let a = Tensor::new(vec![1.0, 2.0, 3.0, 4.0])?.reshape(&[2, 2])?;
 let b = a.var(0, false, true)?; // [2.0, 2.0]
 ```
 
+### var_all
+```rust
+fn var_all(&self, unbiased: bool) -> Result<Tensor>
+```
+Computes the variance of all elements in the tensor.
+
+- **Parameters**:
+  - `unbiased`: Whether to use Bessel's correction (N-1 divisor)
+- **Returns**: A new scalar tensor containing the variance
+- **Supports Autograd**: Yes
+- **Example**:
+```rust
+let a = Tensor::new(vec![1.0, 2.0, 3.0, 4.0])?.reshape(&[2, 2])?;
+let b = a.var_all(true)?; // [1.666...] (with Bessel's correction)
+```
+
 ### std
 ```rust
 fn std(&self, dim: impl Into<Scalar>, keep_dim: bool, unbiased: bool) -> Result<Tensor>
@@ -246,4 +262,20 @@ Computes the standard deviation of elements along a specified dimension.
 ```rust
 let a = Tensor::new(vec![1.0, 2.0, 3.0, 4.0])?.reshape(&[2, 2])?;
 let b = a.std(0, false, true)?; // [1.414..., 1.414...]  (sqrt of variance)
+```
+
+### std_all
+```rust
+fn std_all(&self, unbiased: bool) -> Result<Tensor>
+```
+Computes the standard deviation of all elements in the tensor.
+
+- **Parameters**:
+  - `unbiased`: Whether to use Bessel's correction (N-1 divisor)
+- **Returns**: A new scalar tensor containing the standard deviation
+- **Supports Autograd**: Yes
+- **Example**:
+```rust
+let a = Tensor::new(vec![1.0, 2.0, 3.0, 4.0])?.reshape(&[2, 2])?;
+let b = a.std_all(true)?; // [1.291...] (square root of the variance)
 ```

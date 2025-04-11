@@ -1583,6 +1583,113 @@ mod test_functions {
         Ok(())
     }
 
+    pub fn var_all_test(dtype: DType) -> Result<()> {
+        match dtype {
+            DType::U8 | DType::U16 | DType::U32 | DType::U64 | DType::I8 | DType::I16 | DType::I32 | DType::I64 => {
+                // Use appropriate tolerance
+                let tolerance = 1e-5;
+                let x = setup_tensor_with_shape(TEST_DATA_U32_2D.iter().flatten().copied().collect(), dtype, &[2, 2])?;
+                let result = x.var_all(false)?;
+                let expected_var = 1.25; // Value depends on TEST_DATA_U32_2D
+                assert!(
+                    (result.item()?.as_f32() - expected_var).abs() < tolerance,
+                    "Expected {} but got {} (tolerance: {})",
+                    expected_var,
+                    result.item()?.as_f32(),
+                    tolerance
+                );
+
+                // Test with unbiased = true
+                let result_unbiased = x.var_all(true)?;
+                let expected_var_unbiased = 5.0 / 3.0; // Adjusted for unbiased calculation
+                assert!(
+                    (result_unbiased.item()?.as_f32() - expected_var_unbiased).abs() < tolerance,
+                    "Expected {} but got {} (tolerance: {})",
+                    expected_var_unbiased,
+                    result_unbiased.item()?.as_f32(),
+                    tolerance
+                );
+            },
+            DType::BF16 | DType::F16 => {
+                // Use appropriate tolerance for low precision types
+                let tolerance = 0.1;
+                let x =
+                    setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
+                let result = x.var_all(false)?;
+                result.backward()?;
+                let expected_var = 2.9167; // Value depends on TEST_DATA_F32_2D
+                assert!(
+                    (result.item()?.as_f32() - expected_var).abs() < tolerance,
+                    "Expected {} but got {} (tolerance: {})",
+                    expected_var,
+                    result.item()?.as_f32(),
+                    tolerance
+                );
+
+                // Test with unbiased = true
+                let x =
+                    setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
+                let result_unbiased = x.var_all(true)?;
+                result_unbiased.backward()?;
+                let expected_var_unbiased = 3.5; // Adjusted for unbiased calculation
+                assert!(
+                    (result_unbiased.item()?.as_f32() - expected_var_unbiased).abs() < tolerance,
+                    "Expected {} but got {} (tolerance: {})",
+                    expected_var_unbiased,
+                    result_unbiased.item()?.as_f32(),
+                    tolerance
+                );
+            },
+            _ => {
+                // Use appropriate tolerance
+                let tolerance = 1e-5;
+                let x =
+                    setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
+                let result = x.var_all(false)?;
+                result.backward()?;
+                let expected_var = 2.916666666;
+                assert!(
+                    (result.item()?.as_f32() - expected_var).abs() < tolerance,
+                    "Expected {} but got {} (tolerance: {})",
+                    expected_var,
+                    result.item()?.as_f32(),
+                    tolerance
+                );
+
+                // Test with unbiased = true
+                let x =
+                    setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
+                let result_unbiased = x.var_all(true)?;
+                result_unbiased.backward()?;
+                let expected_var_unbiased = 3.5;
+                assert!(
+                    (result_unbiased.item()?.as_f32() - expected_var_unbiased).abs() < tolerance,
+                    "Expected {} but got {} (tolerance: {})",
+                    expected_var_unbiased,
+                    result_unbiased.item()?.as_f32(),
+                    tolerance
+                );
+
+                // Test with integer data
+                let x = setup_tensor_with_shape(
+                    TEST_DATA_U32_2D.iter().flatten().copied().collect(),
+                    DType::U32,
+                    &[2, 2],
+                )?;
+                let result = x.var_all(false)?;
+                let expected_var = 1.25; // Value depends on TEST_DATA_U32_2D
+                assert!(
+                    (result.item()?.as_f32() - expected_var).abs() < tolerance,
+                    "Expected {} but got {} (tolerance: {})",
+                    expected_var,
+                    result.item()?.as_f32(),
+                    tolerance
+                );
+            },
+        }
+        Ok(())
+    }
+
     pub fn std_test(dtype: DType) -> Result<()> {
         match dtype {
             DType::U8 | DType::U16 | DType::U32 | DType::U64 | DType::I8 | DType::I16 | DType::I32 | DType::I64 => {
@@ -1734,6 +1841,113 @@ mod test_functions {
         }
         Ok(())
     }
+
+    pub fn std_all_test(dtype: DType) -> Result<()> {
+        match dtype {
+            DType::U8 | DType::U16 | DType::U32 | DType::U64 | DType::I8 | DType::I16 | DType::I32 | DType::I64 => {
+                // Need larger tolerance for all types based on error message
+                let tolerance = 0.001;
+                let x = setup_tensor_with_shape(TEST_DATA_U32_2D.iter().flatten().copied().collect(), dtype, &[2, 2])?;
+                let result = x.std_all(false)?;
+                let expected_std = 1.118034; // sqrt(1.25)
+                assert!(
+                    (result.item()?.as_f32() - expected_std).abs() < tolerance,
+                    "Expected {} but got {} (tolerance: {})",
+                    expected_std,
+                    result.item()?.as_f32(),
+                    tolerance
+                );
+
+                // Test with unbiased = true
+                let result_unbiased = x.std_all(true)?;
+                let expected_std_unbiased = (5.0 / 3.0_f32).sqrt(); // sqrt(5/3)
+                assert!(
+                    (result_unbiased.item()?.as_f32() - expected_std_unbiased).abs() < tolerance,
+                    "Expected {} but got {} (tolerance: {})",
+                    expected_std_unbiased,
+                    result_unbiased.item()?.as_f32(),
+                    tolerance
+                );
+            },
+            DType::BF16 | DType::F16 => {
+                // Use appropriate tolerance for low precision types
+                let tolerance = 0.1;
+                let x =
+                    setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
+                let result = x.std_all(false)?;
+                result.backward()?;
+                let expected_std = 1.7078;
+                assert!(
+                    (result.item()?.as_f32() - expected_std).abs() < tolerance,
+                    "Expected {} but got {} (tolerance: {})",
+                    expected_std,
+                    result.item()?.as_f32(),
+                    tolerance
+                );
+
+                // Test with unbiased = true
+                let x =
+                    setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
+                let result_unbiased = x.std_all(true)?;
+                result_unbiased.backward()?;
+                let expected_std_unbiased = 1.8708;
+                assert!(
+                    (result_unbiased.item()?.as_f32() - expected_std_unbiased).abs() < tolerance,
+                    "Expected {} but got {} (tolerance: {})",
+                    expected_std_unbiased,
+                    result_unbiased.item()?.as_f32(),
+                    tolerance
+                );
+            },
+            _ => {
+                // Need larger tolerance based on error message
+                let tolerance = 0.001;
+                let x =
+                    setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
+                let result = x.std_all(false)?;
+                result.backward()?;
+                let expected_std = 1.7078;
+                assert!(
+                    (result.item()?.as_f32() - expected_std).abs() < tolerance,
+                    "Expected {} but got {} (tolerance: {})",
+                    expected_std,
+                    result.item()?.as_f32(),
+                    tolerance
+                );
+
+                // Test with unbiased = true
+                let x =
+                    setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
+                let result_unbiased = x.std_all(true)?;
+                result_unbiased.backward()?;
+                let expected_std_unbiased = 1.8708;
+                assert!(
+                    (result_unbiased.item()?.as_f32() - expected_std_unbiased).abs() < tolerance,
+                    "Expected {} but got {} (tolerance: {})",
+                    expected_std_unbiased,
+                    result_unbiased.item()?.as_f32(),
+                    tolerance
+                );
+
+                // Test with integer data
+                let x = setup_tensor_with_shape(
+                    TEST_DATA_U32_2D.iter().flatten().copied().collect(),
+                    DType::U32,
+                    &[2, 2],
+                )?;
+                let result = x.std_all(false)?;
+                let expected_std = 1.118034; // sqrt(1.25)
+                assert!(
+                    (result.item()?.as_f32() - expected_std).abs() < tolerance,
+                    "Expected {} but got {} (tolerance: {})",
+                    expected_std,
+                    result.item()?.as_f32(),
+                    tolerance
+                );
+            },
+        }
+        Ok(())
+    }
 }
 
 test_ops!([
@@ -1750,5 +1964,7 @@ test_ops!([
     norm,
     norm_all,
     var,
-    std
+    var_all,
+    std,
+    std_all
 ]);

@@ -684,8 +684,35 @@ impl Tensor {
         Ok(result)
     }
 
+    pub fn var_all(&self, unbiased: bool) -> Result<Tensor> {
+        let target_dtype = if self.dtype().is_int() {
+            DType::F32
+        } else {
+            self.dtype()
+        };
+
+        let input = promote_tensor(self, target_dtype)?;
+        let mean = input.mean_all()?;
+        let centered = input.sub_scalar(mean.item()?)?;
+        let squared_diff = centered.pow(2.0)?;
+        let sum_squared_diff = squared_diff.sum_all()?;
+
+        let n = self.shape().iter().product::<usize>() as f32;
+        let divisor = if unbiased { n - 1.0 } else { n };
+        let result = sum_squared_diff.div_scalar(divisor)?;
+
+        Ok(result)
+    }
+
     pub fn std(&self, dim: impl Into<Scalar>, keep_dim: bool, unbiased: bool) -> Result<Tensor> {
         let var_result = self.var(dim, keep_dim, unbiased)?;
+        let result = var_result.sqrt()?;
+
+        Ok(result)
+    }
+
+    pub fn std_all(&self, unbiased: bool) -> Result<Tensor> {
+        let var_result = self.var_all(unbiased)?;
         let result = var_result.sqrt()?;
 
         Ok(result)

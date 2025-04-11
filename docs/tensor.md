@@ -83,8 +83,10 @@
 |            | `min_all`          | ✓ |   | 
 |            | `norm`             | ✓ |   | 
 |            | `norm_all`         | ✓ |   | 
-|            | `std`              | ✓ |   | 
 |            | `var`              | ✓ |   | 
+|            | `var_all`          | ✓ |   | 
+|            | `std`              | ✓ |   | 
+|            | `std_all`          | ✓ |   | 
 | **Transform Operations** |
 | view operations |
 |            | `view`             | ✓ |   |
