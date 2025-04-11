@@ -48,9 +48,9 @@ These are included by default and recommended for most use cases:
 
 ### Docs
 
-This [document][supported] provides a complete list of all operations and layers currently supported by MaidenX.
-
-[supported]: docs/supported.md
+- [Supported Operations and Layers](docs/supported.md) - Complete list of all operations and layers supported by MaidenX
+- [Tensor Documentation](docs/tensor.md) - Detailed information about MaidenX tensor implementation
+- [Neural Networks Guide](docs/neural-networks.md) - Guide to using neural network components
 
 ### Examples
 
