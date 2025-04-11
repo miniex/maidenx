@@ -3,8 +3,6 @@ mod creation;
 mod d;
 mod f;
 mod iterator;
-#[cfg(feature = "nn")]
-mod nn_aliases;
 mod operators;
 pub(crate) mod ops;
 #[cfg(feature = "serde")]

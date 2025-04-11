@@ -19,7 +19,8 @@ impl CrossEntropyLoss {
     pub fn forward(&self, (logits, targets): (&Tensor, &Tensor)) -> Result<Tensor> {
         let batch_size = Scalar::new(logits.shape()[0]);
 
-        let probs = logits.softmax(1)?;
+        let softmax = crate::Softmax::new(1)?;
+        let probs = softmax.forward(&logits)?;
 
         let epsilon = Scalar::new(1e-10);
         let probs_safe = probs.add_scalar(epsilon)?;
