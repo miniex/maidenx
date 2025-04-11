@@ -48,6 +48,8 @@ These are included by default and recommended for most use cases:
 
 ### Docs
 
+- [GUIDE](https://miniex.github.io/maidenx/) - MaidenX Guide
+
 - [Supported Operations and Layers](docs/supported.md) - Complete list of all operations and layers supported by MaidenX
 - [Tensor Documentation](docs/tensor.md) - Detailed information about MaidenX tensor implementation
 - [Neural Networks Guide](docs/neural-networks.md) - Guide to using neural network components
