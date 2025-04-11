@@ -276,12 +276,36 @@ Performs matrix multiplication between two tensors.
   - `rhs`: The tensor to multiply with the current tensor
 - **Returns**: A new tensor containing the result of matrix multiplication
 - **Supports Autograd**: Yes
-- **Note**: For 2D tensors, this is equivalent to standard matrix multiplication. For higher-dimensional tensors, the operation is applied to the last two dimensions.
-- **Example**:
+- **Shape Rules**:
+  - For 1D tensors (vectors): Returns the dot product as a scalar
+  - For 2D tensors (matrices): Standard matrix multiplication (M×K * K×N → M×N)
+  - For batched tensors: Applied to the last two dimensions with broadcasting
+  - If a tensor has only 1 dimension, it's treated as:
+    - 1D * 1D: Both are treated as vectors, resulting in a scalar (dot product)
+    - 1D * 2D: The 1D tensor is treated as a 1×K matrix, resulting in a 1×N vector
+    - 2D * 1D: The 1D tensor is treated as a K×1 matrix, resulting in a M×1 vector
+  - For N-D * M-D tensors: Leading dimensions are broadcast
+- **Examples**:
 ```rust
+// Basic matrix multiplication (2D * 2D)
 let a = Tensor::new(vec![1.0, 2.0, 3.0, 4.0])?.reshape(&[2, 2])?;
 let b = Tensor::new(vec![5.0, 6.0, 7.0, 8.0])?.reshape(&[2, 2])?;
 let c = a.matmul(&b)?; // [[19.0, 22.0], [43.0, 50.0]]
+
+// Vector-vector multiplication (1D * 1D)
+let v1 = Tensor::new(vec![1.0, 2.0, 3.0])?;
+let v2 = Tensor::new(vec![4.0, 5.0, 6.0])?;
+let dot = v1.matmul(&v2)?; // [32.0] (dot product: 1*4 + 2*5 + 3*6)
+
+// Matrix-vector multiplication (2D * 1D)
+let m = Tensor::new(vec![1.0, 2.0, 3.0, 4.0])?.reshape(&[2, 2])?;
+let v = Tensor::new(vec![5.0, 6.0])?;
+let mv = m.matmul(&v)?; // [17.0, 39.0]
+
+// Batched matrix multiplication with broadcasting
+let batch1 = Tensor::new(vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0])?.reshape(&[2, 2, 2])?;
+let batch2 = Tensor::new(vec![9.0, 10.0, 11.0, 12.0])?.reshape(&[1, 2, 2])?;
+let result = batch1.matmul(&batch2)?; // [[[29, 32], [67, 74]], [[65, 72], [159, 176]]]
 ```
 
 ## In-place Operations
