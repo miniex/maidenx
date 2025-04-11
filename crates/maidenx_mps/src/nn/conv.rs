@@ -14,7 +14,12 @@ macro_rules! implement_conv2d_im2col {
         /// - num_col_elements correctly describes the column buffer dimensions
         /// - The metadata buffer contains valid shape, stride, padding, and kernel dimensions
         /// - All pointers and memory access are valid for the entire operation
-        pub unsafe fn $fn_name(num_col_elements: usize, metadata: *const c_void, input: *const c_void, col: *const c_void) {
+        pub unsafe fn $fn_name(
+            num_col_elements: usize,
+            metadata: *const c_void,
+            input: *const c_void,
+            col: *const c_void,
+        ) {
             if let Err(e) = initialize_ops() {
                 eprintln!("Failed to initialize conv2d ops: {:?}", e);
                 return;
@@ -26,7 +31,7 @@ macro_rules! implement_conv2d_im2col {
                 None => {
                     eprintln!("Failed to get Metal buffer for input pointer");
                     return;
-                }
+                },
             };
 
             let col_buffer = match get_buffer_from_map(col as *mut c_void) {
@@ -34,7 +39,7 @@ macro_rules! implement_conv2d_im2col {
                 None => {
                     eprintln!("Failed to get Metal buffer for col pointer");
                     return;
-                }
+                },
             };
 
             // Get metadata buffer if provided
@@ -44,7 +49,7 @@ macro_rules! implement_conv2d_im2col {
                     None => {
                         eprintln!("Failed to get Metal buffer for metadata pointer");
                         return;
-                    }
+                    },
                 }
             } else {
                 None
@@ -100,7 +105,12 @@ macro_rules! implement_conv2d_col2im {
         /// - The metadata buffer contains valid shape, stride, padding, and kernel dimensions
         /// - The metadata is formatted as [B, C, H, W, kernel_h, kernel_w, out_h, out_w, pad_h, pad_w, stride_h, stride_w]
         /// - All pointers and memory access are valid for the entire operation
-        pub unsafe fn $fn_name(num_col_elements: usize, metadata: *const c_void, col: *const c_void, output: *const c_void) {
+        pub unsafe fn $fn_name(
+            num_col_elements: usize,
+            metadata: *const c_void,
+            col: *const c_void,
+            output: *const c_void,
+        ) {
             if let Err(e) = initialize_ops() {
                 eprintln!("Failed to initialize conv2d ops: {:?}", e);
                 return;
@@ -112,7 +122,7 @@ macro_rules! implement_conv2d_col2im {
                 None => {
                     eprintln!("Failed to get Metal buffer for col pointer");
                     return;
-                }
+                },
             };
 
             let output_buffer = match get_buffer_from_map(output as *mut c_void) {
@@ -120,7 +130,7 @@ macro_rules! implement_conv2d_col2im {
                 None => {
                     eprintln!("Failed to get Metal buffer for output pointer");
                     return;
-                }
+                },
             };
 
             // Get metadata buffer if provided
@@ -130,7 +140,7 @@ macro_rules! implement_conv2d_col2im {
                     None => {
                         eprintln!("Failed to get Metal buffer for metadata pointer");
                         return;
-                    }
+                    },
                 }
             } else {
                 None
@@ -203,8 +213,16 @@ macro_rules! implement_dummy_conv2d_im2col {
         ///
         /// This is a dummy function for unsupported types in MPS for im2col convolution operations.
         /// It's unsafe to maintain the same signature as the actual implementation.
-        pub unsafe fn $fn_name(_num_col_elements: usize, _metadata: *const c_void, _input: *const c_void, _col: *const c_void) {
-            eprintln!("MPS does not support {} for conv2d_im2col operations", stringify!($ty));
+        pub unsafe fn $fn_name(
+            _num_col_elements: usize,
+            _metadata: *const c_void,
+            _input: *const c_void,
+            _col: *const c_void,
+        ) {
+            eprintln!(
+                "MPS does not support {} for conv2d_im2col operations",
+                stringify!($ty)
+            );
         }
     };
 }
@@ -215,8 +233,16 @@ macro_rules! implement_dummy_conv2d_col2im {
         ///
         /// This is a dummy function for unsupported types in MPS for col2im convolution operations.
         /// It's unsafe to maintain the same signature as the actual implementation.
-        pub unsafe fn $fn_name(_num_col_elements: usize, _metadata: *const c_void, _col: *const c_void, _output: *const c_void) {
-            eprintln!("MPS does not support {} for conv2d_col2im operations", stringify!($ty));
+        pub unsafe fn $fn_name(
+            _num_col_elements: usize,
+            _metadata: *const c_void,
+            _col: *const c_void,
+            _output: *const c_void,
+        ) {
+            eprintln!(
+                "MPS does not support {} for conv2d_col2im operations",
+                stringify!($ty)
+            );
         }
     };
 }

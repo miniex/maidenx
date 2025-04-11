@@ -17,7 +17,14 @@ macro_rules! sum_op {
         /// * `out` must be a valid pointer to an array of appropriate size for the output
         /// * The alignment requirements of the type must be respected
         /// * All array indices calculated must be in bounds
-        pub unsafe fn $name(num_els: usize, num_dims: usize, num_sum_dims: usize, metadata: *const usize, inp: *const $type, out: *mut $type) {
+        pub unsafe fn $name(
+            num_els: usize,
+            num_dims: usize,
+            num_sum_dims: usize,
+            metadata: *const usize,
+            inp: *const $type,
+            out: *mut $type,
+        ) {
             let dims = std::slice::from_raw_parts(metadata, num_dims);
             let strides = std::slice::from_raw_parts(metadata.add(num_dims), num_dims);
             let sum_dims_l = std::slice::from_raw_parts(metadata.add(2 * num_dims), num_sum_dims);
@@ -90,7 +97,13 @@ macro_rules! sum_to_shape_op {
         /// * `out` must be a valid pointer to an array of appropriate size for the output
         /// * The alignment requirements of the type must be respected
         /// * All array indices calculated must be in bounds
-        pub unsafe fn $name(num_els: usize, num_dims: usize, metadata: *const usize, inp: *const $type, out: *mut $type) {
+        pub unsafe fn $name(
+            num_els: usize,
+            num_dims: usize,
+            metadata: *const usize,
+            inp: *const $type,
+            out: *mut $type,
+        ) {
             let input_dims = std::slice::from_raw_parts(metadata, num_dims);
             let input_strides = std::slice::from_raw_parts(metadata.add(num_dims), num_dims);
             let output_dims = std::slice::from_raw_parts(metadata.add(2 * num_dims), num_dims);
@@ -103,7 +116,9 @@ macro_rules! sum_to_shape_op {
             let output_mutex = (0..out_size).map(|_| Mutex::new($zero)).collect::<Vec<_>>();
 
             // Calculate reduction factors for each dimension
-            let reduction_factors = (0..num_dims).map(|d| input_dims[d] / output_dims[d]).collect::<Vec<_>>();
+            let reduction_factors = (0..num_dims)
+                .map(|d| input_dims[d] / output_dims[d])
+                .collect::<Vec<_>>();
 
             if is_contiguous(num_dims, input_dims, input_strides) {
                 (0..num_els).into_par_iter().for_each(|i| {
@@ -265,7 +280,13 @@ macro_rules! fold_op {
         /// * `out` must be a valid pointer to an array of appropriate size for the output
         /// * The alignment requirements of the type must be respected
         /// * All array indices calculated must be in bounds
-        pub unsafe fn $name(num_els: usize, num_dims: usize, metadata: *const usize, inp: *const $type, out: *mut $type) {
+        pub unsafe fn $name(
+            num_els: usize,
+            num_dims: usize,
+            metadata: *const usize,
+            inp: *const $type,
+            out: *mut $type,
+        ) {
             let input_dims = std::slice::from_raw_parts(metadata, num_dims);
             let input_strides = std::slice::from_raw_parts(metadata.add(num_dims), num_dims);
             let fold_dim = *metadata.add(2 * num_dims);
@@ -365,7 +386,14 @@ macro_rules! max_op {
         /// * `out` must be a valid pointer to an array of appropriate size for the output
         /// * The alignment requirements of the type must be respected
         /// * All array indices calculated must be in bounds
-        pub unsafe fn $name(num_els: usize, num_dims: usize, num_red_dims: usize, metadata: *const usize, inp: *const $type, out: *mut $type) {
+        pub unsafe fn $name(
+            num_els: usize,
+            num_dims: usize,
+            num_red_dims: usize,
+            metadata: *const usize,
+            inp: *const $type,
+            out: *mut $type,
+        ) {
             let dims = std::slice::from_raw_parts(metadata, num_dims);
             let strides = std::slice::from_raw_parts(metadata.add(num_dims), num_dims);
             let max_dims_l = std::slice::from_raw_parts(metadata.add(2 * num_dims), num_red_dims);
@@ -440,7 +468,14 @@ macro_rules! min_op {
         /// * `out` must be a valid pointer to an array of appropriate size for the output
         /// * The alignment requirements of the type must be respected
         /// * All array indices calculated must be in bounds
-        pub unsafe fn $name(num_els: usize, num_dims: usize, num_red_dims: usize, metadata: *const usize, inp: *const $type, out: *mut $type) {
+        pub unsafe fn $name(
+            num_els: usize,
+            num_dims: usize,
+            num_red_dims: usize,
+            metadata: *const usize,
+            inp: *const $type,
+            out: *mut $type,
+        ) {
             let dims = std::slice::from_raw_parts(metadata, num_dims);
             let strides = std::slice::from_raw_parts(metadata.add(num_dims), num_dims);
             let min_dims_l = std::slice::from_raw_parts(metadata.add(2 * num_dims), num_red_dims);
@@ -527,7 +562,9 @@ sum_to_shape_op!(sum_to_shape_i16, i16, 0i16);
 sum_to_shape_op!(sum_to_shape_i32, i32, 0i32);
 sum_to_shape_op!(sum_to_shape_i64, i64, 0i64);
 
-mean_op!(mean_bf16, bf16, bf16::from_f32(0.0), |x: usize| { bf16::from_f32(x as f32) });
+mean_op!(mean_bf16, bf16, bf16::from_f32(0.0), |x: usize| {
+    bf16::from_f32(x as f32)
+});
 mean_op!(mean_f16, f16, f16::from_f32(0.0), |x: usize| f16::from_f32(x as f32));
 mean_op!(mean_f32, f32, 0.0f32, |x: usize| x as f32);
 mean_op!(mean_f64, f64, 0.0f64, |x: usize| x as f64);

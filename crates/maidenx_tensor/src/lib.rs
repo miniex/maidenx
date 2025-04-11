@@ -90,7 +90,11 @@ impl TensorNode {
         self.backward_with_tracking(grad_output, &mut visited)
     }
 
-    pub fn backward_with_tracking(&self, grad_output: &Tensor, visited: &mut std::collections::HashSet<u64>) -> Result<()> {
+    pub fn backward_with_tracking(
+        &self,
+        grad_output: &Tensor,
+        visited: &mut std::collections::HashSet<u64>,
+    ) -> Result<()> {
         if let Some(ref func) = self.backward_fn {
             let grads_for_inputs = (func)(&self.inputs, grad_output)?;
 
@@ -132,17 +136,17 @@ impl Tensor {
             Device::CPU => {
                 let buffer = CpuBuffer::new(size, dtype)?;
                 Arc::new(buffer)
-            }
+            },
             #[cfg(feature = "cuda")]
             Device::CUDA(device_id) => {
                 let buffer = CudaBuffer::new(size, dtype, device_id)?;
                 Arc::new(buffer)
-            }
+            },
             #[cfg(feature = "mps")]
             Device::MPS => {
                 let buffer = MpsBuffer::new(size, dtype)?;
                 Arc::new(buffer)
-            }
+            },
         };
 
         unsafe {

@@ -28,10 +28,20 @@ macro_rules! unary_op_output {
         /// * The memory regions of input (if not null) and output must not overlap
         /// * The alignment requirements of the type must be respected
         /// * All array indices calculated from dims and strides must be in bounds
-        pub unsafe fn $name(num_els: usize, num_dims: usize, metadata: *const usize, input: *const $input_type, output: *mut $output_type) {
+        pub unsafe fn $name(
+            num_els: usize,
+            num_dims: usize,
+            metadata: *const usize,
+            input: *const $input_type,
+            output: *mut $output_type,
+        ) {
             let dims = std::slice::from_raw_parts(metadata, num_dims);
             let strides = std::slice::from_raw_parts(metadata.add(num_dims), num_dims);
-            let offset = if metadata.is_null() { 0 } else { *metadata.add(2 * num_dims) };
+            let offset = if metadata.is_null() {
+                0
+            } else {
+                *metadata.add(2 * num_dims)
+            };
 
             let inp = std::slice::from_raw_parts(input.add(offset), num_els);
             let out = std::slice::from_raw_parts_mut(output, num_els);
@@ -86,7 +96,11 @@ macro_rules! unary_op_with_constant_output {
         ) {
             let dims = std::slice::from_raw_parts(metadata, num_dims);
             let strides = std::slice::from_raw_parts(metadata.add(num_dims), num_dims);
-            let offset = if metadata.is_null() { 0 } else { *metadata.add(2 * num_dims) };
+            let offset = if metadata.is_null() {
+                0
+            } else {
+                *metadata.add(2 * num_dims)
+            };
 
             let inp = std::slice::from_raw_parts(input.add(offset), num_els);
             let out = std::slice::from_raw_parts_mut(output, num_els);
@@ -238,8 +252,12 @@ unary_op!(relu_bf16, bf16, |x: bf16| {
 unary_op!(sigmoid_f32, f32, |x: f32| 1.0 / (1.0 + (-x).exp()));
 unary_op!(sigmoid_f64, f64, |x: f64| 1.0 / (1.0 + (-x).exp()));
 unary_op!(sigmoid_bool, bool, |x: bool| x);
-unary_op!(sigmoid_f16, f16, |x: f16| { f16::from_f32(1.0 / (1.0 + (-x.to_f32()).exp())) });
-unary_op!(sigmoid_bf16, bf16, |x: bf16| { bf16::from_f32(1.0 / (1.0 + (-x.to_f32()).exp())) });
+unary_op!(sigmoid_f16, f16, |x: f16| {
+    f16::from_f32(1.0 / (1.0 + (-x.to_f32()).exp()))
+});
+unary_op!(sigmoid_bf16, bf16, |x: bf16| {
+    bf16::from_f32(1.0 / (1.0 + (-x.to_f32()).exp()))
+});
 
 unary_op!(tanh_f32, f32, |x: f32| x.tanh());
 unary_op!(tanh_f64, f64, |x: f64| x.tanh());
@@ -552,11 +570,23 @@ unary_op_with_constant!(pow_i8, i8, |x: i8, c: i8| (x as f64).powf(c as f64) as 
 unary_op_with_constant!(pow_i16, i16, |x: i16, c: i16| (x as f64).powf(c as f64) as i16);
 unary_op_with_constant!(pow_i32, i32, |x: i32, c: i32| (x as f64).powf(c as f64) as i32);
 unary_op_with_constant!(pow_i64, i64, |x: i64, c: i64| (x as f64).powf(c as f64) as i64);
-unary_op_with_constant!(pow_f16, f16, |x: f16, c: f16| { f16::from_f32(x.to_f32().powf(c.to_f32())) });
-unary_op_with_constant!(pow_bf16, bf16, |x: bf16, c: bf16| { bf16::from_f32(x.to_f32().powf(c.to_f32())) });
+unary_op_with_constant!(pow_f16, f16, |x: f16, c: f16| {
+    f16::from_f32(x.to_f32().powf(c.to_f32()))
+});
+unary_op_with_constant!(pow_bf16, bf16, |x: bf16, c: bf16| {
+    bf16::from_f32(x.to_f32().powf(c.to_f32()))
+});
 
-unary_op_with_constant!(leaky_relu_f32, f32, |x: f32, alpha: f32| if x > 0.0 { x } else { alpha * x });
-unary_op_with_constant!(leaky_relu_f64, f64, |x: f64, alpha: f64| if x > 0.0 { x } else { alpha * x });
+unary_op_with_constant!(leaky_relu_f32, f32, |x: f32, alpha: f32| if x > 0.0 {
+    x
+} else {
+    alpha * x
+});
+unary_op_with_constant!(leaky_relu_f64, f64, |x: f64, alpha: f64| if x > 0.0 {
+    x
+} else {
+    alpha * x
+});
 unary_op_with_constant!(leaky_relu_f16, f16, |x: f16, alpha: f16| {
     if x > f16::from_f32(0.0) {
         x

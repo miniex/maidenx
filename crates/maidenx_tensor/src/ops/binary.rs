@@ -29,7 +29,14 @@ impl Tensor {
         let metadata = prepare_metadata(&lhs, &rhs);
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::be::ops::binary::add(out_buf, lhs.buffer(), rhs.buffer(), lhs.size(), lhs.ndim(), Some(&metadata))?;
+                maidenx_core::be::ops::binary::add(
+                    out_buf,
+                    lhs.buffer(),
+                    rhs.buffer(),
+                    lhs.size(),
+                    lhs.ndim(),
+                    Some(&metadata),
+                )?;
 
                 Ok(())
             })?;
@@ -73,7 +80,14 @@ impl Tensor {
         let metadata = prepare_metadata(&lhs, &rhs);
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::be::ops::binary::sub(out_buf, lhs.buffer(), rhs.buffer(), lhs.size(), lhs.ndim(), Some(&metadata))?;
+                maidenx_core::be::ops::binary::sub(
+                    out_buf,
+                    lhs.buffer(),
+                    rhs.buffer(),
+                    lhs.size(),
+                    lhs.ndim(),
+                    Some(&metadata),
+                )?;
 
                 Ok(())
             })?;
@@ -117,7 +131,14 @@ impl Tensor {
         let metadata = prepare_metadata(&lhs, &rhs);
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::be::ops::binary::mul(out_buf, lhs.buffer(), rhs.buffer(), lhs.size(), lhs.ndim(), Some(&metadata))?;
+                maidenx_core::be::ops::binary::mul(
+                    out_buf,
+                    lhs.buffer(),
+                    rhs.buffer(),
+                    lhs.size(),
+                    lhs.ndim(),
+                    Some(&metadata),
+                )?;
 
                 Ok(())
             })?;
@@ -165,7 +186,14 @@ impl Tensor {
         let metadata = prepare_metadata(&lhs, &rhs);
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::be::ops::binary::div(out_buf, lhs.buffer(), rhs.buffer(), lhs.size(), lhs.ndim(), Some(&metadata))?;
+                maidenx_core::be::ops::binary::div(
+                    out_buf,
+                    lhs.buffer(),
+                    rhs.buffer(),
+                    lhs.size(),
+                    lhs.ndim(),
+                    Some(&metadata),
+                )?;
 
                 Ok(())
             })?;
@@ -215,7 +243,14 @@ impl Tensor {
         let metadata = prepare_metadata(&lhs, &rhs);
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::be::ops::binary::maximum(out_buf, lhs.buffer(), rhs.buffer(), lhs.size(), lhs.ndim(), Some(&metadata))?;
+                maidenx_core::be::ops::binary::maximum(
+                    out_buf,
+                    lhs.buffer(),
+                    rhs.buffer(),
+                    lhs.size(),
+                    lhs.ndim(),
+                    Some(&metadata),
+                )?;
 
                 Ok(())
             })?;
@@ -245,7 +280,11 @@ impl Tensor {
                 Ok(vec![grad_left, grad_right])
             });
 
-            let node = TensorNode::new("maximum".to_string(), vec![original_lhs, original_rhs], Some(backward_fn));
+            let node = TensorNode::new(
+                "maximum".to_string(),
+                vec![original_lhs, original_rhs],
+                Some(backward_fn),
+            );
             result.node = Some(node);
         }
 
@@ -273,7 +312,14 @@ impl Tensor {
         let metadata = prepare_metadata(&lhs, &rhs);
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::be::ops::binary::minimum(out_buf, lhs.buffer(), rhs.buffer(), lhs.size(), lhs.ndim(), Some(&metadata))?;
+                maidenx_core::be::ops::binary::minimum(
+                    out_buf,
+                    lhs.buffer(),
+                    rhs.buffer(),
+                    lhs.size(),
+                    lhs.ndim(),
+                    Some(&metadata),
+                )?;
 
                 Ok(())
             })?;
@@ -303,7 +349,11 @@ impl Tensor {
                 Ok(vec![grad_left, grad_right])
             });
 
-            let node = TensorNode::new("minimum".to_string(), vec![original_lhs, original_rhs], Some(backward_fn));
+            let node = TensorNode::new(
+                "minimum".to_string(),
+                vec![original_lhs, original_rhs],
+                Some(backward_fn),
+            );
             result.node = Some(node);
         }
 
@@ -326,7 +376,14 @@ impl Tensor {
         let metadata = prepare_metadata(&lhs, &rhs);
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::be::ops::binary::logical_and(out_buf, lhs.buffer(), rhs.buffer(), lhs.size(), lhs.ndim(), Some(&metadata))?;
+                maidenx_core::be::ops::binary::logical_and(
+                    out_buf,
+                    lhs.buffer(),
+                    rhs.buffer(),
+                    lhs.size(),
+                    lhs.ndim(),
+                    Some(&metadata),
+                )?;
 
                 Ok(())
             })?;
@@ -351,7 +408,14 @@ impl Tensor {
         let metadata = prepare_metadata(&lhs, &rhs);
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::be::ops::binary::logical_or(out_buf, lhs.buffer(), rhs.buffer(), lhs.size(), lhs.ndim(), Some(&metadata))?;
+                maidenx_core::be::ops::binary::logical_or(
+                    out_buf,
+                    lhs.buffer(),
+                    rhs.buffer(),
+                    lhs.size(),
+                    lhs.ndim(),
+                    Some(&metadata),
+                )?;
 
                 Ok(())
             })?;
@@ -376,7 +440,14 @@ impl Tensor {
         let metadata = prepare_metadata(&lhs, &rhs);
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::be::ops::binary::logical_xor(out_buf, lhs.buffer(), rhs.buffer(), lhs.size(), lhs.ndim(), Some(&metadata))?;
+                maidenx_core::be::ops::binary::logical_xor(
+                    out_buf,
+                    lhs.buffer(),
+                    rhs.buffer(),
+                    lhs.size(),
+                    lhs.ndim(),
+                    Some(&metadata),
+                )?;
 
                 Ok(())
             })?;
@@ -401,7 +472,14 @@ impl Tensor {
         let metadata = prepare_metadata(&lhs, &rhs);
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::be::ops::binary::eq(out_buf, lhs.buffer(), rhs.buffer(), lhs.size(), lhs.ndim(), Some(&metadata))?;
+                maidenx_core::be::ops::binary::eq(
+                    out_buf,
+                    lhs.buffer(),
+                    rhs.buffer(),
+                    lhs.size(),
+                    lhs.ndim(),
+                    Some(&metadata),
+                )?;
 
                 Ok(())
             })?;
@@ -426,7 +504,14 @@ impl Tensor {
         let metadata = prepare_metadata(&lhs, &rhs);
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::be::ops::binary::ne(out_buf, lhs.buffer(), rhs.buffer(), lhs.size(), lhs.ndim(), Some(&metadata))?;
+                maidenx_core::be::ops::binary::ne(
+                    out_buf,
+                    lhs.buffer(),
+                    rhs.buffer(),
+                    lhs.size(),
+                    lhs.ndim(),
+                    Some(&metadata),
+                )?;
 
                 Ok(())
             })?;
@@ -451,7 +536,14 @@ impl Tensor {
         let metadata = prepare_metadata(&lhs, &rhs);
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::be::ops::binary::lt(out_buf, lhs.buffer(), rhs.buffer(), lhs.size(), lhs.ndim(), Some(&metadata))?;
+                maidenx_core::be::ops::binary::lt(
+                    out_buf,
+                    lhs.buffer(),
+                    rhs.buffer(),
+                    lhs.size(),
+                    lhs.ndim(),
+                    Some(&metadata),
+                )?;
 
                 Ok(())
             })?;
@@ -476,7 +568,14 @@ impl Tensor {
         let metadata = prepare_metadata(&lhs, &rhs);
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::be::ops::binary::le(out_buf, lhs.buffer(), rhs.buffer(), lhs.size(), lhs.ndim(), Some(&metadata))?;
+                maidenx_core::be::ops::binary::le(
+                    out_buf,
+                    lhs.buffer(),
+                    rhs.buffer(),
+                    lhs.size(),
+                    lhs.ndim(),
+                    Some(&metadata),
+                )?;
 
                 Ok(())
             })?;
@@ -501,7 +600,14 @@ impl Tensor {
         let metadata = prepare_metadata(&lhs, &rhs);
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::be::ops::binary::gt(out_buf, lhs.buffer(), rhs.buffer(), lhs.size(), lhs.ndim(), Some(&metadata))?;
+                maidenx_core::be::ops::binary::gt(
+                    out_buf,
+                    lhs.buffer(),
+                    rhs.buffer(),
+                    lhs.size(),
+                    lhs.ndim(),
+                    Some(&metadata),
+                )?;
 
                 Ok(())
             })?;
@@ -526,7 +632,14 @@ impl Tensor {
         let metadata = prepare_metadata(&lhs, &rhs);
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::be::ops::binary::ge(out_buf, lhs.buffer(), rhs.buffer(), lhs.size(), lhs.ndim(), Some(&metadata))?;
+                maidenx_core::be::ops::binary::ge(
+                    out_buf,
+                    lhs.buffer(),
+                    rhs.buffer(),
+                    lhs.size(),
+                    lhs.ndim(),
+                    Some(&metadata),
+                )?;
 
                 Ok(())
             })?;

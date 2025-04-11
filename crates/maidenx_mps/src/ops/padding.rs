@@ -34,7 +34,7 @@ macro_rules! implement_pad_with_constant {
                 None => {
                     eprintln!("Failed to get Metal buffer for input pointer");
                     return;
-                }
+                },
             };
 
             let out_buffer = match get_buffer_from_map(out as *mut c_void) {
@@ -42,7 +42,7 @@ macro_rules! implement_pad_with_constant {
                 None => {
                     eprintln!("Failed to get Metal buffer for output pointer");
                     return;
-                }
+                },
             };
 
             // Get metadata buffer if provided
@@ -52,7 +52,7 @@ macro_rules! implement_pad_with_constant {
                     None => {
                         eprintln!("Failed to get Metal buffer for metadata pointer");
                         return;
-                    }
+                    },
                 }
             } else {
                 None
@@ -146,7 +146,7 @@ macro_rules! implement_pad_with_pattern {
                 None => {
                     eprintln!("Failed to get Metal buffer for input pointer");
                     return;
-                }
+                },
             };
 
             let out_buffer = match get_buffer_from_map(out as *mut c_void) {
@@ -154,7 +154,7 @@ macro_rules! implement_pad_with_pattern {
                 None => {
                     eprintln!("Failed to get Metal buffer for output pointer");
                     return;
-                }
+                },
             };
 
             // Get metadata buffer if provided
@@ -164,7 +164,7 @@ macro_rules! implement_pad_with_pattern {
                     None => {
                         eprintln!("Failed to get Metal buffer for metadata pointer");
                         return;
-                    }
+                    },
                 }
             } else {
                 None
@@ -250,7 +250,7 @@ macro_rules! implement_pad_backward {
                 None => {
                     eprintln!("Failed to get Metal buffer for grad_out pointer");
                     return;
-                }
+                },
             };
 
             let grad_in_buffer = match get_buffer_from_map(grad_in as *mut c_void) {
@@ -258,7 +258,7 @@ macro_rules! implement_pad_backward {
                 None => {
                     eprintln!("Failed to get Metal buffer for grad_in pointer");
                     return;
-                }
+                },
             };
 
             // Get metadata buffer if provided
@@ -268,7 +268,7 @@ macro_rules! implement_pad_backward {
                     None => {
                         eprintln!("Failed to get Metal buffer for metadata pointer");
                         return;
-                    }
+                    },
                 }
             } else {
                 None

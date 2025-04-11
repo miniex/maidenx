@@ -32,7 +32,12 @@ impl Serialize for Tensor {
     {
         let contiguous_tensor = match self.contiguous() {
             Ok(tensor) => tensor,
-            Err(e) => return Err(serde::ser::Error::custom(format!("Failed to make tensor contiguous: {}", e))),
+            Err(e) => {
+                return Err(serde::ser::Error::custom(format!(
+                    "Failed to make tensor contiguous: {}",
+                    e
+                )))
+            },
         };
 
         let buffer = contiguous_tensor.buffer();
@@ -82,46 +87,55 @@ impl<'de> Deserialize<'de> for Tensor {
             Device::CPU => {
                 use maidenx_core::buffer::cpu::CpuBuffer;
 
-                let mut buffer = CpuBuffer::new(serialized.data.buffer_len, serialized.data.buffer_dtype).map_err(de::Error::custom)?;
+                let mut buffer = CpuBuffer::new(serialized.data.buffer_len, serialized.data.buffer_dtype)
+                    .map_err(de::Error::custom)?;
 
                 let data_ptr = serialized.data.buffer_data.as_ptr() as *const std::ffi::c_void;
                 let data_size = serialized.data.buffer_data.len();
 
                 unsafe {
-                    buffer.copy_from_host(data_ptr, data_size, 0, 0).map_err(de::Error::custom)?;
+                    buffer
+                        .copy_from_host(data_ptr, data_size, 0, 0)
+                        .map_err(de::Error::custom)?;
                 }
 
                 Arc::new(buffer)
-            }
+            },
             #[cfg(feature = "cuda")]
             Device::CUDA(device_id) => {
                 use maidenx_core::buffer::cuda::CudaBuffer;
 
-                let mut buffer = CudaBuffer::new(serialized.data.buffer_len, serialized.data.buffer_dtype, device_id).map_err(de::Error::custom)?;
+                let mut buffer = CudaBuffer::new(serialized.data.buffer_len, serialized.data.buffer_dtype, device_id)
+                    .map_err(de::Error::custom)?;
 
                 let data_ptr = serialized.data.buffer_data.as_ptr() as *const std::ffi::c_void;
                 let data_size = serialized.data.buffer_data.len();
 
                 unsafe {
-                    buffer.copy_from_host(data_ptr, data_size, 0, 0).map_err(de::Error::custom)?;
+                    buffer
+                        .copy_from_host(data_ptr, data_size, 0, 0)
+                        .map_err(de::Error::custom)?;
                 }
 
                 Arc::new(buffer)
-            }
+            },
             #[cfg(feature = "mps")]
             Device::MPS => {
                 use maidenx_core::buffer::mps::MpsBuffer;
 
-                let mut buffer = MpsBuffer::new(serialized.data.buffer_len, serialized.data.buffer_dtype).map_err(de::Error::custom)?;
+                let mut buffer = MpsBuffer::new(serialized.data.buffer_len, serialized.data.buffer_dtype)
+                    .map_err(de::Error::custom)?;
 
                 let data_ptr = serialized.data.buffer_data.as_ptr() as *const std::ffi::c_void;
                 let data_size = serialized.data.buffer_data.len();
 
                 unsafe {
-                    buffer.copy_from_host(data_ptr, data_size, 0, 0).map_err(de::Error::custom)?;
+                    buffer
+                        .copy_from_host(data_ptr, data_size, 0, 0)
+                        .map_err(de::Error::custom)?;
                 }
                 Arc::new(buffer)
-            }
+            },
             #[allow(unreachable_patterns)]
             _ => return Err(de::Error::custom("Unsupported device for deserialization")),
         };
@@ -152,7 +166,8 @@ impl<'de> Deserialize<'de> for Tensor {
 impl Tensor {
     pub fn to_bytes(&self) -> error::Result<Vec<u8>> {
         let config = bincode::config::legacy();
-        bincode::serde::encode_to_vec(self, config).map_err(|e| error::Error::SerializationError(format!("Failed to serialize tensor: {}", e)))
+        bincode::serde::encode_to_vec(self, config)
+            .map_err(|e| error::Error::SerializationError(format!("Failed to serialize tensor: {}", e)))
     }
 
     pub fn from_bytes(bytes: &[u8]) -> error::Result<Self> {
@@ -163,10 +178,12 @@ impl Tensor {
     }
 
     pub fn to_json(&self) -> error::Result<String> {
-        serde_json::to_string(self).map_err(|e| error::Error::SerializationError(format!("Failed to serialize tensor to JSON: {}", e)))
+        serde_json::to_string(self)
+            .map_err(|e| error::Error::SerializationError(format!("Failed to serialize tensor to JSON: {}", e)))
     }
 
     pub fn from_json(json: &str) -> error::Result<Self> {
-        serde_json::from_str(json).map_err(|e| error::Error::DeserializationError(format!("Failed to deserialize tensor from JSON: {}", e)))
+        serde_json::from_str(json)
+            .map_err(|e| error::Error::DeserializationError(format!("Failed to deserialize tensor from JSON: {}", e)))
     }
 }

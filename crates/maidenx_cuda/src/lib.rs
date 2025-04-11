@@ -156,7 +156,10 @@ pub unsafe extern "C" fn cuda_stream_synchronize(stream: *mut std::ffi::c_void) 
 /// * `0` if successful
 /// * CUDA error code if the pointer type cannot be determined or if any other error occurs
 #[no_mangle]
-pub unsafe extern "C" fn cuda_pointer_get_attributes(attributes: *mut CudaPointerAttributes, ptr: *const std::ffi::c_void) -> i32 {
+pub unsafe extern "C" fn cuda_pointer_get_attributes(
+    attributes: *mut CudaPointerAttributes,
+    ptr: *const std::ffi::c_void,
+) -> i32 {
     cudaPointerGetAttributes(attributes, ptr)
 }
 

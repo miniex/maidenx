@@ -56,9 +56,17 @@ impl Buffer for CpuBuffer {
         Device::CPU
     }
 
-    unsafe fn copy_from(&mut self, other: &dyn Buffer, src_offset: usize, dst_offset: usize, count: usize) -> Result<()> {
+    unsafe fn copy_from(
+        &mut self,
+        other: &dyn Buffer,
+        src_offset: usize,
+        dst_offset: usize,
+        count: usize,
+    ) -> Result<()> {
         if src_offset + count > other.len() || dst_offset + count > self.len() {
-            return Err(Error::InvalidArgument("Offset and count exceed buffer dimensions".into()));
+            return Err(Error::InvalidArgument(
+                "Offset and count exceed buffer dimensions".into(),
+            ));
         }
 
         if self.dtype() != other.dtype() {
@@ -77,7 +85,7 @@ impl Buffer for CpuBuffer {
 
                 ptr::copy_nonoverlapping(dst_ptr, src_ptr, byte_count);
                 Ok(())
-            }
+            },
             #[cfg(feature = "cuda")]
             Device::CUDA(_) => {
                 let dst_ptr = self.data.as_mut_ptr().add(dst_byte_offset) as *mut c_void;
@@ -85,7 +93,7 @@ impl Buffer for CpuBuffer {
 
                 cuda_memcpy_d2h(dst_ptr, src_ptr, byte_count);
                 Ok(())
-            }
+            },
             #[cfg(feature = "mps")]
             Device::MPS => {
                 let dst_ptr = self.data.as_mut_ptr().add(dst_byte_offset) as *mut c_void;
@@ -93,11 +101,17 @@ impl Buffer for CpuBuffer {
                 // Use base pointer and pass explicit offsets
                 mps_memcpy_d2h(dst_ptr, other.as_ptr(), byte_count, 0, src_byte_offset);
                 Ok(())
-            }
+            },
         }
     }
 
-    unsafe fn copy_from_host(&mut self, src: *const c_void, size_in_bytes: usize, src_offset: usize, dst_offset: usize) -> Result<()> {
+    unsafe fn copy_from_host(
+        &mut self,
+        src: *const c_void,
+        size_in_bytes: usize,
+        src_offset: usize,
+        dst_offset: usize,
+    ) -> Result<()> {
         let dst_byte_offset = self.byte_offset(dst_offset);
         let element_size = self.dtype().size_in_bytes();
         let src_byte_offset = src_offset * element_size;
@@ -119,7 +133,13 @@ impl Buffer for CpuBuffer {
         Ok(())
     }
 
-    unsafe fn copy_to_host(&self, dest: *mut c_void, size_in_bytes: usize, src_offset: usize, dst_offset: usize) -> Result<()> {
+    unsafe fn copy_to_host(
+        &self,
+        dest: *mut c_void,
+        size_in_bytes: usize,
+        src_offset: usize,
+        dst_offset: usize,
+    ) -> Result<()> {
         let src_byte_offset = self.byte_offset(src_offset);
         let element_size = self.dtype().size_in_bytes();
         let dst_byte_offset = dst_offset * element_size;

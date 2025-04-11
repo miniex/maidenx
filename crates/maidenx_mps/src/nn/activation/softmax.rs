@@ -13,7 +13,14 @@ macro_rules! implement_softmax {
         /// - num_els, num_dims, and dim correctly describe the tensor dimensions
         /// - If metadata is provided, it contains valid shape information for the tensor
         /// - All pointers and memory access are valid for the entire operation
-        pub unsafe fn $fn_name(num_els: usize, num_dims: usize, dim: usize, metadata: *const c_void, input: *const c_void, output: *const c_void) {
+        pub unsafe fn $fn_name(
+            num_els: usize,
+            num_dims: usize,
+            dim: usize,
+            metadata: *const c_void,
+            input: *const c_void,
+            output: *const c_void,
+        ) {
             if let Err(e) = initialize_ops() {
                 eprintln!("Failed to initialize softmax ops: {:?}", e);
                 return;
@@ -25,7 +32,7 @@ macro_rules! implement_softmax {
                 None => {
                     eprintln!("Failed to get Metal buffer for input pointer");
                     return;
-                }
+                },
             };
 
             let output_buffer = match get_buffer_from_map(output as *mut c_void) {
@@ -33,7 +40,7 @@ macro_rules! implement_softmax {
                 None => {
                     eprintln!("Failed to get Metal buffer for output pointer");
                     return;
-                }
+                },
             };
 
             // Get metadata buffer if provided
@@ -43,7 +50,7 @@ macro_rules! implement_softmax {
                     None => {
                         eprintln!("Failed to get Metal buffer for metadata pointer");
                         return;
-                    }
+                    },
                 }
             } else {
                 None
@@ -108,7 +115,7 @@ macro_rules! implement_softmax {
                         }
 
                         (pre, post)
-                    }
+                    },
                     None => (1, 1),
                 };
 

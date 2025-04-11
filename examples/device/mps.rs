@@ -8,7 +8,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // set_default_dtype(DType::F32);
 
     let input_data: Vec<Vec<f32>> = (0..10000)
-        .map(|i| vec![(i % 100) as f32 / 100.0, ((i % 100) + 1) as f32 / 100.0, ((i % 100) + 2) as f32 / 100.0])
+        .map(|i| {
+            vec![
+                (i % 100) as f32 / 100.0,
+                ((i % 100) + 1) as f32 / 100.0,
+                ((i % 100) + 2) as f32 / 100.0,
+            ]
+        })
         .collect();
     let target_data: Vec<Vec<f32>> = (0..10000).map(|i| vec![((i % 100) * 10) as f32 / 1000.0]).collect();
 

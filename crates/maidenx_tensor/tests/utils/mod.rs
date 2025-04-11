@@ -50,7 +50,11 @@ where
     Ok(tensor)
 }
 
-pub fn setup_tensor_with_shape<T: Clone + Default + 'static>(data: Vec<T>, dtype: DType, shape: &[usize]) -> Result<Tensor>
+pub fn setup_tensor_with_shape<T: Clone + Default + 'static>(
+    data: Vec<T>,
+    dtype: DType,
+    shape: &[usize],
+) -> Result<Tensor>
 where
     Vec<T>: TensorAdapter,
 {
@@ -70,7 +74,11 @@ where
     Ok(tensor)
 }
 
-pub fn setup_grad_tensor_with_shape<T: Clone + Default + 'static>(data: Vec<T>, dtype: DType, shape: &[usize]) -> Result<Tensor>
+pub fn setup_grad_tensor_with_shape<T: Clone + Default + 'static>(
+    data: Vec<T>,
+    dtype: DType,
+    shape: &[usize],
+) -> Result<Tensor>
 where
     Vec<T>: TensorAdapter,
 {
@@ -80,7 +88,11 @@ where
     Ok(tensor)
 }
 
-pub fn setup_contiguous_tensor_with_shape<T: Clone + Default + 'static>(data: Vec<T>, dtype: DType, shape: &[usize]) -> Result<Tensor>
+pub fn setup_contiguous_tensor_with_shape<T: Clone + Default + 'static>(
+    data: Vec<T>,
+    dtype: DType,
+    shape: &[usize],
+) -> Result<Tensor>
 where
     Vec<T>: TensorAdapter,
 {
@@ -93,7 +105,11 @@ where
     Ok(tensor)
 }
 
-pub fn setup_grad_contiguous_tensor_with_shape<T: Clone + Default + 'static>(data: Vec<T>, dtype: DType, shape: &[usize]) -> Result<Tensor>
+pub fn setup_grad_contiguous_tensor_with_shape<T: Clone + Default + 'static>(
+    data: Vec<T>,
+    dtype: DType,
+    shape: &[usize],
+) -> Result<Tensor>
 where
     Vec<T>: TensorAdapter,
 {

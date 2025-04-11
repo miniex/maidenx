@@ -23,7 +23,10 @@ pub fn derive_layer(input: TokenStream) -> TokenStream {
             attr.parse_args::<syn::ExprAssign>().ok().and_then(|expr| {
                 if let syn::Expr::Path(left) = *expr.left {
                     if left.path.is_ident("inputs") {
-                        if let syn::Expr::Lit(syn::ExprLit { lit: syn::Lit::Int(n), .. }) = *expr.right {
+                        if let syn::Expr::Lit(syn::ExprLit {
+                            lit: syn::Lit::Int(n), ..
+                        }) = *expr.right
+                        {
                             n.base10_parse::<usize>().ok()
                         } else {
                             None

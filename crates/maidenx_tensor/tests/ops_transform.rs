@@ -19,14 +19,14 @@ mod test_functions {
 
                 assert_eq!(viewed.shape(), &[1, 2, 1, 2]);
                 assert_eq!(viewed.to_flatten_vec::<f32>()?, TEST_DATA_F32.to_vec());
-            }
+            },
             DType::BOOL => {
                 let x = setup_contiguous_tensor_with_shape(TEST_DATA_BOOL.to_vec(), dtype, &[4])?;
                 let viewed = x.view(&[1, 2, 1, 2])?;
 
                 assert_eq!(viewed.shape(), &[1, 2, 1, 2]);
                 assert_eq!(viewed.to_flatten_vec::<bool>()?, TEST_DATA_BOOL.to_vec());
-            }
+            },
             DType::BF16 | DType::F16 => {
                 let x = setup_grad_contiguous_tensor_with_shape(TEST_DATA_F32.to_vec(), dtype, &[4])?;
                 let viewed = x.view(&[1, 2, 1, 2])?;
@@ -49,7 +49,7 @@ mod test_functions {
                         assert!((a - e).abs() < 0.1, "Expected gradient close to {}, got {}", e, a);
                     }
                 }
-            }
+            },
             _ => {
                 let x = setup_grad_contiguous_tensor_with_shape(TEST_DATA_F32.to_vec(), dtype, &[4])?;
                 let viewed = x.view(&[1, 2, 1, 2])?;
@@ -63,7 +63,7 @@ mod test_functions {
                 if let Some(g) = x.grad()? {
                     assert_eq!(g.to_flatten_vec::<f32>()?, vec![1.0f32; 4]);
                 }
-            }
+            },
         }
         Ok(())
     }
@@ -76,16 +76,18 @@ mod test_functions {
 
                 assert_eq!(squeezed.shape(), &[1, 2, 2]);
                 assert_eq!(squeezed.to_flatten_vec::<f32>()?, TEST_DATA_F32.to_vec());
-            }
+            },
             DType::BOOL => {
-                let x = setup_contiguous_tensor_with_shape(TEST_DATA_BOOL.to_vec(), dtype, &[4])?.view(&[1, 2, 1, 2])?;
+                let x =
+                    setup_contiguous_tensor_with_shape(TEST_DATA_BOOL.to_vec(), dtype, &[4])?.view(&[1, 2, 1, 2])?;
                 let squeezed = x.squeeze(2)?;
 
                 assert_eq!(squeezed.shape(), &[1, 2, 2]);
                 assert_eq!(squeezed.to_flatten_vec::<bool>()?, TEST_DATA_BOOL.to_vec());
-            }
+            },
             DType::BF16 | DType::F16 => {
-                let x = setup_grad_contiguous_tensor_with_shape(TEST_DATA_F32.to_vec(), dtype, &[4])?.view(&[1, 2, 1, 2])?;
+                let x = setup_grad_contiguous_tensor_with_shape(TEST_DATA_F32.to_vec(), dtype, &[4])?
+                    .view(&[1, 2, 1, 2])?;
                 let squeezed = x.squeeze(2)?;
                 let y = x.squeeze(1)?;
                 let z = y.sum_all()?;
@@ -106,9 +108,10 @@ mod test_functions {
                         assert!((a - e).abs() < 0.1, "Expected gradient close to {}, got {}", e, a);
                     }
                 }
-            }
+            },
             _ => {
-                let x = setup_grad_contiguous_tensor_with_shape(TEST_DATA_F32.to_vec(), dtype, &[4])?.view(&[1, 2, 1, 2])?;
+                let x = setup_grad_contiguous_tensor_with_shape(TEST_DATA_F32.to_vec(), dtype, &[4])?
+                    .view(&[1, 2, 1, 2])?;
                 let squeezed = x.squeeze(2)?;
                 let y = x.squeeze(1)?;
                 let z = y.sum_all()?;
@@ -120,7 +123,7 @@ mod test_functions {
                 if let Some(g) = x.grad()? {
                     assert_eq!(g.to_flatten_vec::<f32>()?, vec![1.0f32; 4]);
                 }
-            }
+            },
         }
         Ok(())
     }
@@ -133,16 +136,18 @@ mod test_functions {
 
                 assert_eq!(squeezed.shape(), &[2, 2]);
                 assert_eq!(squeezed.to_flatten_vec::<f32>()?, TEST_DATA_F32.to_vec());
-            }
+            },
             DType::BOOL => {
-                let x = setup_contiguous_tensor_with_shape(TEST_DATA_BOOL.to_vec(), dtype, &[4])?.view(&[1, 2, 1, 2])?;
+                let x =
+                    setup_contiguous_tensor_with_shape(TEST_DATA_BOOL.to_vec(), dtype, &[4])?.view(&[1, 2, 1, 2])?;
                 let squeezed = x.squeeze_all()?;
 
                 assert_eq!(squeezed.shape(), &[2, 2]);
                 assert_eq!(squeezed.to_flatten_vec::<bool>()?, TEST_DATA_BOOL.to_vec());
-            }
+            },
             DType::BF16 | DType::F16 => {
-                let x = setup_grad_contiguous_tensor_with_shape(TEST_DATA_F32.to_vec(), dtype, &[4])?.view(&[1, 2, 1, 2])?;
+                let x = setup_grad_contiguous_tensor_with_shape(TEST_DATA_F32.to_vec(), dtype, &[4])?
+                    .view(&[1, 2, 1, 2])?;
                 let squeezed = x.squeeze_all()?;
                 let y = x.squeeze_all()?;
                 let z = y.sum_all()?;
@@ -163,9 +168,10 @@ mod test_functions {
                         assert!((a - e).abs() < 0.1, "Expected gradient close to {}, got {}", e, a);
                     }
                 }
-            }
+            },
             _ => {
-                let x = setup_grad_contiguous_tensor_with_shape(TEST_DATA_F32.to_vec(), dtype, &[4])?.view(&[1, 2, 1, 2])?;
+                let x = setup_grad_contiguous_tensor_with_shape(TEST_DATA_F32.to_vec(), dtype, &[4])?
+                    .view(&[1, 2, 1, 2])?;
                 let squeezed = x.squeeze_all()?;
                 let y = x.squeeze_all()?;
                 let z = y.sum_all()?;
@@ -177,7 +183,7 @@ mod test_functions {
                 if let Some(g) = x.grad()? {
                     assert_eq!(g.to_flatten_vec::<f32>()?, vec![1.0f32; 4]);
                 }
-            }
+            },
         }
         Ok(())
     }
@@ -190,14 +196,14 @@ mod test_functions {
 
                 assert_eq!(unsqueezed.shape(), &[2, 1, 2]);
                 assert_eq!(unsqueezed.to_flatten_vec::<f32>()?, TEST_DATA_F32.to_vec());
-            }
+            },
             DType::BOOL => {
                 let x = setup_contiguous_tensor_with_shape(TEST_DATA_BOOL.to_vec(), dtype, &[4])?.view(&[2, 2])?;
                 let unsqueezed = x.unsqueeze(1)?;
 
                 assert_eq!(unsqueezed.shape(), &[2, 1, 2]);
                 assert_eq!(unsqueezed.to_flatten_vec::<bool>()?, TEST_DATA_BOOL.to_vec());
-            }
+            },
             DType::BF16 | DType::F16 => {
                 let x = setup_grad_contiguous_tensor_with_shape(TEST_DATA_F32.to_vec(), dtype, &[4])?.view(&[2, 2])?;
                 let unsqueezed = x.unsqueeze(1)?;
@@ -220,7 +226,7 @@ mod test_functions {
                         assert!((a - e).abs() < 0.1, "Expected gradient close to {}, got {}", e, a);
                     }
                 }
-            }
+            },
             _ => {
                 let x = setup_grad_contiguous_tensor_with_shape(TEST_DATA_F32.to_vec(), dtype, &[4])?.view(&[2, 2])?;
                 let unsqueezed = x.unsqueeze(1)?;
@@ -234,7 +240,7 @@ mod test_functions {
                 if let Some(g) = x.grad()? {
                     assert_eq!(g.to_flatten_vec::<f32>()?, vec![1.0f32; 4]);
                 }
-            }
+            },
         }
         Ok(())
     }
@@ -249,7 +255,7 @@ mod test_functions {
                 assert_eq!(transposed.shape(), &[2, 2]);
                 assert_eq!(transposed.strides(), &[1, 2]);
                 assert_eq!(transposed.to_flatten_vec::<f32>()?, vec![1.0f32, 3.0, 2.0, 4.0]);
-            }
+            },
             DType::BOOL => {
                 let matrix_data = vec![true, false, false, true];
                 let x = setup_contiguous_tensor_with_shape(matrix_data, dtype, &[2, 2])?;
@@ -258,7 +264,7 @@ mod test_functions {
                 assert_eq!(transposed.shape(), &[2, 2]);
                 assert_eq!(transposed.strides(), &[1, 2]);
                 assert_eq!(transposed.to_flatten_vec::<bool>()?, vec![true, false, false, true]);
-            }
+            },
             DType::BF16 | DType::F16 => {
                 let matrix_data = vec![1.0, 2.0, 3.0, 4.0];
                 let x = setup_grad_contiguous_tensor_with_shape(matrix_data, dtype, &[2, 2])?;
@@ -283,7 +289,7 @@ mod test_functions {
                         assert!((a - e).abs() < 0.1, "Expected gradient close to {}, got {}", e, a);
                     }
                 }
-            }
+            },
             _ => {
                 let matrix_data = vec![1.0, 2.0, 3.0, 4.0];
                 let x = setup_grad_contiguous_tensor_with_shape(matrix_data, dtype, &[2, 2])?;
@@ -299,7 +305,7 @@ mod test_functions {
                 if let Some(g) = x.grad()? {
                     assert_eq!(g.to_flatten_vec::<f32>()?, vec![1.0f32, 1.0, 1.0, 1.0]);
                 }
-            }
+            },
         }
         Ok(())
     }
@@ -321,7 +327,7 @@ mod test_functions {
                 assert_eq!(sliced1.to_flatten_vec::<f32>()?, vec![1.0f32, 2.0, 3.0]);
                 assert_eq!(sliced2.to_flatten_vec::<f32>()?, vec![2.0f32, 3.0, 5.0, 6.0]);
                 assert_eq!(sliced3.to_flatten_vec::<f32>()?, vec![1.0f32, 3.0, 4.0, 6.0]);
-            }
+            },
             DType::BOOL => {
                 let data = vec![true, false, true, false, true, false];
                 let x = setup_contiguous_tensor_with_shape(data.clone(), dtype, &[6])?.view(&[2, 3])?;
@@ -337,7 +343,7 @@ mod test_functions {
                 assert_eq!(sliced1.to_flatten_vec::<bool>()?, vec![true, false, true]);
                 assert_eq!(sliced2.to_flatten_vec::<bool>()?, vec![false, true, true, false]);
                 assert_eq!(sliced3.to_flatten_vec::<bool>()?, vec![true, true, false, false]);
-            }
+            },
             DType::BF16 | DType::F16 => {
                 let data = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
                 let x = setup_grad_contiguous_tensor_with_shape(data.clone(), dtype, &[6])?.view(&[2, 3])?;
@@ -358,7 +364,13 @@ mod test_functions {
                     let actual_grad = g.to_flatten_vec::<f32>()?;
                     let expected_grad = vec![0.0f32, 0.0, 0.0, 1.0, 1.0, 1.0];
                     for (i, (a, e)) in actual_grad.iter().zip(expected_grad.iter()).enumerate() {
-                        assert!((a - e).abs() < 0.1, "Gradient at index {} expected to be close to {}, got {}", i, e, a);
+                        assert!(
+                            (a - e).abs() < 0.1,
+                            "Gradient at index {} expected to be close to {}, got {}",
+                            i,
+                            e,
+                            a
+                        );
                     }
                 }
 
@@ -370,7 +382,7 @@ mod test_functions {
                 for (a, e) in actual.iter().zip(expected.iter()) {
                     assert!((a - e).abs() < 0.1, "Expected value close to {}, got {}", e, a);
                 }
-            }
+            },
             _ => {
                 let data = vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0];
                 let x = setup_grad_contiguous_tensor_with_shape(data.clone(), dtype, &[6])?.view(&[2, 3])?;
@@ -389,7 +401,7 @@ mod test_functions {
                 let neg_sliced = x.slice(0, -1, Some(0), -1)?;
                 assert_eq!(neg_sliced.shape(), &[1, 3]);
                 assert_eq!(neg_sliced.to_flatten_vec::<f32>()?, vec![4.0f32, 5.0, 6.0]);
-            }
+            },
         }
         Ok(())
     }
@@ -406,9 +418,15 @@ mod test_functions {
                 assert_eq!(unfolded1.shape(), &[2, 2, 2]);
                 assert_eq!(unfolded2.shape(), &[2, 1, 3]);
 
-                assert_eq!(unfolded1.to_flatten_vec::<f32>()?, vec![1.0f32, 2.0, 2.0, 3.0, 4.0, 5.0, 5.0, 6.0]);
-                assert_eq!(unfolded2.to_flatten_vec::<f32>()?, vec![1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0]);
-            }
+                assert_eq!(
+                    unfolded1.to_flatten_vec::<f32>()?,
+                    vec![1.0f32, 2.0, 2.0, 3.0, 4.0, 5.0, 5.0, 6.0]
+                );
+                assert_eq!(
+                    unfolded2.to_flatten_vec::<f32>()?,
+                    vec![1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0]
+                );
+            },
             DType::BOOL => {
                 let data = vec![true, false, true, false, true, false];
                 let x = setup_contiguous_tensor_with_shape(data.clone(), dtype, &[6])?.view(&[2, 3])?;
@@ -423,8 +441,11 @@ mod test_functions {
                     unfolded1.to_flatten_vec::<bool>()?,
                     vec![true, false, false, true, false, true, true, false]
                 );
-                assert_eq!(unfolded2.to_flatten_vec::<bool>()?, vec![true, false, true, false, true, false]);
-            }
+                assert_eq!(
+                    unfolded2.to_flatten_vec::<bool>()?,
+                    vec![true, false, true, false, true, false]
+                );
+            },
             DType::BF16 | DType::F16 => {
                 let data = vec![1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0];
                 let x = setup_grad_contiguous_tensor_with_shape(data.clone(), dtype, &[6])?.view(&[2, 3])?;
@@ -445,7 +466,13 @@ mod test_functions {
                     let actual_grad = g.to_flatten_vec::<f32>()?;
                     let expected_grad = vec![1.0f32, 2.0, 1.0, 1.0, 2.0, 1.0];
                     for (i, (a, e)) in actual_grad.iter().zip(expected_grad.iter()).enumerate() {
-                        assert!((a - e).abs() < 0.1, "Gradient at index {} expected to be close to {}, got {}", i, e, a);
+                        assert!(
+                            (a - e).abs() < 0.1,
+                            "Gradient at index {} expected to be close to {}, got {}",
+                            i,
+                            e,
+                            a
+                        );
                     }
                 }
 
@@ -457,7 +484,7 @@ mod test_functions {
                 for (a, e) in actual.iter().zip(expected.iter()) {
                     assert!((a - e).abs() < 0.1, "Expected value close to {}, got {}", e, a);
                 }
-            }
+            },
             _ => {
                 let data = vec![1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0];
                 let x = setup_grad_contiguous_tensor_with_shape(data.clone(), dtype, &[6])?.view(&[2, 3])?;
@@ -467,7 +494,10 @@ mod test_functions {
                 z.backward()?;
 
                 assert_eq!(unfolded.shape(), &[2, 2, 2]);
-                assert_eq!(unfolded.to_flatten_vec::<f32>()?, vec![1.0f32, 2.0, 2.0, 3.0, 4.0, 5.0, 5.0, 6.0]);
+                assert_eq!(
+                    unfolded.to_flatten_vec::<f32>()?,
+                    vec![1.0f32, 2.0, 2.0, 3.0, 4.0, 5.0, 5.0, 6.0]
+                );
 
                 if let Some(g) = x.grad()? {
                     assert_eq!(g.to_flatten_vec::<f32>()?, vec![1.0f32, 2.0, 1.0, 1.0, 2.0, 1.0]);
@@ -475,8 +505,11 @@ mod test_functions {
 
                 let large_step_unfolded = x.unfold(1, 2, 2)?;
                 assert_eq!(large_step_unfolded.shape(), &[2, 1, 2]);
-                assert_eq!(large_step_unfolded.to_flatten_vec::<f32>()?, vec![1.0f32, 2.0, 4.0, 5.0]);
-            }
+                assert_eq!(
+                    large_step_unfolded.to_flatten_vec::<f32>()?,
+                    vec![1.0f32, 2.0, 4.0, 5.0]
+                );
+            },
         }
         Ok(())
     }
@@ -488,15 +521,21 @@ mod test_functions {
                 let broadcasted = x.broadcast(&[3, 2])?;
 
                 assert_eq!(broadcasted.shape(), &[3, 2]);
-                assert_eq!(broadcasted.to_flatten_vec::<f32>()?, vec![1.0f32, 2.0, 1.0, 2.0, 1.0, 2.0]);
-            }
+                assert_eq!(
+                    broadcasted.to_flatten_vec::<f32>()?,
+                    vec![1.0f32, 2.0, 1.0, 2.0, 1.0, 2.0]
+                );
+            },
             DType::BOOL => {
                 let x = setup_contiguous_tensor_with_shape(vec![true, false], dtype, &[2])?;
                 let broadcasted = x.broadcast(&[3, 2])?;
 
                 assert_eq!(broadcasted.shape(), &[3, 2]);
-                assert_eq!(broadcasted.to_flatten_vec::<bool>()?, vec![true, false, true, false, true, false]);
-            }
+                assert_eq!(
+                    broadcasted.to_flatten_vec::<bool>()?,
+                    vec![true, false, true, false, true, false]
+                );
+            },
             DType::BF16 | DType::F16 => {
                 let x = setup_grad_contiguous_tensor_with_shape(vec![1.0, 2.0], dtype, &[2])?;
                 let broadcasted = x.broadcast(&[3, 2])?;
@@ -517,14 +556,17 @@ mod test_functions {
                         assert!((a - e).abs() < 0.1, "Expected gradient close to {}, got {}", e, a);
                     }
                 }
-            }
+            },
             _ => {
                 let x = setup_grad_contiguous_tensor_with_shape(vec![1.0, 2.0], dtype, &[2])?;
                 let broadcasted = x.broadcast(&[3, 2])?;
                 broadcasted.backward()?;
 
                 assert_eq!(broadcasted.shape(), &[3, 2]);
-                assert_eq!(broadcasted.to_flatten_vec::<f32>()?, vec![1.0f32, 2.0, 1.0, 2.0, 1.0, 2.0]);
+                assert_eq!(
+                    broadcasted.to_flatten_vec::<f32>()?,
+                    vec![1.0f32, 2.0, 1.0, 2.0, 1.0, 2.0]
+                );
 
                 if let Some(g) = x.grad()? {
                     if dtype == DType::BOOL {
@@ -533,7 +575,7 @@ mod test_functions {
                         assert_eq!(g.to_flatten_vec::<f32>()?, vec![3.0f32, 3.0]);
                     }
                 }
-            }
+            },
         }
         Ok(())
     }
@@ -547,7 +589,7 @@ mod test_functions {
                 assert_eq!(broadcasted.shape(), &[3, 4, 2]);
                 let expected = [1.0f32, 2.0].repeat(12);
                 assert_eq!(broadcasted.to_flatten_vec::<f32>()?, expected);
-            }
+            },
             DType::BOOL => {
                 let x = setup_contiguous_tensor_with_shape(vec![true, false], dtype, &[2])?;
                 let broadcasted = x.broadcast_left(&[3, 4])?;
@@ -555,7 +597,7 @@ mod test_functions {
                 assert_eq!(broadcasted.shape(), &[3, 4, 2]);
                 let expected = [true, false].repeat(12);
                 assert_eq!(broadcasted.to_flatten_vec::<bool>()?, expected);
-            }
+            },
             DType::BF16 | DType::F16 => {
                 let x = setup_grad_contiguous_tensor_with_shape(vec![1.0, 2.0], dtype, &[2])?;
                 let broadcasted = x.broadcast_left(&[3, 4])?;
@@ -566,7 +608,13 @@ mod test_functions {
 
                 let actual = broadcasted.to_flatten_vec::<f32>()?;
                 for (i, (a, e)) in actual.iter().zip(expected.iter()).enumerate() {
-                    assert!((a - e).abs() < 0.1, "Value at index {} expected to be close to {}, got {}", i, e, a);
+                    assert!(
+                        (a - e).abs() < 0.1,
+                        "Value at index {} expected to be close to {}, got {}",
+                        i,
+                        e,
+                        a
+                    );
                 }
 
                 if let Some(g) = x.grad()? {
@@ -576,7 +624,7 @@ mod test_functions {
                         assert!((a - e).abs() < 0.1, "Expected gradient close to {}, got {}", e, a);
                     }
                 }
-            }
+            },
             _ => {
                 let x = setup_grad_contiguous_tensor_with_shape(vec![1.0, 2.0], dtype, &[2])?;
                 let broadcasted = x.broadcast_left(&[3, 4])?;
@@ -593,7 +641,7 @@ mod test_functions {
                         assert_eq!(g.to_flatten_vec::<f32>()?, vec![12.0f32, 12.0]);
                     }
                 }
-            }
+            },
         }
         Ok(())
     }
@@ -606,14 +654,14 @@ mod test_functions {
 
                 assert_eq!(reshaped.shape(), &[2, 2]);
                 assert_eq!(reshaped.to_flatten_vec::<f32>()?, TEST_DATA_F32.to_vec());
-            }
+            },
             DType::BOOL => {
                 let x = setup_contiguous_tensor_with_shape(TEST_DATA_BOOL.to_vec(), dtype, &[4])?;
                 let reshaped = x.reshape(&[2, 2])?;
 
                 assert_eq!(reshaped.shape(), &[2, 2]);
                 assert_eq!(reshaped.to_flatten_vec::<bool>()?, TEST_DATA_BOOL.to_vec());
-            }
+            },
             DType::BF16 | DType::F16 => {
                 let x = setup_grad_contiguous_tensor_with_shape(TEST_DATA_F32.to_vec(), dtype, &[4])?;
                 let reshaped = x.reshape(&[2, 2])?;
@@ -634,7 +682,7 @@ mod test_functions {
                         assert!((a - e).abs() < 0.1, "Expected gradient close to {}, got {}", e, a);
                     }
                 }
-            }
+            },
             _ => {
                 let x = setup_grad_contiguous_tensor_with_shape(TEST_DATA_F32.to_vec(), dtype, &[4])?;
                 let reshaped = x.reshape(&[2, 2])?;
@@ -650,7 +698,7 @@ mod test_functions {
                         assert_eq!(g.to_flatten_vec::<f32>()?, vec![1.0f32; 4]);
                     }
                 }
-            }
+            },
         }
         Ok(())
     }

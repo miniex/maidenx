@@ -7,7 +7,9 @@ use std::slice;
 use std::sync::{Arc, Mutex};
 
 // Generic traits needed for our operations
-pub trait Float: Copy + Send + Sync + PartialOrd + Add<Output = Self> + Sub<Output = Self> + Div<Output = Self> {
+pub trait Float:
+    Copy + Send + Sync + PartialOrd + Add<Output = Self> + Sub<Output = Self> + Div<Output = Self>
+{
     fn neg_infinity() -> Self;
     fn exp(self) -> Self;
 }
@@ -100,7 +102,8 @@ macro_rules! softmax_impl {
             let indices: Vec<usize> = (0..total_slices).collect();
 
             // Create a thread-safe vector to collect results
-            let results: Arc<Mutex<Vec<(usize, $type)>>> = Arc::new(Mutex::new(Vec::with_capacity(total_slices * dim_size)));
+            let results: Arc<Mutex<Vec<(usize, $type)>>> =
+                Arc::new(Mutex::new(Vec::with_capacity(total_slices * dim_size)));
 
             // Process slices in parallel
             indices.par_iter().for_each(|&slice_idx| {
@@ -229,7 +232,14 @@ macro_rules! define_softmax_function {
         /// * `output` must be a valid pointer to an array of at least `num_els` elements.
         /// * The memory regions pointed to by `input` and `output` must not overlap.
         #[no_mangle]
-        pub unsafe fn $name(num_els: usize, num_dims: usize, dim: usize, metadata: *const usize, input: *const $type, output: *mut $type) {
+        pub unsafe fn $name(
+            num_els: usize,
+            num_dims: usize,
+            dim: usize,
+            metadata: *const usize,
+            input: *const $type,
+            output: *mut $type,
+        ) {
             softmax_impl!($type, num_els, num_dims, dim, metadata, input, output);
         }
     };

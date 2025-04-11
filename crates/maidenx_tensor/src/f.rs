@@ -21,19 +21,19 @@ impl Tensor {
                     let value = self.get(&indices)?;
                     result.set(&indices, value)?;
                 }
-            }
+            },
             #[cfg(feature = "cuda")]
             Device::CUDA(device_id) => {
                 let temp = self.to_device(Device::CPU)?;
                 let contiguous_temp = temp.contiguous()?;
                 result = contiguous_temp.to_device(Device::CUDA(device_id))?;
-            }
+            },
             #[cfg(feature = "mps")]
             Device::MPS => {
                 let temp = self.to_device(Device::CPU)?;
                 let contiguous_temp = temp.contiguous()?;
                 result = contiguous_temp.to_device(Device::MPS)?;
-            }
+            },
         }
 
         Ok(result)

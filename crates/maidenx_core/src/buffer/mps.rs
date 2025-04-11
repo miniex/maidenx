@@ -65,9 +65,17 @@ impl Buffer for MpsBuffer {
         Device::MPS
     }
 
-    unsafe fn copy_from(&mut self, other: &dyn Buffer, src_offset: usize, dst_offset: usize, count: usize) -> Result<()> {
+    unsafe fn copy_from(
+        &mut self,
+        other: &dyn Buffer,
+        src_offset: usize,
+        dst_offset: usize,
+        count: usize,
+    ) -> Result<()> {
         if src_offset + count > other.len() || dst_offset + count > self.len() {
-            return Err(Error::InvalidArgument("Offset and count exceed buffer dimensions".into()));
+            return Err(Error::InvalidArgument(
+                "Offset and count exceed buffer dimensions".into(),
+            ));
         }
 
         if self.dtype() != other.dtype() {
@@ -86,28 +94,39 @@ impl Buffer for MpsBuffer {
                 let src_byte_offset = src_offset * element_size;
 
                 mps_memcpy_h2d(self.ptr, src_ptr, size_in_bytes, dst_byte_offset, src_byte_offset)
-            }
+            },
             #[cfg(feature = "cuda")]
             Device::CUDA(_) => {
-                return Err(Error::InvalidArgument("Direct copy from CUDA to MPS is not supported".into()));
-            }
+                return Err(Error::InvalidArgument(
+                    "Direct copy from CUDA to MPS is not supported".into(),
+                ));
+            },
             Device::MPS => {
                 // For MPS source, use the base pointer
                 let src_ptr = other.as_ptr();
 
                 // Let the MPS implementation handle offsets
                 mps_memcpy_d2d(self.ptr, src_ptr, size_in_bytes, dst_byte_offset, src_byte_offset)
-            }
+            },
         };
 
         if status != 0 {
-            return Err(Error::InvalidArgument(format!("MPS memcpy failed: {}", maidenx_mps::mps_error(status))));
+            return Err(Error::InvalidArgument(format!(
+                "MPS memcpy failed: {}",
+                maidenx_mps::mps_error(status)
+            )));
         }
 
         Ok(())
     }
 
-    unsafe fn copy_from_host(&mut self, src: *const c_void, size_in_bytes: usize, src_offset: usize, dst_offset: usize) -> Result<()> {
+    unsafe fn copy_from_host(
+        &mut self,
+        src: *const c_void,
+        size_in_bytes: usize,
+        src_offset: usize,
+        dst_offset: usize,
+    ) -> Result<()> {
         // Check if destination has enough space
         let dst_byte_offset = self.byte_offset(dst_offset);
         let max_available = (self.size * self.dtype.size_in_bytes()).saturating_sub(dst_byte_offset);
@@ -135,7 +154,13 @@ impl Buffer for MpsBuffer {
         Ok(())
     }
 
-    unsafe fn copy_to_host(&self, dest: *mut c_void, size_in_bytes: usize, src_offset: usize, dst_offset: usize) -> Result<()> {
+    unsafe fn copy_to_host(
+        &self,
+        dest: *mut c_void,
+        size_in_bytes: usize,
+        src_offset: usize,
+        dst_offset: usize,
+    ) -> Result<()> {
         // Check if source has enough data
         let src_byte_offset = self.byte_offset(src_offset);
         let available = (self.size * self.dtype.size_in_bytes()).saturating_sub(src_byte_offset);

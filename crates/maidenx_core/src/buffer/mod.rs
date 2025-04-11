@@ -45,19 +45,45 @@ pub trait Buffer: Send + Sync {
 
     /// # Safety
     /// Requires both buffers to have the same size and no memory overlap
-    unsafe fn copy_from(&mut self, other: &dyn Buffer, src_offset: usize, dst_offset: usize, count: usize) -> Result<()>;
+    unsafe fn copy_from(
+        &mut self,
+        other: &dyn Buffer,
+        src_offset: usize,
+        dst_offset: usize,
+        count: usize,
+    ) -> Result<()>;
 
     /// # Safety
     /// Requires valid source pointer and matching size_in_bytes with no memory overlap
-    unsafe fn copy_from_host(&mut self, src: *const c_void, size_in_bytes: usize, src_offset: usize, dst_offset: usize) -> Result<()>;
+    unsafe fn copy_from_host(
+        &mut self,
+        src: *const c_void,
+        size_in_bytes: usize,
+        src_offset: usize,
+        dst_offset: usize,
+    ) -> Result<()>;
 
     /// # Safety
     /// Requires valid destination pointer and matching size_in_bytes with no memory overlap
-    unsafe fn copy_to_host(&self, dest: *mut c_void, size_in_bytes: usize, src_offset: usize, dst_offset: usize) -> Result<()>;
+    unsafe fn copy_to_host(
+        &self,
+        dest: *mut c_void,
+        size_in_bytes: usize,
+        src_offset: usize,
+        dst_offset: usize,
+    ) -> Result<()>;
 
-    fn copy_from_with_device(&mut self, other: &dyn Buffer, src_offset: usize, dst_offset: usize, count: usize) -> Result<()> {
+    fn copy_from_with_device(
+        &mut self,
+        other: &dyn Buffer,
+        src_offset: usize,
+        dst_offset: usize,
+        count: usize,
+    ) -> Result<()> {
         if src_offset + count > other.len() || dst_offset + count > self.len() {
-            return Err(Error::InvalidArgument("Offset and count exceed buffer dimensions".into()));
+            return Err(Error::InvalidArgument(
+                "Offset and count exceed buffer dimensions".into(),
+            ));
         }
 
         match (self.device(), other.device()) {
@@ -76,17 +102,21 @@ pub trait Buffer: Send + Sync {
                                 temp.copy_from(other, src_offset, 0, count)?;
                                 self.copy_from(&temp, 0, dst_offset, count)
                             }
-                        }
+                        },
                     }
                 }
-            }
+            },
             #[cfg(feature = "cuda")]
-            (Device::CPU, Device::CUDA(_)) | (Device::CUDA(_), Device::CPU) => unsafe { self.copy_from(other, src_offset, dst_offset, count) },
+            (Device::CPU, Device::CUDA(_)) | (Device::CUDA(_), Device::CPU) => unsafe {
+                self.copy_from(other, src_offset, dst_offset, count)
+            },
 
             #[cfg(feature = "mps")]
             (Device::MPS, Device::MPS) => unsafe { self.copy_from(other, src_offset, dst_offset, count) },
             #[cfg(feature = "mps")]
-            (Device::CPU, Device::MPS) | (Device::MPS, Device::CPU) => unsafe { self.copy_from(other, src_offset, dst_offset, count) },
+            (Device::CPU, Device::MPS) | (Device::MPS, Device::CPU) => unsafe {
+                self.copy_from(other, src_offset, dst_offset, count)
+            },
 
             #[cfg(all(feature = "cuda", feature = "mps"))]
             (Device::CUDA(_), Device::MPS) | (Device::MPS, Device::CUDA(_)) => {
@@ -95,13 +125,21 @@ pub trait Buffer: Send + Sync {
                     temp.copy_from(other, src_offset, 0, count)?;
                     self.copy_from(&temp, 0, dst_offset, count)
                 }
-            }
+            },
         }
     }
 
-    fn copy_from_with_dtype_cast(&mut self, other: &dyn Buffer, src_offset: usize, dst_offset: usize, count: usize) -> Result<()> {
+    fn copy_from_with_dtype_cast(
+        &mut self,
+        other: &dyn Buffer,
+        src_offset: usize,
+        dst_offset: usize,
+        count: usize,
+    ) -> Result<()> {
         if src_offset + count > other.len() || dst_offset + count > self.len() {
-            return Err(Error::InvalidArgument("Offset and count exceed buffer dimensions".into()));
+            return Err(Error::InvalidArgument(
+                "Offset and count exceed buffer dimensions".into(),
+            ));
         }
 
         let from_dtype = other.dtype();
@@ -120,7 +158,12 @@ pub trait Buffer: Send + Sync {
                 temp_buf.resize(count, Default::default());
                 let size = count * from_dtype.size_in_bytes();
                 unsafe {
-                    other.copy_to_host(temp_buf.as_mut_ptr() as *mut std::ffi::c_void, size, src_offset, 0)?;
+                    other.copy_to_host(
+                        temp_buf.as_mut_ptr() as *mut std::ffi::c_void,
+                        size,
+                        src_offset,
+                        0,
+                    )?;
                     let converted: Vec<$to_ty> = temp_buf.iter().map(|&x| (x as $mid_ty) as $to_ty).collect();
                     self.copy_from_host(
                         converted.as_ptr() as *const std::ffi::c_void,
@@ -135,7 +178,12 @@ pub trait Buffer: Send + Sync {
                 temp_buf.resize(count, Default::default());
                 let size = count * from_dtype.size_in_bytes();
                 unsafe {
-                    other.copy_to_host(temp_buf.as_mut_ptr() as *mut std::ffi::c_void, size, src_offset, 0)?;
+                    other.copy_to_host(
+                        temp_buf.as_mut_ptr() as *mut std::ffi::c_void,
+                        size,
+                        src_offset,
+                        0,
+                    )?;
                     let converted: Vec<$to_ty> = temp_buf.iter().map(|&x| x as $to_ty).collect();
                     self.copy_from_host(
                         converted.as_ptr() as *const std::ffi::c_void,
@@ -153,7 +201,12 @@ pub trait Buffer: Send + Sync {
                 temp_buf.resize(count, Default::default());
                 let size = count * from_dtype.size_in_bytes();
                 unsafe {
-                    other.copy_to_host(temp_buf.as_mut_ptr() as *mut std::ffi::c_void, size, src_offset, 0)?;
+                    other.copy_to_host(
+                        temp_buf.as_mut_ptr() as *mut std::ffi::c_void,
+                        size,
+                        src_offset,
+                        0,
+                    )?;
                     let converted: Vec<$to_ty> = temp_buf.iter().map(|&x| <$to_ty>::from(x)).collect();
                     self.copy_from_host(
                         converted.as_ptr() as *const std::ffi::c_void,
@@ -171,7 +224,12 @@ pub trait Buffer: Send + Sync {
                 temp_buf.resize(count, Default::default());
                 let size = count * from_dtype.size_in_bytes();
                 unsafe {
-                    other.copy_to_host(temp_buf.as_mut_ptr() as *mut std::ffi::c_void, size, src_offset, 0)?;
+                    other.copy_to_host(
+                        temp_buf.as_mut_ptr() as *mut std::ffi::c_void,
+                        size,
+                        src_offset,
+                        0,
+                    )?;
                     let converted: Vec<$to_ty> = temp_buf.iter().map(|&x| <$to_ty>::from(x as $mid_ty)).collect();
                     self.copy_from_host(
                         converted.as_ptr() as *const std::ffi::c_void,
@@ -189,7 +247,12 @@ pub trait Buffer: Send + Sync {
                 temp_buf.resize(count, Default::default());
                 let size = count * from_dtype.size_in_bytes();
                 unsafe {
-                    other.copy_to_host(temp_buf.as_mut_ptr() as *mut std::ffi::c_void, size, src_offset, 0)?;
+                    other.copy_to_host(
+                        temp_buf.as_mut_ptr() as *mut std::ffi::c_void,
+                        size,
+                        src_offset,
+                        0,
+                    )?;
                     let converted: Vec<bool> = temp_buf.iter().map(|&x| x != <$from_ty>::default()).collect();
                     self.copy_from_host(
                         converted.as_ptr() as *const std::ffi::c_void,
@@ -207,7 +270,12 @@ pub trait Buffer: Send + Sync {
                 temp_buf.resize(count, Default::default());
                 let size = count * from_dtype.size_in_bytes();
                 unsafe {
-                    other.copy_to_host(temp_buf.as_mut_ptr() as *mut std::ffi::c_void, size, src_offset, 0)?;
+                    other.copy_to_host(
+                        temp_buf.as_mut_ptr() as *mut std::ffi::c_void,
+                        size,
+                        src_offset,
+                        0,
+                    )?;
                     let converted: Vec<$to_ty> = temp_buf.iter().map(|&x| <$to_ty>::from_f32(x as f32)).collect();
                     self.copy_from_host(
                         converted.as_ptr() as *const std::ffi::c_void,
@@ -226,8 +294,16 @@ pub trait Buffer: Send + Sync {
                 temp_buf.resize(count, Default::default());
                 let size = count * from_dtype.size_in_bytes();
                 unsafe {
-                    other.copy_to_host(temp_buf.as_mut_ptr() as *mut std::ffi::c_void, size, src_offset, 0)?;
-                    let converted: Vec<half::f16> = temp_buf.iter().map(|&x| half::f16::from_f32(x.to_f32())).collect();
+                    other.copy_to_host(
+                        temp_buf.as_mut_ptr() as *mut std::ffi::c_void,
+                        size,
+                        src_offset,
+                        0,
+                    )?;
+                    let converted: Vec<half::f16> = temp_buf
+                        .iter()
+                        .map(|&x| half::f16::from_f32(x.to_f32()))
+                        .collect();
                     self.copy_from_host(
                         converted.as_ptr() as *const std::ffi::c_void,
                         converted.len() * std::mem::size_of::<half::f16>(),
@@ -241,8 +317,16 @@ pub trait Buffer: Send + Sync {
                 temp_buf.resize(count, Default::default());
                 let size = count * from_dtype.size_in_bytes();
                 unsafe {
-                    other.copy_to_host(temp_buf.as_mut_ptr() as *mut std::ffi::c_void, size, src_offset, 0)?;
-                    let converted: Vec<half::bf16> = temp_buf.iter().map(|&x| half::bf16::from_f32(x.to_f32())).collect();
+                    other.copy_to_host(
+                        temp_buf.as_mut_ptr() as *mut std::ffi::c_void,
+                        size,
+                        src_offset,
+                        0,
+                    )?;
+                    let converted: Vec<half::bf16> = temp_buf
+                        .iter()
+                        .map(|&x| half::bf16::from_f32(x.to_f32()))
+                        .collect();
                     self.copy_from_host(
                         converted.as_ptr() as *const std::ffi::c_void,
                         converted.len() * std::mem::size_of::<half::bf16>(),
@@ -257,7 +341,12 @@ pub trait Buffer: Send + Sync {
                 temp_buf.resize(count, Default::default());
                 let size = count * from_dtype.size_in_bytes();
                 unsafe {
-                    other.copy_to_host(temp_buf.as_mut_ptr() as *mut std::ffi::c_void, size, src_offset, 0)?;
+                    other.copy_to_host(
+                        temp_buf.as_mut_ptr() as *mut std::ffi::c_void,
+                        size,
+                        src_offset,
+                        0,
+                    )?;
                     let converted: Vec<bool> = temp_buf.iter().map(|&x| <$from_ty>::to_f32(x) != 0.0).collect();
                     self.copy_from_host(
                         converted.as_ptr() as *const std::ffi::c_void,
@@ -273,8 +362,16 @@ pub trait Buffer: Send + Sync {
                 temp_buf.resize(count, Default::default());
                 let size = count * from_dtype.size_in_bytes();
                 unsafe {
-                    other.copy_to_host(temp_buf.as_mut_ptr() as *mut std::ffi::c_void, size, src_offset, 0)?;
-                    let converted: Vec<$to_ty> = temp_buf.iter().map(|&x| <$from_ty>::to_f32(x) as $to_ty).collect();
+                    other.copy_to_host(
+                        temp_buf.as_mut_ptr() as *mut std::ffi::c_void,
+                        size,
+                        src_offset,
+                        0,
+                    )?;
+                    let converted: Vec<$to_ty> = temp_buf
+                        .iter()
+                        .map(|&x| <$from_ty>::to_f32(x) as $to_ty)
+                        .collect();
                     self.copy_from_host(
                         converted.as_ptr() as *const std::ffi::c_void,
                         converted.len() * std::mem::size_of::<$to_ty>(),
@@ -479,7 +576,11 @@ pub trait Buffer: Send + Sync {
     /// Read a scalar value at the specified index
     fn read_scalar(&self, index: usize) -> Result<Scalar> {
         if index >= self.len() {
-            return Err(Error::InvalidArgument(format!("Index out of bounds: {} >= {}", index, self.len())));
+            return Err(Error::InvalidArgument(format!(
+                "Index out of bounds: {} >= {}",
+                index,
+                self.len()
+            )));
         }
 
         match self.device() {
@@ -490,7 +591,7 @@ pub trait Buffer: Send + Sync {
 
                 // Use DType's read_scalar method to safely read the value
                 Ok(unsafe { self.dtype().read_scalar(ptr) })
-            }
+            },
             #[cfg(feature = "cuda")]
             Device::CUDA(_) => {
                 // For CUDA buffers, we need to copy the data to host first
@@ -510,7 +611,7 @@ pub trait Buffer: Send + Sync {
                     // Read the scalar from the temporary buffer
                     Ok(self.dtype().read_scalar(temp_buffer.as_ptr()))
                 }
-            }
+            },
             #[cfg(feature = "mps")]
             Device::MPS => {
                 let dtype_size = self.dtype().size_in_bytes();
@@ -527,14 +628,18 @@ pub trait Buffer: Send + Sync {
 
                     Ok(self.dtype().read_scalar(temp_buffer.as_ptr()))
                 }
-            }
+            },
         }
     }
 
     /// Write a scalar value at the specified index
     fn write_scalar(&mut self, index: usize, value: Scalar) -> Result<()> {
         if index >= self.len() {
-            return Err(Error::InvalidArgument(format!("Index out of bounds: {} >= {}", index, self.len())));
+            return Err(Error::InvalidArgument(format!(
+                "Index out of bounds: {} >= {}",
+                index,
+                self.len()
+            )));
         }
 
         match self.device() {
@@ -546,7 +651,7 @@ pub trait Buffer: Send + Sync {
                 // Use DType's write_scalar method to safely write the value
                 unsafe { self.dtype().write_scalar(ptr, value) };
                 Ok(())
-            }
+            },
             #[cfg(feature = "cuda")]
             Device::CUDA(_) => {
                 // For CUDA buffers, create a temporary buffer for just the single value
@@ -567,7 +672,7 @@ pub trait Buffer: Send + Sync {
 
                     Ok(())
                 }
-            }
+            },
             #[cfg(feature = "mps")]
             Device::MPS => {
                 let dtype_size = self.dtype().size_in_bytes();
@@ -587,7 +692,7 @@ pub trait Buffer: Send + Sync {
 
                     Ok(())
                 }
-            }
+            },
         }
     }
 }

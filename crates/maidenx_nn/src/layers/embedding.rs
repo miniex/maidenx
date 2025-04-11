@@ -67,7 +67,10 @@ impl Embedding {
 
     pub fn forward(&self, input: &Tensor) -> Result<Tensor> {
         if !input.dtype().is_int() {
-            return Err(Error::InvalidArgument(format!("Embedding requires integer input, got {}", input.dtype())));
+            return Err(Error::InvalidArgument(format!(
+                "Embedding requires integer input, got {}",
+                input.dtype()
+            )));
         }
 
         let mut output = self.weight.index_select(0, input)?;
@@ -118,7 +121,8 @@ impl Embedding {
                 Ok(vec![grad_weight])
             });
 
-            let node = maidenx_tensor::TensorNode::new("embedding".to_string(), vec![self.weight.clone()], Some(backward_fn));
+            let node =
+                maidenx_tensor::TensorNode::new("embedding".to_string(), vec![self.weight.clone()], Some(backward_fn));
 
             output.set_node(node);
         }
@@ -175,7 +179,16 @@ mod tests {
     fn init_with_padding_idx() -> Result<()> {
         setup_device();
 
-        let embedding = Embedding::new_with_spec(10, 5, Some(2), None, 2.0, false, get_default_device(), get_default_dtype())?;
+        let embedding = Embedding::new_with_spec(
+            10,
+            5,
+            Some(2),
+            None,
+            2.0,
+            false,
+            get_default_device(),
+            get_default_dtype(),
+        )?;
 
         let padding_weights = embedding.weight().slice(0, 2, Some(3), 1)?.reshape(&[5])?;
         let padding_sum = padding_weights.sum_all()?.item()?.as_f32();
@@ -202,7 +215,16 @@ mod tests {
     fn forward_with_max_norm() -> Result<()> {
         setup_device();
 
-        let embedding = Embedding::new_with_spec(10, 5, None, Some(1.0), 2.0, false, get_default_device(), get_default_dtype())?;
+        let embedding = Embedding::new_with_spec(
+            10,
+            5,
+            None,
+            Some(1.0),
+            2.0,
+            false,
+            get_default_device(),
+            get_default_dtype(),
+        )?;
         let input = Tensor::new(vec![0i64, 1, 2, 3, 4])?;
         let output = embedding.forward(&input)?;
 
@@ -257,7 +279,8 @@ mod tests {
     fn backward_with_scale_grad_by_freq() -> Result<()> {
         setup_device();
 
-        let embedding = Embedding::new_with_spec(10, 5, None, None, 2.0, true, get_default_device(), get_default_dtype())?;
+        let embedding =
+            Embedding::new_with_spec(10, 5, None, None, 2.0, true, get_default_device(), get_default_dtype())?;
 
         let input = Tensor::new(vec![1i64, 3, 1, 5, 3])?;
 
@@ -298,7 +321,16 @@ mod tests {
     fn backward_with_max_norm() -> Result<()> {
         setup_device();
 
-        let embedding = Embedding::new_with_spec(10, 5, None, Some(1.0), 2.0, false, get_default_device(), get_default_dtype())?;
+        let embedding = Embedding::new_with_spec(
+            10,
+            5,
+            None,
+            Some(1.0),
+            2.0,
+            false,
+            get_default_device(),
+            get_default_dtype(),
+        )?;
 
         let input = Tensor::new(vec![0i64, 1, 2, 3, 4])?;
 
@@ -330,7 +362,16 @@ mod tests {
     fn backward_with_padding_idx() -> Result<()> {
         setup_device();
 
-        let embedding = Embedding::new_with_spec(10, 5, Some(2), None, 2.0, false, get_default_device(), get_default_dtype())?;
+        let embedding = Embedding::new_with_spec(
+            10,
+            5,
+            Some(2),
+            None,
+            2.0,
+            false,
+            get_default_device(),
+            get_default_dtype(),
+        )?;
 
         let input = Tensor::new(vec![1i64, 2, 3, 2, 4])?;
 
@@ -350,7 +391,10 @@ mod tests {
 
         let padding_grad = weight_grad.slice(0, 2, Some(3), 1)?.reshape(&[5])?;
         let padding_grad_sum = padding_grad.sum_all()?.item()?.as_f32();
-        assert!(padding_grad_sum.abs() > 1e-6, "Padding index gradient should be non-zero from backprop");
+        assert!(
+            padding_grad_sum.abs() > 1e-6,
+            "Padding index gradient should be non-zero from backprop"
+        );
 
         Ok(())
     }

@@ -48,60 +48,63 @@ macro_rules! pad_with_constant_op {
 
             // Create chunks of work for better parallelism
             let chunk_size = (num_els_out / rayon::current_num_threads()) + 1;
-            output_vec.par_chunks_mut(chunk_size).enumerate().for_each(|(chunk_idx, chunk)| {
-                let start_idx = chunk_idx * chunk_size;
-                for (local_idx, out_val) in chunk.iter_mut().enumerate() {
-                    let i = start_idx + local_idx;
-                    if i >= num_els_out {
-                        break;
-                    }
-
-                    // Calculate coordinates in output tensor
-                    let mut out_coords = vec![0; num_dims];
-                    let mut tmp_i = i;
-                    for d in (0..num_dims).rev() {
-                        out_coords[d] = tmp_i % output_dims[d];
-                        tmp_i /= output_dims[d];
-                    }
-
-                    // Calculate corresponding coordinates in input tensor
-                    let mut in_bounds = true;
-                    let mut in_coords = vec![0; num_dims];
-                    for d in 0..num_dims {
-                        let pad_before = paddings[d * 2];
-                        in_coords[d] = out_coords[d] as isize - pad_before as isize;
-                        // Check if this coordinate is within input bounds
-                        if in_coords[d] < 0 || in_coords[d] >= input_dims[d] as isize {
-                            in_bounds = false;
+            output_vec
+                .par_chunks_mut(chunk_size)
+                .enumerate()
+                .for_each(|(chunk_idx, chunk)| {
+                    let start_idx = chunk_idx * chunk_size;
+                    for (local_idx, out_val) in chunk.iter_mut().enumerate() {
+                        let i = start_idx + local_idx;
+                        if i >= num_els_out {
                             break;
                         }
-                    }
 
-                    // If within bounds, copy from input to output
-                    if in_bounds {
-                        let in_idx = if is_input_contiguous {
-                            // Calculate linear index for contiguous input
-                            let mut idx = 0;
-                            let mut stride = 1;
-                            for d in (0..num_dims).rev() {
-                                idx += in_coords[d] as usize * stride;
-                                stride *= input_dims[d];
-                            }
-                            idx
-                        } else {
-                            // Calculate strided index
-                            let mut idx = 0;
-                            for d in 0..num_dims {
-                                idx += in_coords[d] as usize * input_strides[d];
-                            }
-                            idx
-                        };
+                        // Calculate coordinates in output tensor
+                        let mut out_coords = vec![0; num_dims];
+                        let mut tmp_i = i;
+                        for d in (0..num_dims).rev() {
+                            out_coords[d] = tmp_i % output_dims[d];
+                            tmp_i /= output_dims[d];
+                        }
 
-                        // Copy value from input to output
-                        *out_val = input_vec[in_idx];
+                        // Calculate corresponding coordinates in input tensor
+                        let mut in_bounds = true;
+                        let mut in_coords = vec![0; num_dims];
+                        for d in 0..num_dims {
+                            let pad_before = paddings[d * 2];
+                            in_coords[d] = out_coords[d] as isize - pad_before as isize;
+                            // Check if this coordinate is within input bounds
+                            if in_coords[d] < 0 || in_coords[d] >= input_dims[d] as isize {
+                                in_bounds = false;
+                                break;
+                            }
+                        }
+
+                        // If within bounds, copy from input to output
+                        if in_bounds {
+                            let in_idx = if is_input_contiguous {
+                                // Calculate linear index for contiguous input
+                                let mut idx = 0;
+                                let mut stride = 1;
+                                for d in (0..num_dims).rev() {
+                                    idx += in_coords[d] as usize * stride;
+                                    stride *= input_dims[d];
+                                }
+                                idx
+                            } else {
+                                // Calculate strided index
+                                let mut idx = 0;
+                                for d in 0..num_dims {
+                                    idx += in_coords[d] as usize * input_strides[d];
+                                }
+                                idx
+                            };
+
+                            // Copy value from input to output
+                            *out_val = input_vec[in_idx];
+                        }
                     }
-                }
-            });
+                });
 
             // Copy back to output pointer
             std::ptr::copy_nonoverlapping(output_vec.as_ptr(), out, num_els_out);
@@ -124,7 +127,14 @@ macro_rules! pad_with_reflection_op {
         /// * `out` must be a valid pointer to an array of at least `num_els_out` elements
         /// * The alignment requirements of the type must be respected
         /// * All array indices calculated must be in bounds
-        pub unsafe fn $name(num_els_in: usize, num_els_out: usize, num_dims: usize, metadata: *const usize, inp: *const $type, out: *mut $type) {
+        pub unsafe fn $name(
+            num_els_in: usize,
+            num_els_out: usize,
+            num_dims: usize,
+            metadata: *const usize,
+            inp: *const $type,
+            out: *mut $type,
+        ) {
             let input_dims = std::slice::from_raw_parts(metadata, num_dims);
             let input_strides = std::slice::from_raw_parts(metadata.add(num_dims), num_dims);
             let input_offset = *metadata.add(2 * num_dims);
@@ -140,72 +150,75 @@ macro_rules! pad_with_reflection_op {
 
             // Create chunks of work for better parallelism
             let chunk_size = (num_els_out / rayon::current_num_threads()) + 1;
-            output_vec.par_chunks_mut(chunk_size).enumerate().for_each(|(chunk_idx, chunk)| {
-                let start_idx = chunk_idx * chunk_size;
-                for (local_idx, out_val) in chunk.iter_mut().enumerate() {
-                    let i = start_idx + local_idx;
-                    if i >= num_els_out {
-                        break;
-                    }
-
-                    // Calculate coordinates in output tensor
-                    let mut out_coords = vec![0; num_dims];
-                    let mut tmp_i = i;
-                    for d in (0..num_dims).rev() {
-                        out_coords[d] = tmp_i % output_dims[d];
-                        tmp_i /= output_dims[d];
-                    }
-
-                    // Calculate corresponding coordinates in input tensor with reflection
-                    let mut in_coords = vec![0; num_dims];
-                    for d in 0..num_dims {
-                        let pad_before = paddings[d * 2] as isize;
-                        let dim_size = input_dims[d] as isize;
-                        // Get position relative to the padded area
-                        let mut pos = out_coords[d] as isize - pad_before;
-                        // Apply correct reflection padding
-                        // For positions outside the input bounds
-                        if pos < 0 {
-                            // Reflection logic for negative positions
-                            pos = -pos; // First reflection at 0
-                        } else if pos >= dim_size {
-                            // Reflection logic for positions beyond last element
-                            pos = 2 * dim_size - pos - 2; // Reflection at (dim_size-1)
+            output_vec
+                .par_chunks_mut(chunk_size)
+                .enumerate()
+                .for_each(|(chunk_idx, chunk)| {
+                    let start_idx = chunk_idx * chunk_size;
+                    for (local_idx, out_val) in chunk.iter_mut().enumerate() {
+                        let i = start_idx + local_idx;
+                        if i >= num_els_out {
+                            break;
                         }
-                        // Handle multiple reflections if needed
-                        while pos < 0 || pos >= dim_size {
-                            if pos < 0 {
-                                pos = -pos; // Reflect at 0
-                            } else if pos >= dim_size {
-                                pos = 2 * dim_size - pos - 2; // Reflect at (dim_size-1)
-                            }
-                        }
-                        in_coords[d] = pos as usize;
-                    }
 
-                    // Calculate index for input
-                    let in_idx = if is_input_contiguous {
-                        // Calculate linear index for contiguous input
-                        let mut idx = 0;
-                        let mut stride = 1;
+                        // Calculate coordinates in output tensor
+                        let mut out_coords = vec![0; num_dims];
+                        let mut tmp_i = i;
                         for d in (0..num_dims).rev() {
-                            idx += in_coords[d] * stride;
-                            stride *= input_dims[d];
+                            out_coords[d] = tmp_i % output_dims[d];
+                            tmp_i /= output_dims[d];
                         }
-                        idx
-                    } else {
-                        // Calculate strided index
-                        let mut idx = 0;
-                        for d in 0..num_dims {
-                            idx += in_coords[d] * input_strides[d];
-                        }
-                        idx
-                    };
 
-                    // Copy value from input to output
-                    *out_val = input_vec[in_idx];
-                }
-            });
+                        // Calculate corresponding coordinates in input tensor with reflection
+                        let mut in_coords = vec![0; num_dims];
+                        for d in 0..num_dims {
+                            let pad_before = paddings[d * 2] as isize;
+                            let dim_size = input_dims[d] as isize;
+                            // Get position relative to the padded area
+                            let mut pos = out_coords[d] as isize - pad_before;
+                            // Apply correct reflection padding
+                            // For positions outside the input bounds
+                            if pos < 0 {
+                                // Reflection logic for negative positions
+                                pos = -pos; // First reflection at 0
+                            } else if pos >= dim_size {
+                                // Reflection logic for positions beyond last element
+                                pos = 2 * dim_size - pos - 2; // Reflection at (dim_size-1)
+                            }
+                            // Handle multiple reflections if needed
+                            while pos < 0 || pos >= dim_size {
+                                if pos < 0 {
+                                    pos = -pos; // Reflect at 0
+                                } else if pos >= dim_size {
+                                    pos = 2 * dim_size - pos - 2; // Reflect at (dim_size-1)
+                                }
+                            }
+                            in_coords[d] = pos as usize;
+                        }
+
+                        // Calculate index for input
+                        let in_idx = if is_input_contiguous {
+                            // Calculate linear index for contiguous input
+                            let mut idx = 0;
+                            let mut stride = 1;
+                            for d in (0..num_dims).rev() {
+                                idx += in_coords[d] * stride;
+                                stride *= input_dims[d];
+                            }
+                            idx
+                        } else {
+                            // Calculate strided index
+                            let mut idx = 0;
+                            for d in 0..num_dims {
+                                idx += in_coords[d] * input_strides[d];
+                            }
+                            idx
+                        };
+
+                        // Copy value from input to output
+                        *out_val = input_vec[in_idx];
+                    }
+                });
 
             // Copy back to output pointer
             std::ptr::copy_nonoverlapping(output_vec.as_ptr(), out, num_els_out);
@@ -228,7 +241,14 @@ macro_rules! pad_with_replication_op {
         /// * `out` must be a valid pointer to an array of at least `num_els_out` elements
         /// * The alignment requirements of the type must be respected
         /// * All array indices calculated must be in bounds
-        pub unsafe fn $name(num_els_in: usize, num_els_out: usize, num_dims: usize, metadata: *const usize, inp: *const $type, out: *mut $type) {
+        pub unsafe fn $name(
+            num_els_in: usize,
+            num_els_out: usize,
+            num_dims: usize,
+            metadata: *const usize,
+            inp: *const $type,
+            out: *mut $type,
+        ) {
             let input_dims = std::slice::from_raw_parts(metadata, num_dims);
             let input_strides = std::slice::from_raw_parts(metadata.add(num_dims), num_dims);
             let input_offset = *metadata.add(2 * num_dims);
@@ -244,55 +264,58 @@ macro_rules! pad_with_replication_op {
 
             // Create chunks of work for better parallelism
             let chunk_size = (num_els_out / rayon::current_num_threads()) + 1;
-            output_vec.par_chunks_mut(chunk_size).enumerate().for_each(|(chunk_idx, chunk)| {
-                let start_idx = chunk_idx * chunk_size;
-                for (local_idx, out_val) in chunk.iter_mut().enumerate() {
-                    let i = start_idx + local_idx;
-                    if i >= num_els_out {
-                        break;
-                    }
+            output_vec
+                .par_chunks_mut(chunk_size)
+                .enumerate()
+                .for_each(|(chunk_idx, chunk)| {
+                    let start_idx = chunk_idx * chunk_size;
+                    for (local_idx, out_val) in chunk.iter_mut().enumerate() {
+                        let i = start_idx + local_idx;
+                        if i >= num_els_out {
+                            break;
+                        }
 
-                    // Calculate coordinates in output tensor
-                    let mut out_coords = vec![0; num_dims];
-                    let mut tmp_i = i;
-                    for d in (0..num_dims).rev() {
-                        out_coords[d] = tmp_i % output_dims[d];
-                        tmp_i /= output_dims[d];
-                    }
-
-                    // Calculate corresponding coordinates in input tensor with replication
-                    let mut in_coords = vec![0; num_dims];
-                    for d in 0..num_dims {
-                        let pad_before = paddings[d * 2];
-                        let mut pos = out_coords[d] as isize - pad_before as isize;
-                        // Apply replication (clamp to valid range)
-                        pos = max(0, min(pos, input_dims[d] as isize - 1));
-                        in_coords[d] = pos as usize;
-                    }
-
-                    // Calculate index for input
-                    let in_idx = if is_input_contiguous {
-                        // Calculate linear index for contiguous input
-                        let mut idx = 0;
-                        let mut stride = 1;
+                        // Calculate coordinates in output tensor
+                        let mut out_coords = vec![0; num_dims];
+                        let mut tmp_i = i;
                         for d in (0..num_dims).rev() {
-                            idx += in_coords[d] * stride;
-                            stride *= input_dims[d];
+                            out_coords[d] = tmp_i % output_dims[d];
+                            tmp_i /= output_dims[d];
                         }
-                        idx
-                    } else {
-                        // Calculate strided index
-                        let mut idx = 0;
-                        for d in 0..num_dims {
-                            idx += in_coords[d] * input_strides[d];
-                        }
-                        idx
-                    };
 
-                    // Copy value from input to output
-                    *out_val = input_vec[in_idx];
-                }
-            });
+                        // Calculate corresponding coordinates in input tensor with replication
+                        let mut in_coords = vec![0; num_dims];
+                        for d in 0..num_dims {
+                            let pad_before = paddings[d * 2];
+                            let mut pos = out_coords[d] as isize - pad_before as isize;
+                            // Apply replication (clamp to valid range)
+                            pos = max(0, min(pos, input_dims[d] as isize - 1));
+                            in_coords[d] = pos as usize;
+                        }
+
+                        // Calculate index for input
+                        let in_idx = if is_input_contiguous {
+                            // Calculate linear index for contiguous input
+                            let mut idx = 0;
+                            let mut stride = 1;
+                            for d in (0..num_dims).rev() {
+                                idx += in_coords[d] * stride;
+                                stride *= input_dims[d];
+                            }
+                            idx
+                        } else {
+                            // Calculate strided index
+                            let mut idx = 0;
+                            for d in 0..num_dims {
+                                idx += in_coords[d] * input_strides[d];
+                            }
+                            idx
+                        };
+
+                        // Copy value from input to output
+                        *out_val = input_vec[in_idx];
+                    }
+                });
 
             // Copy back to output pointer
             std::ptr::copy_nonoverlapping(output_vec.as_ptr(), out, num_els_out);
@@ -343,64 +366,67 @@ macro_rules! pad_with_constant_backward_op {
             // Use Arc<Mutex<Vec>> for thread-safe accumulation
             let grad_input_shared = Arc::new(Mutex::new(grad_input_vec));
 
-            (0..num_els_out).into_par_iter().chunks(chunk_size).for_each(|chunk| {
-                // Local accumulation buffer to minimize mutex contention
-                let mut local_grad_input = vec![$zero; num_els_in];
+            (0..num_els_out)
+                .into_par_iter()
+                .chunks(chunk_size)
+                .for_each(|chunk| {
+                    // Local accumulation buffer to minimize mutex contention
+                    let mut local_grad_input = vec![$zero; num_els_in];
 
-                for i in chunk {
-                    // Calculate coordinates in output tensor
-                    let mut out_coords = vec![0; num_dims];
-                    let mut tmp_i = i;
-                    for d in (0..num_dims).rev() {
-                        out_coords[d] = tmp_i % output_dims[d];
-                        tmp_i /= output_dims[d];
-                    }
+                    for i in chunk {
+                        // Calculate coordinates in output tensor
+                        let mut out_coords = vec![0; num_dims];
+                        let mut tmp_i = i;
+                        for d in (0..num_dims).rev() {
+                            out_coords[d] = tmp_i % output_dims[d];
+                            tmp_i /= output_dims[d];
+                        }
 
-                    // Calculate corresponding coordinates in input tensor
-                    let mut in_bounds = true;
-                    let mut in_coords = vec![0; num_dims];
-                    for d in 0..num_dims {
-                        let pad_before = paddings[d * 2];
-                        in_coords[d] = out_coords[d] as isize - pad_before as isize;
-                        // Check if this coordinate is within input bounds
-                        if in_coords[d] < 0 || in_coords[d] >= input_dims[d] as isize {
-                            in_bounds = false;
-                            break;
+                        // Calculate corresponding coordinates in input tensor
+                        let mut in_bounds = true;
+                        let mut in_coords = vec![0; num_dims];
+                        for d in 0..num_dims {
+                            let pad_before = paddings[d * 2];
+                            in_coords[d] = out_coords[d] as isize - pad_before as isize;
+                            // Check if this coordinate is within input bounds
+                            if in_coords[d] < 0 || in_coords[d] >= input_dims[d] as isize {
+                                in_bounds = false;
+                                break;
+                            }
+                        }
+
+                        // If within bounds, accumulate gradient
+                        if in_bounds {
+                            // Calculate index for input
+                            let in_idx = if is_input_contiguous {
+                                // Calculate linear index for contiguous input
+                                let mut idx = 0;
+                                let mut stride = 1;
+                                for d in (0..num_dims).rev() {
+                                    idx += in_coords[d] as usize * stride;
+                                    stride *= input_dims[d];
+                                }
+                                idx
+                            } else {
+                                // Calculate strided index
+                                let mut idx = 0;
+                                for d in 0..num_dims {
+                                    idx += in_coords[d] as usize * input_strides[d];
+                                }
+                                idx
+                            };
+
+                            // Accumulate in local buffer
+                            local_grad_input[in_idx] += grad_output_vec[i];
                         }
                     }
 
-                    // If within bounds, accumulate gradient
-                    if in_bounds {
-                        // Calculate index for input
-                        let in_idx = if is_input_contiguous {
-                            // Calculate linear index for contiguous input
-                            let mut idx = 0;
-                            let mut stride = 1;
-                            for d in (0..num_dims).rev() {
-                                idx += in_coords[d] as usize * stride;
-                                stride *= input_dims[d];
-                            }
-                            idx
-                        } else {
-                            // Calculate strided index
-                            let mut idx = 0;
-                            for d in 0..num_dims {
-                                idx += in_coords[d] as usize * input_strides[d];
-                            }
-                            idx
-                        };
-
-                        // Accumulate in local buffer
-                        local_grad_input[in_idx] += grad_output_vec[i];
+                    // Merge local results into shared buffer
+                    let mut shared_grad = grad_input_shared.lock().unwrap();
+                    for (i, val) in local_grad_input.iter().enumerate() {
+                        shared_grad[i] += *val;
                     }
-                }
-
-                // Merge local results into shared buffer
-                let mut shared_grad = grad_input_shared.lock().unwrap();
-                for (i, val) in local_grad_input.iter().enumerate() {
-                    shared_grad[i] += *val;
-                }
-            });
+                });
 
             // Copy results back to grad_in, including offset
             let final_grad = grad_input_shared.lock().unwrap();
@@ -451,75 +477,78 @@ macro_rules! pad_with_reflection_backward_op {
             // Create chunks of work for better parallelism
             let chunk_size = (num_els_out / rayon::current_num_threads()) + 1;
 
-            (0..num_els_out).into_par_iter().chunks(chunk_size).for_each(|chunk| {
-                // Local accumulation buffer to minimize mutex contention
-                let mut local_grad_input = vec![$zero; num_els_in];
+            (0..num_els_out)
+                .into_par_iter()
+                .chunks(chunk_size)
+                .for_each(|chunk| {
+                    // Local accumulation buffer to minimize mutex contention
+                    let mut local_grad_input = vec![$zero; num_els_in];
 
-                for i in chunk {
-                    // Calculate coordinates in output tensor
-                    let mut out_coords = vec![0; num_dims];
-                    let mut tmp_i = i;
-                    for d in (0..num_dims).rev() {
-                        out_coords[d] = tmp_i % output_dims[d];
-                        tmp_i /= output_dims[d];
-                    }
-
-                    // Calculate corresponding coordinates in input tensor with reflection
-                    let mut in_coords = vec![0; num_dims];
-                    for d in 0..num_dims {
-                        let pad_before = paddings[d * 2] as isize;
-                        let dim_size = input_dims[d] as isize;
-                        // Get position relative to the padded area
-                        let mut pos = out_coords[d] as isize - pad_before;
-                        // Apply correct reflection padding
-                        // Basic reflection algorithm
-                        if pos < 0 {
-                            // Reflection for positions before array start
-                            pos = -pos; // First reflection at 0
-                        } else if pos >= dim_size {
-                            // Reflection for positions after array end
-                            pos = 2 * dim_size - pos - 2; // Reflect at (dim_size-1)
+                    for i in chunk {
+                        // Calculate coordinates in output tensor
+                        let mut out_coords = vec![0; num_dims];
+                        let mut tmp_i = i;
+                        for d in (0..num_dims).rev() {
+                            out_coords[d] = tmp_i % output_dims[d];
+                            tmp_i /= output_dims[d];
                         }
-                        // Handle multiple reflections if needed
-                        while pos < 0 || pos >= dim_size {
+
+                        // Calculate corresponding coordinates in input tensor with reflection
+                        let mut in_coords = vec![0; num_dims];
+                        for d in 0..num_dims {
+                            let pad_before = paddings[d * 2] as isize;
+                            let dim_size = input_dims[d] as isize;
+                            // Get position relative to the padded area
+                            let mut pos = out_coords[d] as isize - pad_before;
+                            // Apply correct reflection padding
+                            // Basic reflection algorithm
                             if pos < 0 {
-                                pos = -pos; // Reflect at 0
+                                // Reflection for positions before array start
+                                pos = -pos; // First reflection at 0
                             } else if pos >= dim_size {
+                                // Reflection for positions after array end
                                 pos = 2 * dim_size - pos - 2; // Reflect at (dim_size-1)
                             }
+                            // Handle multiple reflections if needed
+                            while pos < 0 || pos >= dim_size {
+                                if pos < 0 {
+                                    pos = -pos; // Reflect at 0
+                                } else if pos >= dim_size {
+                                    pos = 2 * dim_size - pos - 2; // Reflect at (dim_size-1)
+                                }
+                            }
+                            in_coords[d] = pos as usize;
                         }
-                        in_coords[d] = pos as usize;
+
+                        // Calculate index for input
+                        let in_idx = if is_input_contiguous {
+                            // Calculate linear index for contiguous input
+                            let mut idx = 0;
+                            let mut stride = 1;
+                            for d in (0..num_dims).rev() {
+                                idx += in_coords[d] * stride;
+                                stride *= input_dims[d];
+                            }
+                            idx
+                        } else {
+                            // Calculate strided index
+                            let mut idx = 0;
+                            for d in 0..num_dims {
+                                idx += in_coords[d] * input_strides[d];
+                            }
+                            idx
+                        };
+
+                        // Accumulate in local buffer
+                        local_grad_input[in_idx] += grad_output_vec[i];
                     }
 
-                    // Calculate index for input
-                    let in_idx = if is_input_contiguous {
-                        // Calculate linear index for contiguous input
-                        let mut idx = 0;
-                        let mut stride = 1;
-                        for d in (0..num_dims).rev() {
-                            idx += in_coords[d] * stride;
-                            stride *= input_dims[d];
-                        }
-                        idx
-                    } else {
-                        // Calculate strided index
-                        let mut idx = 0;
-                        for d in 0..num_dims {
-                            idx += in_coords[d] * input_strides[d];
-                        }
-                        idx
-                    };
-
-                    // Accumulate in local buffer
-                    local_grad_input[in_idx] += grad_output_vec[i];
-                }
-
-                // Merge local results into shared buffer
-                let mut shared_grad = grad_input_shared.lock().unwrap();
-                for (i, val) in local_grad_input.iter().enumerate() {
-                    shared_grad[i] += *val;
-                }
-            });
+                    // Merge local results into shared buffer
+                    let mut shared_grad = grad_input_shared.lock().unwrap();
+                    for (i, val) in local_grad_input.iter().enumerate() {
+                        shared_grad[i] += *val;
+                    }
+                });
 
             // Copy results back to grad_in, including offset
             let final_grad = grad_input_shared.lock().unwrap();
@@ -570,58 +599,61 @@ macro_rules! pad_with_replication_backward_op {
             // Create chunks of work for better parallelism
             let chunk_size = (num_els_out / rayon::current_num_threads()) + 1;
 
-            (0..num_els_out).into_par_iter().chunks(chunk_size).for_each(|chunk| {
-                // Local accumulation buffer to minimize mutex contention
-                let mut local_grad_input = vec![$zero; num_els_in];
+            (0..num_els_out)
+                .into_par_iter()
+                .chunks(chunk_size)
+                .for_each(|chunk| {
+                    // Local accumulation buffer to minimize mutex contention
+                    let mut local_grad_input = vec![$zero; num_els_in];
 
-                for i in chunk {
-                    // Calculate coordinates in output tensor
-                    let mut out_coords = vec![0; num_dims];
-                    let mut tmp_i = i;
-                    for d in (0..num_dims).rev() {
-                        out_coords[d] = tmp_i % output_dims[d];
-                        tmp_i /= output_dims[d];
-                    }
-
-                    // Calculate corresponding coordinates in input tensor with replication
-                    let mut in_coords = vec![0; num_dims];
-                    for d in 0..num_dims {
-                        let pad_before = paddings[d * 2];
-                        let mut pos = out_coords[d] as isize - pad_before as isize;
-                        // Apply replication (clamp to valid range)
-                        pos = max(0, min(pos, input_dims[d] as isize - 1));
-                        in_coords[d] = pos as usize;
-                    }
-
-                    // Calculate index for input
-                    let in_idx = if is_input_contiguous {
-                        // Calculate linear index for contiguous input
-                        let mut idx = 0;
-                        let mut stride = 1;
+                    for i in chunk {
+                        // Calculate coordinates in output tensor
+                        let mut out_coords = vec![0; num_dims];
+                        let mut tmp_i = i;
                         for d in (0..num_dims).rev() {
-                            idx += in_coords[d] * stride;
-                            stride *= input_dims[d];
+                            out_coords[d] = tmp_i % output_dims[d];
+                            tmp_i /= output_dims[d];
                         }
-                        idx
-                    } else {
-                        // Calculate strided index
-                        let mut idx = 0;
+
+                        // Calculate corresponding coordinates in input tensor with replication
+                        let mut in_coords = vec![0; num_dims];
                         for d in 0..num_dims {
-                            idx += in_coords[d] * input_strides[d];
+                            let pad_before = paddings[d * 2];
+                            let mut pos = out_coords[d] as isize - pad_before as isize;
+                            // Apply replication (clamp to valid range)
+                            pos = max(0, min(pos, input_dims[d] as isize - 1));
+                            in_coords[d] = pos as usize;
                         }
-                        idx
-                    };
 
-                    // Accumulate in local buffer
-                    local_grad_input[in_idx] += grad_output_vec[i];
-                }
+                        // Calculate index for input
+                        let in_idx = if is_input_contiguous {
+                            // Calculate linear index for contiguous input
+                            let mut idx = 0;
+                            let mut stride = 1;
+                            for d in (0..num_dims).rev() {
+                                idx += in_coords[d] * stride;
+                                stride *= input_dims[d];
+                            }
+                            idx
+                        } else {
+                            // Calculate strided index
+                            let mut idx = 0;
+                            for d in 0..num_dims {
+                                idx += in_coords[d] * input_strides[d];
+                            }
+                            idx
+                        };
 
-                // Merge local results into shared buffer
-                let mut shared_grad = grad_input_shared.lock().unwrap();
-                for (i, val) in local_grad_input.iter().enumerate() {
-                    shared_grad[i] += *val;
-                }
-            });
+                        // Accumulate in local buffer
+                        local_grad_input[in_idx] += grad_output_vec[i];
+                    }
+
+                    // Merge local results into shared buffer
+                    let mut shared_grad = grad_input_shared.lock().unwrap();
+                    for (i, val) in local_grad_input.iter().enumerate() {
+                        shared_grad[i] += *val;
+                    }
+                });
 
             // Copy results back to grad_in, including offset
             let final_grad = grad_input_shared.lock().unwrap();

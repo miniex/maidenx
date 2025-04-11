@@ -26,7 +26,13 @@ impl LayerNorm {
         Self::new_with_spec(normalized_shape, with_bias, eps, device, dtype)
     }
 
-    pub fn new_with_spec(normalized_shape: Vec<usize>, with_bias: bool, eps: f32, device: Device, dtype: DType) -> Result<Self> {
+    pub fn new_with_spec(
+        normalized_shape: Vec<usize>,
+        with_bias: bool,
+        eps: f32,
+        device: Device,
+        dtype: DType,
+    ) -> Result<Self> {
         // Initialize weight with ones
         let mut w = Tensor::ones_with_spec(&normalized_shape, device, dtype)?;
         w.with_grad()?;

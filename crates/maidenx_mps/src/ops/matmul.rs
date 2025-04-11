@@ -13,7 +13,13 @@ macro_rules! implement_matmul {
         /// - num_els correctly describes the output dimensions
         /// - metadata buffer contains valid shape and stride information for both matrices
         /// - All pointers and memory access are valid for the entire operation
-        pub unsafe fn $fn_name(num_els: usize, metadata: *const c_void, a: *const c_void, b: *const c_void, c: *const c_void) {
+        pub unsafe fn $fn_name(
+            num_els: usize,
+            metadata: *const c_void,
+            a: *const c_void,
+            b: *const c_void,
+            c: *const c_void,
+        ) {
             if let Err(e) = initialize_ops() {
                 eprintln!("Failed to initialize matmul ops: {:?}", e);
                 return;
@@ -25,7 +31,7 @@ macro_rules! implement_matmul {
                 None => {
                     eprintln!("Failed to get Metal buffer for 'a' pointer");
                     return;
-                }
+                },
             };
 
             let b_buffer = match get_buffer_from_map(b as *mut c_void) {
@@ -33,7 +39,7 @@ macro_rules! implement_matmul {
                 None => {
                     eprintln!("Failed to get Metal buffer for 'b' pointer");
                     return;
-                }
+                },
             };
 
             let c_buffer = match get_buffer_from_map(c as *mut c_void) {
@@ -41,7 +47,7 @@ macro_rules! implement_matmul {
                 None => {
                     eprintln!("Failed to get Metal buffer for 'c' pointer");
                     return;
-                }
+                },
             };
 
             // Get metadata buffer if provided
@@ -51,7 +57,7 @@ macro_rules! implement_matmul {
                     None => {
                         eprintln!("Failed to get Metal buffer for metadata pointer");
                         return;
-                    }
+                    },
                 }
             } else {
                 None
@@ -130,7 +136,7 @@ macro_rules! implement_matmul_backward {
                 None => {
                     eprintln!("Failed to get Metal buffer for grad_output pointer");
                     return;
-                }
+                },
             };
 
             let a_buffer = match get_buffer_from_map(a as *mut c_void) {
@@ -138,7 +144,7 @@ macro_rules! implement_matmul_backward {
                 None => {
                     eprintln!("Failed to get Metal buffer for 'a' pointer");
                     return;
-                }
+                },
             };
 
             let b_buffer = match get_buffer_from_map(b as *mut c_void) {
@@ -146,7 +152,7 @@ macro_rules! implement_matmul_backward {
                 None => {
                     eprintln!("Failed to get Metal buffer for 'b' pointer");
                     return;
-                }
+                },
             };
 
             let grad_a_buffer = if !grad_a.is_null() {
@@ -155,7 +161,7 @@ macro_rules! implement_matmul_backward {
                     None => {
                         eprintln!("Failed to get Metal buffer for grad_a pointer");
                         return;
-                    }
+                    },
                 }
             } else {
                 None
@@ -167,7 +173,7 @@ macro_rules! implement_matmul_backward {
                     None => {
                         eprintln!("Failed to get Metal buffer for grad_b pointer");
                         return;
-                    }
+                    },
                 }
             } else {
                 None
@@ -180,7 +186,7 @@ macro_rules! implement_matmul_backward {
                     None => {
                         eprintln!("Failed to get Metal buffer for metadata pointer");
                         return;
-                    }
+                    },
                 }
             } else {
                 None
@@ -273,7 +279,13 @@ macro_rules! implement_dummy_matmul {
         ///
         /// This is a dummy function for 64-bit matrix multiplication in MPS which is not supported.
         /// It's unsafe to maintain the same signature as the actual implementation.
-        pub unsafe fn $fn_name(_num_els: usize, _metadata: *const c_void, _a: *const c_void, _b: *const c_void, _c: *const c_void) {
+        pub unsafe fn $fn_name(
+            _num_els: usize,
+            _metadata: *const c_void,
+            _a: *const c_void,
+            _b: *const c_void,
+            _c: *const c_void,
+        ) {
             eprintln!("MPS does not support 64-bit {} operations", stringify!($fn_name));
         }
     };

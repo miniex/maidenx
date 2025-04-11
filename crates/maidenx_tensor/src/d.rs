@@ -4,7 +4,13 @@ use std::fmt;
 
 macro_rules! impl_display_for_type {
     ($val_type:ty, $format:expr) => {
-        fn display_tensor_data(f: &mut fmt::Formatter<'_>, data: &[$val_type], stride: usize, shape: &[usize], depth: usize) -> fmt::Result {
+        fn display_tensor_data(
+            f: &mut fmt::Formatter<'_>,
+            data: &[$val_type],
+            stride: usize,
+            shape: &[usize],
+            depth: usize,
+        ) -> fmt::Result {
             match shape.len() {
                 0 => write!(f, "{}", data[0]),
                 1 => {
@@ -16,18 +22,24 @@ macro_rules! impl_display_for_type {
                         write!(f, $format, val)?;
                     }
                     write!(f, "]")
-                }
+                },
                 _ => {
                     let sub_stride = stride / shape[0];
                     write!(f, "[")?;
                     for i in 0..shape[0] {
-                        display_tensor_data(f, &data[i * sub_stride..(i + 1) * sub_stride], sub_stride, &shape[1..], depth + 1)?;
+                        display_tensor_data(
+                            f,
+                            &data[i * sub_stride..(i + 1) * sub_stride],
+                            sub_stride,
+                            &shape[1..],
+                            depth + 1,
+                        )?;
                         if i < shape[0] - 1 {
                             write!(f, ", ")?;
                         }
                     }
                     write!(f, "]")
-                }
+                },
             }
         }
     };
@@ -88,7 +100,7 @@ impl fmt::Debug for Tensor {
                 Ok(Some(grad)) => {
                     write!(f, ", grad=")?;
                     fmt::Display::fmt(&grad, f)?;
-                }
+                },
                 Ok(None) => write!(f, ", grad=None")?,
                 Err(_) => write!(f, ", grad=<locked>")?,
             }

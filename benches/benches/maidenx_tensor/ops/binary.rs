@@ -47,7 +47,7 @@ fn run_benchmark(
                     Ok(())
                 })
             });
-        }
+        },
         "sub" => {
             group.bench_function(&bench_name, |b| {
                 b.iter(|| -> Result<()> {
@@ -57,7 +57,7 @@ fn run_benchmark(
                     Ok(())
                 })
             });
-        }
+        },
         "mul" => {
             group.bench_function(&bench_name, |b| {
                 b.iter(|| -> Result<()> {
@@ -67,7 +67,7 @@ fn run_benchmark(
                     Ok(())
                 })
             });
-        }
+        },
         "div" => {
             group.bench_function(&bench_name, |b| {
                 b.iter(|| -> Result<()> {
@@ -77,7 +77,7 @@ fn run_benchmark(
                     Ok(())
                 })
             });
-        }
+        },
 
         // Inplace arithmetic operations
         "add_" => {
@@ -89,7 +89,7 @@ fn run_benchmark(
                     Ok(())
                 })
             });
-        }
+        },
         "sub_" => {
             group.bench_function(&bench_name, |b| {
                 b.iter(|| -> Result<()> {
@@ -99,7 +99,7 @@ fn run_benchmark(
                     Ok(())
                 })
             });
-        }
+        },
         "mul_" => {
             group.bench_function(&bench_name, |b| {
                 b.iter(|| -> Result<()> {
@@ -109,17 +109,18 @@ fn run_benchmark(
                     Ok(())
                 })
             });
-        }
+        },
         "div_" => {
             group.bench_function(&bench_name, |b| {
                 b.iter(|| -> Result<()> {
-                    let mut x = setup_bench_tensor(generate_data(size).iter().map(|v| v + 2.0).collect(), device, dtype)?;
+                    let mut x =
+                        setup_bench_tensor(generate_data(size).iter().map(|v| v + 2.0).collect(), device, dtype)?;
                     let y = setup_bench_tensor(generate_data(size).iter().map(|v| v + 1.0).collect(), device, dtype)?;
                     black_box(x.div_(&y))?;
                     Ok(())
                 })
             });
-        }
+        },
 
         // Logical operations
         "logical_and" => {
@@ -131,7 +132,7 @@ fn run_benchmark(
                     Ok(())
                 })
             });
-        }
+        },
         "logical_or" => {
             group.bench_function(&bench_name, |b| {
                 b.iter(|| -> Result<()> {
@@ -141,7 +142,7 @@ fn run_benchmark(
                     Ok(())
                 })
             });
-        }
+        },
         "logical_xor" => {
             group.bench_function(&bench_name, |b| {
                 b.iter(|| -> Result<()> {
@@ -151,7 +152,7 @@ fn run_benchmark(
                     Ok(())
                 })
             });
-        }
+        },
 
         // Comparison operations
         "eq" => {
@@ -163,7 +164,7 @@ fn run_benchmark(
                     Ok(())
                 })
             });
-        }
+        },
         "ne" => {
             group.bench_function(&bench_name, |b| {
                 b.iter(|| -> Result<()> {
@@ -173,7 +174,7 @@ fn run_benchmark(
                     Ok(())
                 })
             });
-        }
+        },
         "lt" => {
             group.bench_function(&bench_name, |b| {
                 b.iter(|| -> Result<()> {
@@ -183,7 +184,7 @@ fn run_benchmark(
                     Ok(())
                 })
             });
-        }
+        },
         "le" => {
             group.bench_function(&bench_name, |b| {
                 b.iter(|| -> Result<()> {
@@ -193,7 +194,7 @@ fn run_benchmark(
                     Ok(())
                 })
             });
-        }
+        },
         "gt" => {
             group.bench_function(&bench_name, |b| {
                 b.iter(|| -> Result<()> {
@@ -203,7 +204,7 @@ fn run_benchmark(
                     Ok(())
                 })
             });
-        }
+        },
         "ge" => {
             group.bench_function(&bench_name, |b| {
                 b.iter(|| -> Result<()> {
@@ -213,7 +214,7 @@ fn run_benchmark(
                     Ok(())
                 })
             });
-        }
+        },
         _ => panic!("Unknown operation: {}", op_name),
     }
 }

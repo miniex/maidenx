@@ -19,8 +19,8 @@ impl Default for MaidenXManifest {
                     if !path.exists() {
                         panic!("No Cargo manifest found for crate. Expected: {}", path.display());
                     }
-                    let manifest =
-                        std::fs::read_to_string(path.clone()).unwrap_or_else(|_| panic!("Unable to read cargo manifest: {}", path.display()));
+                    let manifest = std::fs::read_to_string(path.clone())
+                        .unwrap_or_else(|_| panic!("Unable to read cargo manifest: {}", path.display()));
                     manifest
                         .parse::<DocumentMut>()
                         .unwrap_or_else(|_| panic!("Failed to parse cargo manifest: {}", path.display()))
@@ -74,7 +74,8 @@ impl MaidenXManifest {
     pub fn get_path(&self, name: &str) -> syn::Path {
         let sanitized_name = name.replace('-', "_");
 
-        self.maybe_get_path(&sanitized_name).unwrap_or_else(|| Self::parse_str(&sanitized_name))
+        self.maybe_get_path(&sanitized_name)
+            .unwrap_or_else(|| Self::parse_str(&sanitized_name))
     }
 
     pub fn try_parse_str<T: syn::parse::Parse>(path: &str) -> Option<T> {

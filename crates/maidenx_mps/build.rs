@@ -131,4 +131,3 @@ fn create_metallib(air_files: &[PathBuf], output: &Path) {
         panic!("Failed to create metallib: {}", output.display());
     }
 }
-

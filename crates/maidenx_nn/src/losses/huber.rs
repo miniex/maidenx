@@ -29,7 +29,9 @@ impl HuberLoss {
         let quadratic_loss = diff.pow(2.0)?.div_scalar(2.0)?;
 
         // Compute linear terms for large differences
-        let linear_loss = abs_diff.mul_scalar(self.delta)?.sub_scalar(self.delta.powi(2) / Scalar::new(2))?;
+        let linear_loss = abs_diff
+            .mul_scalar(self.delta)?
+            .sub_scalar(self.delta.powi(2) / Scalar::new(2))?;
 
         // Create mask for selecting between quadratic and linear terms
         let mask = abs_diff.le_scalar(self.delta)?.to_dtype(abs_diff.dtype())?;

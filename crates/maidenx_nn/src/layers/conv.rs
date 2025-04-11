@@ -128,7 +128,16 @@ impl Conv2d {
         let device = get_default_device();
         let dtype = get_default_dtype();
 
-        Self::new_with_spec(in_channels, out_channels, kernel_size, stride, padding, with_bias, device, dtype)
+        Self::new_with_spec(
+            in_channels,
+            out_channels,
+            kernel_size,
+            stride,
+            padding,
+            with_bias,
+            device,
+            dtype,
+        )
     }
 
     pub fn new_with_spec(
@@ -144,7 +153,11 @@ impl Conv2d {
         let k: f32 = 1.0 / ((in_channels * kernel_size.0 * kernel_size.1) as f32).sqrt();
 
         // weight
-        let mut w = Tensor::randn_with_spec(&[out_channels, in_channels, kernel_size.0, kernel_size.1], device, dtype)?;
+        let mut w = Tensor::randn_with_spec(
+            &[out_channels, in_channels, kernel_size.0, kernel_size.1],
+            device,
+            dtype,
+        )?;
         w.with_grad()?;
         w.mul_scalar(k)?;
 
@@ -226,10 +239,14 @@ impl Conv2d {
                 let mut grads = Vec::new();
 
                 if input.requires_grad() {
-                    let weight_matrix = weight.reshape(&[weight.shape()[0], weight.shape()[1] * weight.shape()[2] * weight.shape()[3]])?;
+                    let weight_matrix = weight.reshape(&[
+                        weight.shape()[0],
+                        weight.shape()[1] * weight.shape()[2] * weight.shape()[3],
+                    ])?;
 
                     let grad_reshaped = grad_out.transpose(2, 3)?.transpose(1, 3)?;
-                    let grad_flat = grad_reshaped.reshape(&[grad_out.shape()[0] * output_height * output_width, grad_out.shape()[1]])?;
+                    let grad_flat = grad_reshaped
+                        .reshape(&[grad_out.shape()[0] * output_height * output_width, grad_out.shape()[1]])?;
 
                     let grad_cols = grad_flat.matmul(&weight_matrix)?;
 
@@ -253,10 +270,12 @@ impl Conv2d {
 
                 if weight.requires_grad() {
                     let grad_reshaped = grad_out.transpose(2, 3)?.transpose(1, 3)?;
-                    let grad_flat = grad_reshaped.reshape(&[grad_out.shape()[0] * output_height * output_width, grad_out.shape()[1]])?;
+                    let grad_flat = grad_reshaped
+                        .reshape(&[grad_out.shape()[0] * output_height * output_width, grad_out.shape()[1]])?;
 
                     let grad_weight = cols.transpose(-1, -2)?.matmul(&grad_flat)?;
-                    let grad_weight = grad_weight.reshape(&[weight.shape()[0], weight.shape()[1], kernel_size.0, kernel_size.1])?;
+                    let grad_weight =
+                        grad_weight.reshape(&[weight.shape()[0], weight.shape()[1], kernel_size.0, kernel_size.1])?;
                     grads.push(grad_weight);
                 } else {
                     grads.push(Tensor::zeros_like(weight)?);
@@ -323,7 +342,10 @@ mod conv2d {
         stride: (usize, usize),
         padding: (usize, usize),
     ) -> Result<Tensor> {
-        let cols_shape = [batch_size * output_height * output_width, channels * kernel_size.0 * kernel_size.1];
+        let cols_shape = [
+            batch_size * output_height * output_width,
+            channels * kernel_size.0 * kernel_size.1,
+        ];
         let mut result = Tensor::empty_with_spec(&cols_shape, input.device(), input.dtype())?;
 
         let num_els = cols_shape.iter().product();

@@ -63,53 +63,60 @@ macro_rules! matmul_op {
             let b_slice = std::slice::from_raw_parts(b.add(b_offset), b_size);
             let c_slice = std::slice::from_raw_parts_mut(c, num_els);
 
-            c_slice.par_chunks_mut(n.max(1)).enumerate().for_each(|(batch_m, c_row)| {
-                let batch_idx = if m > 0 { batch_m / m } else { 0 };
-                let m_idx = if m > 0 { batch_m % m } else { 0 };
+            c_slice
+                .par_chunks_mut(n.max(1))
+                .enumerate()
+                .for_each(|(batch_m, c_row)| {
+                    let batch_idx = if m > 0 { batch_m / m } else { 0 };
+                    let m_idx = if m > 0 { batch_m % m } else { 0 };
 
-                for n_idx in 0..n {
-                    let mut acc = $zero;
-                    if is_a_cont && is_b_cont {
-                        let a_base = batch_idx * (m * k) + m_idx * k;
-                        let b_base = batch_idx * (k * n);
+                    for n_idx in 0..n {
+                        let mut acc = $zero;
+                        if is_a_cont && is_b_cont {
+                            let a_base = batch_idx * (m * k) + m_idx * k;
+                            let b_base = batch_idx * (k * n);
 
-                        for k_idx in 0..k {
-                            let a_index = a_base + k_idx;
-                            let b_index = b_base + k_idx * n + n_idx;
+                            for k_idx in 0..k {
+                                let a_index = a_base + k_idx;
+                                let b_index = b_base + k_idx * n + n_idx;
 
-                            if a_index < a_size && b_index < b_size {
-                                acc += a_slice[a_index] * b_slice[b_index];
+                                if a_index < a_size && b_index < b_size {
+                                    acc += a_slice[a_index] * b_slice[b_index];
+                                }
+                            }
+                        } else {
+                            for k_idx in 0..k {
+                                let a_idx = if a_ndim >= 2 {
+                                    batch_idx * a_strides[0]
+                                        + m_idx * a_strides[a_ndim - 2]
+                                        + k_idx * a_strides[a_ndim - 1]
+                                } else if a_ndim == 1 {
+                                    k_idx * a_strides[0]
+                                } else {
+                                    0
+                                };
+
+                                let b_idx = if b_ndim >= 2 {
+                                    batch_idx * b_strides[0]
+                                        + k_idx * b_strides[b_ndim - 2]
+                                        + n_idx * b_strides[b_ndim - 1]
+                                } else if b_ndim == 1 {
+                                    n_idx * b_strides[0]
+                                } else {
+                                    0
+                                };
+
+                                if a_idx < a_size && b_idx < b_size {
+                                    acc += a_slice[a_idx] * b_slice[b_idx];
+                                }
                             }
                         }
-                    } else {
-                        for k_idx in 0..k {
-                            let a_idx = if a_ndim >= 2 {
-                                batch_idx * a_strides[0] + m_idx * a_strides[a_ndim - 2] + k_idx * a_strides[a_ndim - 1]
-                            } else if a_ndim == 1 {
-                                k_idx * a_strides[0]
-                            } else {
-                                0
-                            };
 
-                            let b_idx = if b_ndim >= 2 {
-                                batch_idx * b_strides[0] + k_idx * b_strides[b_ndim - 2] + n_idx * b_strides[b_ndim - 1]
-                            } else if b_ndim == 1 {
-                                n_idx * b_strides[0]
-                            } else {
-                                0
-                            };
-
-                            if a_idx < a_size && b_idx < b_size {
-                                acc += a_slice[a_idx] * b_slice[b_idx];
-                            }
+                        if n_idx < c_row.len() {
+                            c_row[n_idx] = acc;
                         }
                     }
-
-                    if n_idx < c_row.len() {
-                        c_row[n_idx] = acc;
-                    }
-                }
-            });
+                });
         }
     };
 }
@@ -187,32 +194,35 @@ macro_rules! matmul_backward_op {
                 let grad_a_slice = std::slice::from_raw_parts_mut(grad_a, num_els_a);
                 let b_slice = std::slice::from_raw_parts(b.add(b_offset), num_els_b);
 
-                grad_a_slice.par_chunks_mut(k.max(1)).enumerate().for_each(|(batch_m, grad_row)| {
-                    let batch_idx = if m > 0 { batch_m / m } else { 0 };
-                    let m_idx = if m > 0 { batch_m % m } else { 0 };
+                grad_a_slice
+                    .par_chunks_mut(k.max(1))
+                    .enumerate()
+                    .for_each(|(batch_m, grad_row)| {
+                        let batch_idx = if m > 0 { batch_m / m } else { 0 };
+                        let m_idx = if m > 0 { batch_m % m } else { 0 };
 
-                    for k_idx in 0..k {
-                        let mut acc = $zero;
-                        if out_ndim == 0 {
-                            if k_idx < num_els_b {
-                                acc = grad_output[0] * b_slice[k_idx];
-                            }
-                        } else {
-                            let grad_base = batch_idx * (m * n) + m_idx * n;
-                            let b_base = batch_idx * (k * n);
+                        for k_idx in 0..k {
+                            let mut acc = $zero;
+                            if out_ndim == 0 {
+                                if k_idx < num_els_b {
+                                    acc = grad_output[0] * b_slice[k_idx];
+                                }
+                            } else {
+                                let grad_base = batch_idx * (m * n) + m_idx * n;
+                                let b_base = batch_idx * (k * n);
 
-                            for n_idx in 0..n {
-                                if grad_base + n_idx < grad_output_size && b_base + k_idx * n + n_idx < num_els_b {
-                                    acc += grad_output[grad_base + n_idx] * b_slice[b_base + k_idx * n + n_idx];
+                                for n_idx in 0..n {
+                                    if grad_base + n_idx < grad_output_size && b_base + k_idx * n + n_idx < num_els_b {
+                                        acc += grad_output[grad_base + n_idx] * b_slice[b_base + k_idx * n + n_idx];
+                                    }
                                 }
                             }
-                        }
 
-                        if k_idx < grad_row.len() {
-                            grad_row[k_idx] = acc;
+                            if k_idx < grad_row.len() {
+                                grad_row[k_idx] = acc;
+                            }
                         }
-                    }
-                });
+                    });
             }
 
             // Compute grad_B if needed
@@ -220,35 +230,38 @@ macro_rules! matmul_backward_op {
                 let grad_b_slice = std::slice::from_raw_parts_mut(grad_b, num_els_b);
                 let a_slice = std::slice::from_raw_parts(a.add(a_offset), num_els_a);
 
-                grad_b_slice.par_chunks_mut(n.max(1)).enumerate().for_each(|(batch_k, grad_row)| {
-                    let batch_idx = if k > 0 { batch_k / k } else { 0 };
-                    let k_idx = if k > 0 { batch_k % k } else { 0 };
+                grad_b_slice
+                    .par_chunks_mut(n.max(1))
+                    .enumerate()
+                    .for_each(|(batch_k, grad_row)| {
+                        let batch_idx = if k > 0 { batch_k / k } else { 0 };
+                        let k_idx = if k > 0 { batch_k % k } else { 0 };
 
-                    for n_idx in 0..n {
-                        let mut acc = $zero;
-                        if out_ndim == 0 {
-                            if k_idx < num_els_a {
-                                acc = grad_output[0] * a_slice[k_idx];
-                            }
-                        } else {
-                            let a_base = batch_idx * (m * k);
-                            let grad_base = batch_idx * (m * n);
+                        for n_idx in 0..n {
+                            let mut acc = $zero;
+                            if out_ndim == 0 {
+                                if k_idx < num_els_a {
+                                    acc = grad_output[0] * a_slice[k_idx];
+                                }
+                            } else {
+                                let a_base = batch_idx * (m * k);
+                                let grad_base = batch_idx * (m * n);
 
-                            for m_idx in 0..m {
-                                let a_idx = a_base + m_idx * k + k_idx;
-                                let grad_idx = grad_base + m_idx * n + n_idx;
+                                for m_idx in 0..m {
+                                    let a_idx = a_base + m_idx * k + k_idx;
+                                    let grad_idx = grad_base + m_idx * n + n_idx;
 
-                                if a_idx < num_els_a && grad_idx < grad_output_size {
-                                    acc += a_slice[a_idx] * grad_output[grad_idx];
+                                    if a_idx < num_els_a && grad_idx < grad_output_size {
+                                        acc += a_slice[a_idx] * grad_output[grad_idx];
+                                    }
                                 }
                             }
-                        }
 
-                        if n_idx < grad_row.len() {
-                            grad_row[n_idx] = acc;
+                            if n_idx < grad_row.len() {
+                                grad_row[n_idx] = acc;
+                            }
                         }
-                    }
-                });
+                    });
             }
         }
     };

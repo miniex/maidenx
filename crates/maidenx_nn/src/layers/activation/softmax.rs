@@ -28,9 +28,14 @@ impl Softmax {
             dim_i32 as usize
         };
 
-        let target_dtype = if input.dtype().is_int() { DType::F32 } else { input.dtype() };
+        let target_dtype = if input.dtype().is_int() {
+            DType::F32
+        } else {
+            input.dtype()
+        };
         let promoted_input = maidenx_tensor::utils::promotion::promote_tensor(input, target_dtype)?;
-        let mut result = Tensor::empty_with_spec(promoted_input.shape(), promoted_input.device(), promoted_input.dtype())?;
+        let mut result =
+            Tensor::empty_with_spec(promoted_input.shape(), promoted_input.device(), promoted_input.dtype())?;
 
         unsafe {
             result.with_buffer_mut(|out_buf| {
@@ -127,8 +132,16 @@ mod tests {
         let row1_sum = output_vec[0] + output_vec[1] + output_vec[2];
         let row2_sum = output_vec[3] + output_vec[4] + output_vec[5];
 
-        assert!((row1_sum - 1.0).abs() < 1e-5, "Row 1 sum should be close to 1, got {}", row1_sum);
-        assert!((row2_sum - 1.0).abs() < 1e-5, "Row 2 sum should be close to 1, got {}", row2_sum);
+        assert!(
+            (row1_sum - 1.0).abs() < 1e-5,
+            "Row 1 sum should be close to 1, got {}",
+            row1_sum
+        );
+        assert!(
+            (row2_sum - 1.0).abs() < 1e-5,
+            "Row 2 sum should be close to 1, got {}",
+            row2_sum
+        );
 
         // Values should be in increasing order within each row
         assert!(
@@ -163,7 +176,12 @@ mod tests {
 
         for i in 0..4 {
             let slice_sum = output_data[i * 3] + output_data[i * 3 + 1] + output_data[i * 3 + 2];
-            assert!((slice_sum - 1.0).abs() < 1e-5, "Slice {} sum should be close to 1, got {}", i, slice_sum);
+            assert!(
+                (slice_sum - 1.0).abs() < 1e-5,
+                "Slice {} sum should be close to 1, got {}",
+                i,
+                slice_sum
+            );
         }
 
         Ok(())
@@ -189,9 +207,21 @@ mod tests {
         let col2_sum = output_vec[1] + output_vec[4];
         let col3_sum = output_vec[2] + output_vec[5];
 
-        assert!((col1_sum - 1.0).abs() < 1e-5, "Column 1 sum should be close to 1, got {}", col1_sum);
-        assert!((col2_sum - 1.0).abs() < 1e-5, "Column 2 sum should be close to 1, got {}", col2_sum);
-        assert!((col3_sum - 1.0).abs() < 1e-5, "Column 3 sum should be close to 1, got {}", col3_sum);
+        assert!(
+            (col1_sum - 1.0).abs() < 1e-5,
+            "Column 1 sum should be close to 1, got {}",
+            col1_sum
+        );
+        assert!(
+            (col2_sum - 1.0).abs() < 1e-5,
+            "Column 2 sum should be close to 1, got {}",
+            col2_sum
+        );
+        assert!(
+            (col3_sum - 1.0).abs() < 1e-5,
+            "Column 3 sum should be close to 1, got {}",
+            col3_sum
+        );
 
         // First row values should be smaller than second row (since inputs are smaller)
         assert!(output_vec[0] < output_vec[3], "Column 1: First row < Second row");

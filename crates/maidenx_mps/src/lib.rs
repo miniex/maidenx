@@ -175,7 +175,13 @@ pub unsafe extern "C" fn mps_free(ptr: *mut c_void) -> i32 {
 /// * The memory regions must not overlap
 /// * dst_offset and src_offset must be valid byte offsets
 #[no_mangle]
-pub unsafe extern "C" fn mps_memcpy_h2d(dst: *mut c_void, src: *const c_void, size: usize, dst_offset: usize, src_offset: usize) -> i32 {
+pub unsafe extern "C" fn mps_memcpy_h2d(
+    dst: *mut c_void,
+    src: *const c_void,
+    size: usize,
+    dst_offset: usize,
+    src_offset: usize,
+) -> i32 {
     if dst.is_null() || src.is_null() || size == 0 {
         return -1; // Invalid parameters
     }
@@ -224,7 +230,13 @@ pub unsafe extern "C" fn mps_memcpy_h2d(dst: *mut c_void, src: *const c_void, si
 /// * The memory regions must not overlap
 /// * dst_offset and src_offset must be valid byte offsets
 #[no_mangle]
-pub unsafe extern "C" fn mps_memcpy_d2h(dst: *mut c_void, src: *const c_void, size: usize, dst_offset: usize, src_offset: usize) -> i32 {
+pub unsafe extern "C" fn mps_memcpy_d2h(
+    dst: *mut c_void,
+    src: *const c_void,
+    size: usize,
+    dst_offset: usize,
+    src_offset: usize,
+) -> i32 {
     if dst.is_null() || src.is_null() || size == 0 {
         return -1; // Invalid parameters
     }
@@ -269,7 +281,13 @@ pub unsafe extern "C" fn mps_memcpy_d2h(dst: *mut c_void, src: *const c_void, si
 /// * The memory regions must not overlap
 /// * dst_offset and src_offset must be valid byte offsets
 #[no_mangle]
-pub unsafe extern "C" fn mps_memcpy_d2d(dst: *mut c_void, src: *const c_void, size: usize, dst_offset: usize, src_offset: usize) -> i32 {
+pub unsafe extern "C" fn mps_memcpy_d2d(
+    dst: *mut c_void,
+    src: *const c_void,
+    size: usize,
+    dst_offset: usize,
+    src_offset: usize,
+) -> i32 {
     if dst.is_null() || src.is_null() || size == 0 {
         return -1; // Invalid parameters
     }

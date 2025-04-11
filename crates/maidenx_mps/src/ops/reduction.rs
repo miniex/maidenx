@@ -32,7 +32,7 @@ macro_rules! implement_reduction_op {
                 None => {
                     eprintln!("Failed to get Metal buffer for input pointer");
                     return;
-                }
+                },
             };
 
             let out_buffer = match get_buffer_from_map(out as *mut c_void) {
@@ -40,7 +40,7 @@ macro_rules! implement_reduction_op {
                 None => {
                     eprintln!("Failed to get Metal buffer for out pointer");
                     return;
-                }
+                },
             };
 
             // Get metadata buffer if provided
@@ -50,7 +50,7 @@ macro_rules! implement_reduction_op {
                     None => {
                         eprintln!("Failed to get Metal buffer for metadata pointer");
                         return;
-                    }
+                    },
                 }
             } else {
                 None
@@ -122,7 +122,13 @@ macro_rules! implement_shape_op {
         /// - num_els and num_dims correctly describe the buffer dimensions
         /// - The metadata buffer contains valid shape and stride information
         /// - All pointers and memory access are valid for the entire operation
-        pub unsafe fn $fn_name(num_els: usize, num_dims: usize, metadata: *const c_void, inp: *const c_void, out: *const c_void) {
+        pub unsafe fn $fn_name(
+            num_els: usize,
+            num_dims: usize,
+            metadata: *const c_void,
+            inp: *const c_void,
+            out: *const c_void,
+        ) {
             if let Err(e) = initialize_ops() {
                 eprintln!("Failed to initialize shape ops: {:?}", e);
                 return;
@@ -134,7 +140,7 @@ macro_rules! implement_shape_op {
                 None => {
                     eprintln!("Failed to get Metal buffer for input pointer");
                     return;
-                }
+                },
             };
 
             let out_buffer = match get_buffer_from_map(out as *mut c_void) {
@@ -142,7 +148,7 @@ macro_rules! implement_shape_op {
                 None => {
                     eprintln!("Failed to get Metal buffer for out pointer");
                     return;
-                }
+                },
             };
 
             // Get metadata buffer if provided
@@ -152,7 +158,7 @@ macro_rules! implement_shape_op {
                     None => {
                         eprintln!("Failed to get Metal buffer for metadata pointer");
                         return;
-                    }
+                    },
                 }
             } else {
                 None
@@ -232,7 +238,13 @@ macro_rules! implement_dummy_shape_op {
         ///
         /// This is a dummy function for 64-bit shape operations in MPS which are not supported.
         /// It's unsafe to maintain the same signature as the actual implementation.
-        pub unsafe fn $fn_name(_num_els: usize, _num_dims: usize, _metadata: *const c_void, _inp: *const c_void, _out: *const c_void) {
+        pub unsafe fn $fn_name(
+            _num_els: usize,
+            _num_dims: usize,
+            _metadata: *const c_void,
+            _inp: *const c_void,
+            _out: *const c_void,
+        ) {
             eprintln!("MPS does not support 64-bit {} operations", stringify!($fn_name));
         }
     };

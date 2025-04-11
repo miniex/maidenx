@@ -39,13 +39,20 @@ impl Tensor {
             if src_dtype == dtype {
                 unsafe {
                     let buffer_mut = Arc::get_mut(&mut buffer).ok_or(Error::BufferShared)?;
-                    buffer_mut.copy_from_host(src_data.as_ptr() as *const std::ffi::c_void, size * dtype.size_in_bytes(), 0, 0)?;
+                    buffer_mut.copy_from_host(
+                        src_data.as_ptr() as *const std::ffi::c_void,
+                        size * dtype.size_in_bytes(),
+                        0,
+                        0,
+                    )?;
                 }
             } else {
                 let mut converted_data = vec![0u8; size * dtype.size_in_bytes()];
 
                 for i in 0..src_data.len() {
-                    let scalar = unsafe { src_dtype.read_scalar((src_data.as_ptr() as *const u8).add(i * src_dtype.size_in_bytes())) };
+                    let scalar = unsafe {
+                        src_dtype.read_scalar((src_data.as_ptr() as *const u8).add(i * src_dtype.size_in_bytes()))
+                    };
 
                     unsafe {
                         dtype.write_scalar(converted_data.as_mut_ptr().add(i * dtype.size_in_bytes()), scalar);
@@ -54,7 +61,12 @@ impl Tensor {
 
                 unsafe {
                     let buffer_mut = Arc::get_mut(&mut buffer).ok_or(Error::BufferShared)?;
-                    buffer_mut.copy_from_host(converted_data.as_ptr() as *const std::ffi::c_void, size * dtype.size_in_bytes(), 0, 0)?;
+                    buffer_mut.copy_from_host(
+                        converted_data.as_ptr() as *const std::ffi::c_void,
+                        size * dtype.size_in_bytes(),
+                        0,
+                        0,
+                    )?;
                 }
             }
         }
@@ -142,7 +154,12 @@ impl Tensor {
         {
             unsafe {
                 let buffer_mut = Arc::get_mut(&mut buffer).ok_or(Error::BufferShared)?;
-                buffer_mut.copy_from_host(zero_buf.as_ptr() as *const std::ffi::c_void, size * dtype.size_in_bytes(), 0, 0)?;
+                buffer_mut.copy_from_host(
+                    zero_buf.as_ptr() as *const std::ffi::c_void,
+                    size * dtype.size_in_bytes(),
+                    0,
+                    0,
+                )?;
             }
         }
 
@@ -201,7 +218,12 @@ impl Tensor {
         {
             unsafe {
                 let buffer_mut = Arc::get_mut(&mut buffer).ok_or(Error::BufferShared)?;
-                buffer_mut.copy_from_host(host_buf.as_ptr() as *const std::ffi::c_void, size * dtype.size_in_bytes(), 0, 0)?;
+                buffer_mut.copy_from_host(
+                    host_buf.as_ptr() as *const std::ffi::c_void,
+                    size * dtype.size_in_bytes(),
+                    0,
+                    0,
+                )?;
             }
         }
 
@@ -261,7 +283,12 @@ impl Tensor {
         {
             unsafe {
                 let buffer_mut = Arc::get_mut(&mut buffer).ok_or(Error::BufferShared)?;
-                buffer_mut.copy_from_host(host_buf.as_ptr() as *const std::ffi::c_void, size * dtype.size_in_bytes(), 0, 0)?;
+                buffer_mut.copy_from_host(
+                    host_buf.as_ptr() as *const std::ffi::c_void,
+                    size * dtype.size_in_bytes(),
+                    0,
+                    0,
+                )?;
             }
         }
 
@@ -325,14 +352,26 @@ impl Tensor {
 
         let (start_val, end_val, step_val) = match dtype {
             DType::BF16 | DType::F16 | DType::F32 => (start_scalar.as_f32(), end_scalar.as_f32(), step_scalar.as_f32()),
-            DType::F64 => (start_scalar.as_f64() as f32, end_scalar.as_f64() as f32, step_scalar.as_f64() as f32),
-            DType::BOOL | DType::I8 | DType::I16 | DType::I32 => {
-                (start_scalar.as_i32() as f32, end_scalar.as_i32() as f32, step_scalar.as_i32() as f32)
-            }
-            DType::I64 => (start_scalar.as_i64() as f32, end_scalar.as_i64() as f32, step_scalar.as_i64() as f32),
-            DType::U8 | DType::U16 | DType::U32 | DType::U64 => {
-                (start_scalar.as_u32() as f32, end_scalar.as_u32() as f32, step_scalar.as_u32() as f32)
-            }
+            DType::F64 => (
+                start_scalar.as_f64() as f32,
+                end_scalar.as_f64() as f32,
+                step_scalar.as_f64() as f32,
+            ),
+            DType::BOOL | DType::I8 | DType::I16 | DType::I32 => (
+                start_scalar.as_i32() as f32,
+                end_scalar.as_i32() as f32,
+                step_scalar.as_i32() as f32,
+            ),
+            DType::I64 => (
+                start_scalar.as_i64() as f32,
+                end_scalar.as_i64() as f32,
+                step_scalar.as_i64() as f32,
+            ),
+            DType::U8 | DType::U16 | DType::U32 | DType::U64 => (
+                start_scalar.as_u32() as f32,
+                end_scalar.as_u32() as f32,
+                step_scalar.as_u32() as f32,
+            ),
         };
 
         if step_val == 0.0 {
@@ -347,16 +386,16 @@ impl Tensor {
                 let mut tensor = Self::new_with_spec(values, device, DType::F32)?;
                 tensor.with_dtype(dtype)?;
                 Ok(tensor)
-            }
+            },
             DType::F32 => Self::new_with_spec(values, device, dtype),
             DType::F64 => {
                 let double_values: Vec<f64> = values.into_iter().map(|v| v as f64).collect();
                 Self::new_with_spec(double_values, device, dtype)
-            }
+            },
             DType::BOOL => {
                 let bool_values: Vec<bool> = values.into_iter().map(|v| v != 0.0).collect();
                 Self::new_with_spec(bool_values, device, dtype)
-            }
+            },
             DType::U8 => {
                 let uint_values: Vec<u8> = values
                     .into_iter()
@@ -371,7 +410,7 @@ impl Tensor {
                     })
                     .collect();
                 Self::new_with_spec(uint_values, device, dtype)
-            }
+            },
             DType::U16 => {
                 let uint_values: Vec<u16> = values
                     .into_iter()
@@ -386,15 +425,15 @@ impl Tensor {
                     })
                     .collect();
                 Self::new_with_spec(uint_values, device, dtype)
-            }
+            },
             DType::U32 => {
                 let uint_values: Vec<u32> = values.into_iter().map(|v| if v < 0.0 { 0 } else { v as u32 }).collect();
                 Self::new_with_spec(uint_values, device, dtype)
-            }
+            },
             DType::U64 => {
                 let uint_values: Vec<u64> = values.into_iter().map(|v| if v < 0.0 { 0 } else { v as u64 }).collect();
                 Self::new_with_spec(uint_values, device, dtype)
-            }
+            },
             DType::I8 => {
                 let int_values: Vec<i8> = values
                     .into_iter()
@@ -409,7 +448,7 @@ impl Tensor {
                     })
                     .collect();
                 Self::new_with_spec(int_values, device, dtype)
-            }
+            },
             DType::I16 => {
                 let int_values: Vec<i16> = values
                     .into_iter()
@@ -424,15 +463,15 @@ impl Tensor {
                     })
                     .collect();
                 Self::new_with_spec(int_values, device, dtype)
-            }
+            },
             DType::I32 => {
                 let int_values: Vec<i32> = values.into_iter().map(|v| v as i32).collect();
                 Self::new_with_spec(int_values, device, dtype)
-            }
+            },
             DType::I64 => {
                 let int_values: Vec<i64> = values.into_iter().map(|v| v as i64).collect();
                 Self::new_with_spec(int_values, device, dtype)
-            }
+            },
         }
     }
 }

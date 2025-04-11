@@ -25,7 +25,13 @@ impl Linear {
         Self::new_with_spec(in_features, out_features, with_bias, device, dtype)
     }
 
-    pub fn new_with_spec(in_features: usize, out_features: usize, with_bias: bool, device: Device, dtype: DType) -> Result<Self> {
+    pub fn new_with_spec(
+        in_features: usize,
+        out_features: usize,
+        with_bias: bool,
+        device: Device,
+        dtype: DType,
+    ) -> Result<Self> {
         let k: f32 = 1.0 / (in_features as f32).sqrt();
 
         // weight

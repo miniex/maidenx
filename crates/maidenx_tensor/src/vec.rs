@@ -6,7 +6,8 @@ use maidenx_core::{
 
 impl Tensor {
     pub fn to_flatten_vec<T: Default + Clone + 'static>(&self) -> Result<Vec<T>> {
-        let target_dtype = get_dtype_for_type::<T>().ok_or_else(|| Error::InvalidArgument("Unsupported type".into()))?;
+        let target_dtype =
+            get_dtype_for_type::<T>().ok_or_else(|| Error::InvalidArgument("Unsupported type".into()))?;
         let tensor = if self.dtype() != target_dtype {
             self.to_dtype(target_dtype)?
         } else {
@@ -33,7 +34,12 @@ impl Tensor {
         let mut dst_idx = 0;
 
         let calc_src_offset = |indices: &[usize], strides: &[usize], offset: usize| -> usize {
-            offset + indices.iter().zip(strides.iter()).map(|(&idx, &stride)| idx * stride).sum::<usize>()
+            offset
+                + indices
+                    .iter()
+                    .zip(strides.iter())
+                    .map(|(&idx, &stride)| idx * stride)
+                    .sum::<usize>()
         };
 
         loop {

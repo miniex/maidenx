@@ -19,7 +19,11 @@ impl Tensor {
             });
         }
 
-        let target_dtype = if self.dtype().is_bool() { DType::U8 } else { self.dtype() };
+        let target_dtype = if self.dtype().is_bool() {
+            DType::U8
+        } else {
+            self.dtype()
+        };
         let input = promote_tensor(self, target_dtype)?;
 
         // Calculate output shape
@@ -98,7 +102,11 @@ impl Tensor {
             });
         }
 
-        let target_dtype = if self.dtype().is_bool() { DType::U8 } else { self.dtype() };
+        let target_dtype = if self.dtype().is_bool() {
+            DType::U8
+        } else {
+            self.dtype()
+        };
         let input = promote_tensor(self, target_dtype)?;
 
         // Calculate output shape
@@ -131,7 +139,14 @@ impl Tensor {
         unsafe {
             let result_size = result.size();
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::be::ops::padding::pad_with_reflection(out_buf, input.buffer(), input.size(), result_size, input.ndim(), Some(&metadata))
+                maidenx_core::be::ops::padding::pad_with_reflection(
+                    out_buf,
+                    input.buffer(),
+                    input.size(),
+                    result_size,
+                    input.ndim(),
+                    Some(&metadata),
+                )
             })?;
         }
 
@@ -180,7 +195,11 @@ impl Tensor {
             });
         }
 
-        let target_dtype = if self.dtype().is_bool() { DType::U8 } else { self.dtype() };
+        let target_dtype = if self.dtype().is_bool() {
+            DType::U8
+        } else {
+            self.dtype()
+        };
         let input = promote_tensor(self, target_dtype)?;
 
         // Calculate output shape
@@ -238,7 +257,11 @@ impl Tensor {
                 Ok(vec![grad_in])
             });
 
-            let node = TensorNode::new("pad_with_replication".to_string(), vec![self.clone()], Some(backward_fn));
+            let node = TensorNode::new(
+                "pad_with_replication".to_string(),
+                vec![self.clone()],
+                Some(backward_fn),
+            );
             result.node = Some(node);
         }
 

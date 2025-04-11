@@ -166,7 +166,11 @@ impl Tensor {
                 Ok(vec![grad_self, grad_indices])
             });
 
-            let node = TensorNode::new("index_select".to_string(), vec![self.clone(), indices.clone()], Some(backward_fn));
+            let node = TensorNode::new(
+                "index_select".to_string(),
+                vec![self.clone(), indices.clone()],
+                Some(backward_fn),
+            );
 
             result.node = Some(node);
         }
@@ -222,7 +226,10 @@ impl Tensor {
             for (dim, &idx) in indices.iter().enumerate() {
                 let dim_size = self.dim_size(dim).unwrap_or(0);
                 if idx >= dim_size {
-                    return Err(Error::IndexOutOfBounds { index: idx, size: dim_size });
+                    return Err(Error::IndexOutOfBounds {
+                        index: idx,
+                        size: dim_size,
+                    });
                 }
                 base_offset += idx * self.strides()[dim];
             }
@@ -266,7 +273,14 @@ impl Tensor {
             }
 
             let mut curr_indices = Vec::new();
-            copy_elements(src, self, base_offset + self.offset(), indices.len(), &mut curr_indices, 0)?;
+            copy_elements(
+                src,
+                self,
+                base_offset + self.offset(),
+                indices.len(),
+                &mut curr_indices,
+                0,
+            )?;
         } else {
             // If we're indexing all dimensions (or the selfination is 1D)
             // We can simply set the scalar value from the source
@@ -339,7 +353,11 @@ impl Tensor {
             let index_value = index.get(&output_indices)?.as_i32();
 
             let dim_size = self.shape()[dim_usize] as i32;
-            let actual_index = if index_value < 0 { dim_size + index_value } else { index_value };
+            let actual_index = if index_value < 0 {
+                dim_size + index_value
+            } else {
+                index_value
+            };
 
             if actual_index < 0 || actual_index >= dim_size {
                 return Err(Error::IndexOutOfBounds {
@@ -370,7 +388,11 @@ impl Tensor {
                 Ok(vec![grad_self, grad_index])
             });
 
-            let node = crate::TensorNode::new("gather".to_string(), vec![self.clone(), index.clone()], Some(backward_fn));
+            let node = crate::TensorNode::new(
+                "gather".to_string(),
+                vec![self.clone(), index.clone()],
+                Some(backward_fn),
+            );
 
             output.set_node(node);
         }
@@ -416,7 +438,11 @@ impl Tensor {
             let value = src.get(&src_indices)?;
             let target_index = index.get(&src_indices)?.as_i32();
             let dim_size = self.shape()[dim_usize] as i32;
-            let actual_index = if target_index < 0 { dim_size + target_index } else { target_index };
+            let actual_index = if target_index < 0 {
+                dim_size + target_index
+            } else {
+                target_index
+            };
 
             if actual_index < 0 || actual_index >= dim_size {
                 return Err(Error::IndexOutOfBounds {
@@ -436,7 +462,10 @@ impl Tensor {
 
     pub fn bincount(&self, weights: Option<&Tensor>, minlength: Option<usize>) -> Result<Tensor> {
         if self.ndim() != 1 {
-            return Err(Error::InvalidArgument(format!("Expected 1D tensor for bincount, got {}D", self.ndim())));
+            return Err(Error::InvalidArgument(format!(
+                "Expected 1D tensor for bincount, got {}D",
+                self.ndim()
+            )));
         }
 
         if !self.dtype().is_int() {

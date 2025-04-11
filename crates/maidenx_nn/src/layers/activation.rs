@@ -16,7 +16,9 @@ pub struct ReLU {
 
 impl ReLU {
     pub fn new() -> Result<Self> {
-        Ok(Self { state: LayerState::new() })
+        Ok(Self {
+            state: LayerState::new(),
+        })
     }
 
     pub fn forward(&self, input: &Tensor) -> Result<Tensor> {
@@ -36,7 +38,9 @@ pub struct Sigmoid {
 
 impl Sigmoid {
     pub fn new() -> Result<Self> {
-        Ok(Self { state: LayerState::new() })
+        Ok(Self {
+            state: LayerState::new(),
+        })
     }
 
     pub fn forward(&self, input: &Tensor) -> Result<Tensor> {
@@ -56,7 +60,9 @@ pub struct Tanh {
 
 impl Tanh {
     pub fn new() -> Result<Self> {
-        Ok(Self { state: LayerState::new() })
+        Ok(Self {
+            state: LayerState::new(),
+        })
     }
 
     pub fn forward(&self, input: &Tensor) -> Result<Tensor> {
@@ -101,7 +107,9 @@ pub struct GELU {
 
 impl GELU {
     pub fn new() -> Result<Self> {
-        Ok(Self { state: LayerState::new() })
+        Ok(Self {
+            state: LayerState::new(),
+        })
     }
 
     pub fn forward(&self, input: &Tensor) -> Result<Tensor> {

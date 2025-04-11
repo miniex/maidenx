@@ -13,7 +13,13 @@ macro_rules! implement_unary_op {
         /// - Buffer contents match the expected types ($in_type for input, $out_type for output)
         /// - num_els and num_dims correctly describe the buffer dimensions
         /// - All pointers and memory access are valid for the entire operation
-        pub unsafe fn $fn_name(num_els: usize, num_dims: usize, metadata: *const c_void, input: *const c_void, out: *const c_void) {
+        pub unsafe fn $fn_name(
+            num_els: usize,
+            num_dims: usize,
+            metadata: *const c_void,
+            input: *const c_void,
+            out: *const c_void,
+        ) {
             if let Err(e) = initialize_ops() {
                 eprintln!("Failed to initialize unary ops: {:?}", e);
                 return;
@@ -25,7 +31,7 @@ macro_rules! implement_unary_op {
                 None => {
                     eprintln!("Failed to get Metal buffer for input pointer");
                     return;
-                }
+                },
             };
 
             let out_buffer = match get_buffer_from_map(out as *mut c_void) {
@@ -33,7 +39,7 @@ macro_rules! implement_unary_op {
                 None => {
                     eprintln!("Failed to get Metal buffer for out pointer");
                     return;
-                }
+                },
             };
 
             // Get metadata buffer if provided
@@ -43,7 +49,7 @@ macro_rules! implement_unary_op {
                     None => {
                         eprintln!("Failed to get Metal buffer for metadata pointer");
                         return;
-                    }
+                    },
                 }
             } else {
                 None
@@ -125,7 +131,7 @@ macro_rules! implement_unary_op_with_constant {
                 None => {
                     eprintln!("Failed to get Metal buffer for input pointer");
                     return;
-                }
+                },
             };
 
             let out_buffer = match get_buffer_from_map(out as *mut c_void) {
@@ -133,7 +139,7 @@ macro_rules! implement_unary_op_with_constant {
                 None => {
                     eprintln!("Failed to get Metal buffer for out pointer");
                     return;
-                }
+                },
             };
 
             // Get metadata buffer if provided
@@ -143,7 +149,7 @@ macro_rules! implement_unary_op_with_constant {
                     None => {
                         eprintln!("Failed to get Metal buffer for metadata pointer");
                         return;
-                    }
+                    },
                 }
             } else {
                 None
@@ -210,8 +216,17 @@ macro_rules! implement_dummy_unary_op {
         ///
         /// This is a dummy function for 64-bit types in MPS which are not supported.
         /// It's unsafe to maintain the same signature as the actual implementation.
-        pub unsafe fn $fn_name(_num_els: usize, _num_dims: usize, _metadata: *const c_void, _input: *const c_void, _out: *const c_void) {
-            eprintln!("MPS does not support 64-bit unary operations for {}", stringify!($fn_name));
+        pub unsafe fn $fn_name(
+            _num_els: usize,
+            _num_dims: usize,
+            _metadata: *const c_void,
+            _input: *const c_void,
+            _out: *const c_void,
+        ) {
+            eprintln!(
+                "MPS does not support 64-bit unary operations for {}",
+                stringify!($fn_name)
+            );
         }
     };
 }

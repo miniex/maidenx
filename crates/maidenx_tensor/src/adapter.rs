@@ -127,7 +127,12 @@ macro_rules! impl_tensor_adapter {
                 }
                 Ok(vec
                     .chunks(shape[1] * shape[2])
-                    .map(|chunk| chunk.chunks(shape[2]).map(|inner_chunk| inner_chunk.to_vec()).collect())
+                    .map(|chunk| {
+                        chunk
+                            .chunks(shape[2])
+                            .map(|inner_chunk| inner_chunk.to_vec())
+                            .collect()
+                    })
                     .collect())
             }
             fn to_shape(&self) -> Vec<usize> {

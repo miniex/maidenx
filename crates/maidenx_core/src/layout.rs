@@ -136,14 +136,14 @@ impl Layout {
                 } else {
                     e
                 }
-            }
+            },
             None => {
                 if step > 0 {
                     dim_size
                 } else {
                     -1
                 }
-            }
+            },
         };
 
         // Clamp indices to valid range
@@ -210,7 +210,11 @@ impl Layout {
         let dim_size = self.shape[dim];
 
         // Calculate number of windows
-        let n_windows = if dim_size >= size { (dim_size - size) / step + 1 } else { 0 };
+        let n_windows = if dim_size >= size {
+            (dim_size - size) / step + 1
+        } else {
+            0
+        };
 
         if n_windows == 0 {
             return Err(Error::InvalidShape {
@@ -276,7 +280,10 @@ impl Layout {
                 new_strides[i] = 0;
             } else {
                 return Err(Error::InvalidShape {
-                    message: format!("Cannot broadcast shape {:?} to shape {:?} at dimension {}", self_shape, target_shape, i),
+                    message: format!(
+                        "Cannot broadcast shape {:?} to shape {:?} at dimension {}",
+                        self_shape, target_shape, i
+                    ),
                 });
             }
         }
@@ -310,7 +317,10 @@ impl Layout {
         for (i, (&dim1, &dim2)) in lhs_padded.iter().zip(rhs_padded.iter()).enumerate() {
             if dim1 != 1 && dim2 != 1 && dim1 != dim2 {
                 return Err(Error::InvalidShape {
-                    message: format!("Cannot broadcast shapes {:?} and {:?} at dimension {}", lhs_shape, rhs_shape, i),
+                    message: format!(
+                        "Cannot broadcast shapes {:?} and {:?} at dimension {}",
+                        lhs_shape, rhs_shape, i
+                    ),
                 });
             }
             broadcast_shape.push(dim1.max(dim2));

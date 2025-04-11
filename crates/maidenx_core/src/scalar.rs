@@ -579,55 +579,55 @@ impl Serialize for Scalar {
             Self::BOOL(v) => {
                 state.serialize_field("dtype", "BOOL")?;
                 state.serialize_field("value", v)?;
-            }
+            },
             Self::BF16(v) => {
                 state.serialize_field("dtype", "BF16")?;
                 state.serialize_field("value", &f32::from(*v))?;
-            }
+            },
             Self::F16(v) => {
                 state.serialize_field("dtype", "F16")?;
                 state.serialize_field("value", &f32::from(*v))?;
-            }
+            },
             Self::F32(v) => {
                 state.serialize_field("dtype", "F32")?;
                 state.serialize_field("value", v)?;
-            }
+            },
             Self::F64(v) => {
                 state.serialize_field("dtype", "F64")?;
                 state.serialize_field("value", v)?;
-            }
+            },
             Self::U8(v) => {
                 state.serialize_field("dtype", "U8")?;
                 state.serialize_field("value", v)?;
-            }
+            },
             Self::U16(v) => {
                 state.serialize_field("dtype", "U16")?;
                 state.serialize_field("value", v)?;
-            }
+            },
             Self::U32(v) => {
                 state.serialize_field("dtype", "U32")?;
                 state.serialize_field("value", v)?;
-            }
+            },
             Self::U64(v) => {
                 state.serialize_field("dtype", "U64")?;
                 state.serialize_field("value", v)?;
-            }
+            },
             Self::I8(v) => {
                 state.serialize_field("dtype", "I8")?;
                 state.serialize_field("value", v)?;
-            }
+            },
             Self::I16(v) => {
                 state.serialize_field("dtype", "I16")?;
                 state.serialize_field("value", v)?;
-            }
+            },
             Self::I32(v) => {
                 state.serialize_field("dtype", "I32")?;
                 state.serialize_field("value", v)?;
-            }
+            },
             Self::I64(v) => {
                 state.serialize_field("dtype", "I64")?;
                 state.serialize_field("value", v)?;
-            }
+            },
         }
 
         state.end()
@@ -668,33 +668,36 @@ impl<'de> Visitor<'de> for ScalarVisitor {
             match key.as_str() {
                 "dtype" => {
                     dtype = Some(map.next_value()?);
-                }
+                },
                 "value" => {
                     if let Some(dtype_str) = &dtype {
                         match dtype_str.as_str() {
                             "BOOL" => {
                                 value_bool = Some(map.next_value()?);
-                            }
+                            },
                             "BF16" | "F16" | "F32" | "F64" => {
                                 value_f64 = Some(map.next_value()?);
-                            }
+                            },
                             "U8" | "U16" | "U32" | "U64" => {
                                 value_u64 = Some(map.next_value()?);
-                            }
+                            },
                             "I8" | "I16" | "I32" | "I64" => {
                                 value_i64 = Some(map.next_value()?);
-                            }
+                            },
                             _ => {
                                 return Err(de::Error::unknown_variant(
                                     dtype_str,
-                                    &["BOOL", "BF16", "F16", "F32", "F64", "U8", "U16", "U32", "U64", "I8", "I16", "I32", "I64"],
+                                    &[
+                                        "BOOL", "BF16", "F16", "F32", "F64", "U8", "U16", "U32", "U64", "I8", "I16",
+                                        "I32", "I64",
+                                    ],
                                 ))
-                            }
+                            },
                         }
                     } else {
                         return Err(de::Error::missing_field("dtype"));
                     }
-                }
+                },
                 _ => return Err(de::Error::unknown_field(&key, &["dtype", "value"])),
             }
         }
@@ -705,58 +708,60 @@ impl<'de> Visitor<'de> for ScalarVisitor {
             "BOOL" => {
                 let value = value_bool.ok_or_else(|| de::Error::missing_field("value"))?;
                 Ok(Scalar::BOOL(value))
-            }
+            },
             "BF16" => {
                 let value = value_f64.ok_or_else(|| de::Error::missing_field("value"))?;
                 Ok(Scalar::BF16(bf16::from_f32(value as f32)))
-            }
+            },
             "F16" => {
                 let value = value_f64.ok_or_else(|| de::Error::missing_field("value"))?;
                 Ok(Scalar::F16(f16::from_f32(value as f32)))
-            }
+            },
             "F32" => {
                 let value = value_f64.ok_or_else(|| de::Error::missing_field("value"))?;
                 Ok(Scalar::F32(value as f32))
-            }
+            },
             "F64" => {
                 let value = value_f64.ok_or_else(|| de::Error::missing_field("value"))?;
                 Ok(Scalar::F64(value))
-            }
+            },
             "U8" => {
                 let value = value_u64.ok_or_else(|| de::Error::missing_field("value"))?;
                 Ok(Scalar::U8(value as u8))
-            }
+            },
             "U16" => {
                 let value = value_u64.ok_or_else(|| de::Error::missing_field("value"))?;
                 Ok(Scalar::U16(value as u16))
-            }
+            },
             "U32" => {
                 let value = value_u64.ok_or_else(|| de::Error::missing_field("value"))?;
                 Ok(Scalar::U32(value as u32))
-            }
+            },
             "U64" => {
                 let value = value_u64.ok_or_else(|| de::Error::missing_field("value"))?;
                 Ok(Scalar::U64(value))
-            }
+            },
             "I8" => {
                 let value = value_i64.ok_or_else(|| de::Error::missing_field("value"))?;
                 Ok(Scalar::I8(value as i8))
-            }
+            },
             "I16" => {
                 let value = value_i64.ok_or_else(|| de::Error::missing_field("value"))?;
                 Ok(Scalar::I16(value as i16))
-            }
+            },
             "I32" => {
                 let value = value_i64.ok_or_else(|| de::Error::missing_field("value"))?;
                 Ok(Scalar::I32(value as i32))
-            }
+            },
             "I64" => {
                 let value = value_i64.ok_or_else(|| de::Error::missing_field("value"))?;
                 Ok(Scalar::I64(value))
-            }
+            },
             _ => Err(de::Error::unknown_variant(
                 &dtype,
-                &["BOOL", "BF16", "F16", "F32", "F64", "U8", "U16", "U32", "U64", "I8", "I16", "I32", "I64"],
+                &[
+                    "BOOL", "BF16", "F16", "F32", "F64", "U8", "U16", "U32", "U64", "I8", "I16", "I32", "I64",
+                ],
             )),
         }
     }

@@ -31,7 +31,12 @@ impl CudaBuffer {
                 return Err(Error::OutOfMemory);
             }
         }
-        Ok(Self { ptr, size, dtype, device_id })
+        Ok(Self {
+            ptr,
+            size,
+            dtype,
+            device_id,
+        })
     }
 
     // Helper function to calculate byte offset from element index
@@ -81,9 +86,17 @@ impl Buffer for CudaBuffer {
         Device::CUDA(self.device_id)
     }
 
-    unsafe fn copy_from(&mut self, other: &dyn Buffer, src_offset: usize, dst_offset: usize, count: usize) -> Result<()> {
+    unsafe fn copy_from(
+        &mut self,
+        other: &dyn Buffer,
+        src_offset: usize,
+        dst_offset: usize,
+        count: usize,
+    ) -> Result<()> {
         if src_offset + count > other.len() || dst_offset + count > self.len() {
-            return Err(Error::InvalidArgument("Offset and count exceed buffer dimensions".into()));
+            return Err(Error::InvalidArgument(
+                "Offset and count exceed buffer dimensions".into(),
+            ));
         }
 
         if self.dtype() != other.dtype() {
@@ -105,16 +118,18 @@ impl Buffer for CudaBuffer {
                 // Get source pointer with offset for CPU
                 let src_ptr = (other.as_ptr() as *const u8).add(src_offset * element_size);
                 cuda_memcpy_h2d(dst_ptr, src_ptr as *const c_void, size_in_bytes)
-            }
+            },
             Device::CUDA(_) => {
                 // Get source pointer with offset for CUDA
                 let src_ptr = (other.as_ptr() as *const u8).add(src_offset * element_size);
                 cuda_memcpy_d2d(dst_ptr, src_ptr as *const c_void, size_in_bytes)
-            }
+            },
             #[cfg(feature = "mps")]
             Device::MPS => {
-                return Err(Error::InvalidArgument("Direct copy from MPS to CUDA is not supported".into()));
-            }
+                return Err(Error::InvalidArgument(
+                    "Direct copy from MPS to CUDA is not supported".into(),
+                ));
+            },
         };
 
         if status != 0 {
@@ -124,7 +139,13 @@ impl Buffer for CudaBuffer {
         Ok(())
     }
 
-    unsafe fn copy_from_host(&mut self, src: *const c_void, size_in_bytes: usize, src_offset: usize, dst_offset: usize) -> Result<()> {
+    unsafe fn copy_from_host(
+        &mut self,
+        src: *const c_void,
+        size_in_bytes: usize,
+        src_offset: usize,
+        dst_offset: usize,
+    ) -> Result<()> {
         // Check if destination has enough space
         let dst_byte_offset = self.byte_offset(dst_offset);
         let max_available = (self.size * self.dtype.size_in_bytes()).saturating_sub(dst_byte_offset);
@@ -156,7 +177,13 @@ impl Buffer for CudaBuffer {
         Ok(())
     }
 
-    unsafe fn copy_to_host(&self, dest: *mut c_void, size_in_bytes: usize, src_offset: usize, dst_offset: usize) -> Result<()> {
+    unsafe fn copy_to_host(
+        &self,
+        dest: *mut c_void,
+        size_in_bytes: usize,
+        src_offset: usize,
+        dst_offset: usize,
+    ) -> Result<()> {
         // Check if source has enough data
         let src_byte_offset = self.byte_offset(src_offset);
         let available = (self.size * self.dtype.size_in_bytes()).saturating_sub(src_byte_offset);

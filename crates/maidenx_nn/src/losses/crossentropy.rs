@@ -13,7 +13,9 @@ pub struct CrossEntropyLoss {
 
 impl CrossEntropyLoss {
     pub fn new() -> Self {
-        Self { state: LayerState::new() }
+        Self {
+            state: LayerState::new(),
+        }
     }
 
     pub fn forward(&self, (logits, targets): (&Tensor, &Tensor)) -> Result<Tensor> {

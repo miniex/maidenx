@@ -14,7 +14,12 @@ pub struct Adam {
 }
 
 impl Adam {
-    pub fn new(learning_rate: impl Into<Scalar>, beta1: impl Into<Scalar>, beta2: impl Into<Scalar>, epsilon: impl Into<Scalar>) -> Self {
+    pub fn new(
+        learning_rate: impl Into<Scalar>,
+        beta1: impl Into<Scalar>,
+        beta2: impl Into<Scalar>,
+        epsilon: impl Into<Scalar>,
+    ) -> Self {
         Self {
             learning_rate: learning_rate.into(),
             beta1: beta1.into(),
@@ -28,8 +33,14 @@ impl Adam {
 
     pub fn step(&mut self, parameters: &mut [&mut Tensor]) -> Result<()> {
         if self.m.is_empty() || self.v.is_empty() {
-            self.m = parameters.iter().map(|param| Tensor::zeros_like(param)).collect::<Result<Vec<_>>>()?;
-            self.v = parameters.iter().map(|param| Tensor::zeros_like(param)).collect::<Result<Vec<_>>>()?;
+            self.m = parameters
+                .iter()
+                .map(|param| Tensor::zeros_like(param))
+                .collect::<Result<Vec<_>>>()?;
+            self.v = parameters
+                .iter()
+                .map(|param| Tensor::zeros_like(param))
+                .collect::<Result<Vec<_>>>()?;
         }
 
         self.t += 1;

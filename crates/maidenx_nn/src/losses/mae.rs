@@ -13,7 +13,9 @@ pub struct MAELoss {
 
 impl MAELoss {
     pub fn new() -> Self {
-        Self { state: LayerState::new() }
+        Self {
+            state: LayerState::new(),
+        }
     }
 
     pub fn forward(&self, (pred, target): (&Tensor, &Tensor)) -> Result<Tensor> {

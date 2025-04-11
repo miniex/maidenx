@@ -6,7 +6,11 @@ use maidenx_core::{dtype::DType, error::Result, scalar::Scalar};
 
 impl Tensor {
     pub fn neg(&self) -> Result<Tensor> {
-        let target_dtype = if self.dtype().is_bool() { DType::U8 } else { self.dtype() };
+        let target_dtype = if self.dtype().is_bool() {
+            DType::U8
+        } else {
+            self.dtype()
+        };
         let target_dtype = target_dtype.to_signed();
         let input = self.to_dtype(target_dtype)?;
 
@@ -14,7 +18,13 @@ impl Tensor {
 
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::be::ops::unary::neg(out_buf, input.buffer(), input.size(), input.ndim(), Some(&prepare_metadata(&input)))?;
+                maidenx_core::be::ops::unary::neg(
+                    out_buf,
+                    input.buffer(),
+                    input.size(),
+                    input.ndim(),
+                    Some(&prepare_metadata(&input)),
+                )?;
                 Ok(())
             })?;
         }
@@ -22,7 +32,9 @@ impl Tensor {
         if self.requires_grad() {
             result.with_grad()?;
 
-            let backward_fn = Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> { Ok(vec![grad_out.neg()?]) });
+            let backward_fn = Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> {
+                Ok(vec![grad_out.neg()?])
+            });
             let node = TensorNode::new("neg".to_string(), vec![self.clone()], Some(backward_fn));
             result.node = Some(node);
         }
@@ -31,7 +43,11 @@ impl Tensor {
     }
 
     pub fn abs(&self) -> Result<Tensor> {
-        let target_dtype = if self.dtype().is_bool() { DType::U8 } else { self.dtype() };
+        let target_dtype = if self.dtype().is_bool() {
+            DType::U8
+        } else {
+            self.dtype()
+        };
         let input = self.to_dtype(target_dtype)?;
 
         let mut result = if target_dtype.is_uint() {
@@ -40,7 +56,13 @@ impl Tensor {
             let mut result = Self::empty_with_spec(input.shape(), input.device(), input.dtype())?;
             unsafe {
                 result.with_buffer_mut(|out_buf| {
-                    maidenx_core::be::ops::unary::abs(out_buf, input.buffer(), input.size(), input.ndim(), Some(&prepare_metadata(&input)))?;
+                    maidenx_core::be::ops::unary::abs(
+                        out_buf,
+                        input.buffer(),
+                        input.size(),
+                        input.ndim(),
+                        Some(&prepare_metadata(&input)),
+                    )?;
                     Ok(())
                 })?;
             }
@@ -51,8 +73,9 @@ impl Tensor {
             result.with_grad()?;
 
             let input = self.clone();
-            let backward_fn =
-                Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> { Ok(vec![grad_out.mul(&input.sign()?)?]) });
+            let backward_fn = Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> {
+                Ok(vec![grad_out.mul(&input.sign()?)?])
+            });
             let node = TensorNode::new("abs".to_string(), vec![self.clone()], Some(backward_fn));
             result.node = Some(node);
         }
@@ -61,14 +84,24 @@ impl Tensor {
     }
 
     pub fn sign(&self) -> Result<Tensor> {
-        let target_dtype = if self.dtype().is_bool() { DType::U8 } else { self.dtype() };
+        let target_dtype = if self.dtype().is_bool() {
+            DType::U8
+        } else {
+            self.dtype()
+        };
         let input = self.to_dtype(target_dtype)?;
 
         let mut result = Self::empty_with_spec(input.shape(), input.device(), input.dtype())?;
 
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::be::ops::unary::sign(out_buf, input.buffer(), input.size(), input.ndim(), Some(&prepare_metadata(&input)))?;
+                maidenx_core::be::ops::unary::sign(
+                    out_buf,
+                    input.buffer(),
+                    input.size(),
+                    input.ndim(),
+                    Some(&prepare_metadata(&input)),
+                )?;
                 Ok(())
             })?;
         }
@@ -77,14 +110,24 @@ impl Tensor {
     }
 
     pub fn square(&self) -> Result<Tensor> {
-        let target_dtype = if self.dtype().is_bool() { DType::U8 } else { self.dtype() };
+        let target_dtype = if self.dtype().is_bool() {
+            DType::U8
+        } else {
+            self.dtype()
+        };
         let input = self.to_dtype(target_dtype)?;
 
         let mut result = Self::empty_with_spec(input.shape(), input.device(), input.dtype())?;
 
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::be::ops::unary::square(out_buf, input.buffer(), input.size(), input.ndim(), Some(&prepare_metadata(&input)))?;
+                maidenx_core::be::ops::unary::square(
+                    out_buf,
+                    input.buffer(),
+                    input.size(),
+                    input.ndim(),
+                    Some(&prepare_metadata(&input)),
+                )?;
                 Ok(())
             })?;
         }
@@ -93,8 +136,9 @@ impl Tensor {
             result.with_grad()?;
 
             let input = self.clone();
-            let backward_fn =
-                Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> { Ok(vec![grad_out.mul_scalar(2.0)?.mul(&input)?]) });
+            let backward_fn = Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> {
+                Ok(vec![grad_out.mul_scalar(2.0)?.mul(&input)?])
+            });
             let node = TensorNode::new("square".to_string(), vec![self.clone()], Some(backward_fn));
             result.node = Some(node);
         }
@@ -103,14 +147,24 @@ impl Tensor {
     }
 
     pub fn sqrt(&self) -> Result<Tensor> {
-        let target_dtype = if self.dtype().is_float() { self.dtype() } else { DType::F32 };
+        let target_dtype = if self.dtype().is_float() {
+            self.dtype()
+        } else {
+            DType::F32
+        };
         let input = promote_tensor(self, target_dtype)?;
 
         let mut result = Self::empty_with_spec(input.shape(), input.device(), input.dtype())?;
 
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::be::ops::unary::sqrt(out_buf, input.buffer(), input.size(), input.ndim(), Some(&prepare_metadata(&input)))?;
+                maidenx_core::be::ops::unary::sqrt(
+                    out_buf,
+                    input.buffer(),
+                    input.size(),
+                    input.ndim(),
+                    Some(&prepare_metadata(&input)),
+                )?;
                 Ok(())
             })?;
         }
@@ -119,8 +173,9 @@ impl Tensor {
             result.with_grad()?;
 
             let output = result.clone();
-            let backward_fn =
-                Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> { Ok(vec![grad_out.div(&output.mul_scalar(2.0)?)?]) });
+            let backward_fn = Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> {
+                Ok(vec![grad_out.div(&output.mul_scalar(2.0)?)?])
+            });
             let node = TensorNode::new("sqrt".to_string(), vec![self.clone()], Some(backward_fn));
             result.node = Some(node);
         }
@@ -129,14 +184,24 @@ impl Tensor {
     }
 
     pub fn relu(&self) -> Result<Tensor> {
-        let target_dtype = if self.dtype().is_float() { self.dtype() } else { DType::F32 };
+        let target_dtype = if self.dtype().is_float() {
+            self.dtype()
+        } else {
+            DType::F32
+        };
         let input = promote_tensor(self, target_dtype)?;
 
         let mut result = Self::empty_with_spec(input.shape(), input.device(), input.dtype())?;
 
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::be::ops::unary::relu(out_buf, input.buffer(), input.size(), input.ndim(), Some(&prepare_metadata(&input)))?;
+                maidenx_core::be::ops::unary::relu(
+                    out_buf,
+                    input.buffer(),
+                    input.size(),
+                    input.ndim(),
+                    Some(&prepare_metadata(&input)),
+                )?;
                 Ok(())
             })?;
         }
@@ -157,14 +222,24 @@ impl Tensor {
     }
 
     pub fn sigmoid(&self) -> Result<Tensor> {
-        let target_dtype = if self.dtype().is_float() { self.dtype() } else { DType::F32 };
+        let target_dtype = if self.dtype().is_float() {
+            self.dtype()
+        } else {
+            DType::F32
+        };
 
         let input = promote_tensor(self, target_dtype)?;
         let mut result = Self::empty_with_spec(input.shape(), input.device(), input.dtype())?;
 
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::be::ops::unary::sigmoid(out_buf, input.buffer(), input.size(), input.ndim(), Some(&prepare_metadata(&input)))?;
+                maidenx_core::be::ops::unary::sigmoid(
+                    out_buf,
+                    input.buffer(),
+                    input.size(),
+                    input.ndim(),
+                    Some(&prepare_metadata(&input)),
+                )?;
                 Ok(())
             })?;
         }
@@ -184,14 +259,24 @@ impl Tensor {
     }
 
     pub fn tanh(&self) -> Result<Tensor> {
-        let target_dtype = if self.dtype().is_float() { self.dtype() } else { DType::F32 };
+        let target_dtype = if self.dtype().is_float() {
+            self.dtype()
+        } else {
+            DType::F32
+        };
 
         let input = promote_tensor(self, target_dtype)?;
         let mut result = Self::empty_with_spec(input.shape(), input.device(), input.dtype())?;
 
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::be::ops::unary::tanh(out_buf, input.buffer(), input.size(), input.ndim(), Some(&prepare_metadata(&input)))?;
+                maidenx_core::be::ops::unary::tanh(
+                    out_buf,
+                    input.buffer(),
+                    input.size(),
+                    input.ndim(),
+                    Some(&prepare_metadata(&input)),
+                )?;
                 Ok(())
             })?;
         }
@@ -211,14 +296,24 @@ impl Tensor {
     }
 
     pub fn gelu(&self) -> Result<Tensor> {
-        let target_dtype = if self.dtype().is_float() { self.dtype() } else { DType::F32 };
+        let target_dtype = if self.dtype().is_float() {
+            self.dtype()
+        } else {
+            DType::F32
+        };
 
         let input = promote_tensor(self, target_dtype)?;
         let mut result = Self::empty_with_spec(input.shape(), input.device(), input.dtype())?;
 
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::be::ops::unary::gelu(out_buf, input.buffer(), input.size(), input.ndim(), Some(&prepare_metadata(&input)))?;
+                maidenx_core::be::ops::unary::gelu(
+                    out_buf,
+                    input.buffer(),
+                    input.size(),
+                    input.ndim(),
+                    Some(&prepare_metadata(&input)),
+                )?;
                 Ok(())
             })?;
         }
@@ -237,7 +332,10 @@ impl Tensor {
 
                 let tanh_val = tanh_arg.tanh()?;
                 let sech_squared = tanh_val.mul(&tanh_val)?.mul_scalar(-1.0)?.add_scalar(1.0)?;
-                let inner_derivative = x_squared.mul_scalar(3.0 * coeff)?.add_scalar(1.0)?.mul_scalar(sqrt_2_over_pi)?;
+                let inner_derivative = x_squared
+                    .mul_scalar(3.0 * coeff)?
+                    .add_scalar(1.0)?
+                    .mul_scalar(sqrt_2_over_pi)?;
 
                 let term1 = tanh_val.add_scalar(1.0)?.mul_scalar(0.5)?;
                 let term2 = input.mul(&sech_squared)?.mul(&inner_derivative)?.mul_scalar(0.5)?;
@@ -253,14 +351,24 @@ impl Tensor {
     }
 
     pub fn sin(&self) -> Result<Tensor> {
-        let target_dtype = if self.dtype().is_float() { self.dtype() } else { DType::F32 };
+        let target_dtype = if self.dtype().is_float() {
+            self.dtype()
+        } else {
+            DType::F32
+        };
 
         let input = promote_tensor(self, target_dtype)?;
         let mut result = Self::empty_with_spec(input.shape(), input.device(), input.dtype())?;
 
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::be::ops::unary::sin(out_buf, input.buffer(), input.size(), input.ndim(), Some(&prepare_metadata(&input)))?;
+                maidenx_core::be::ops::unary::sin(
+                    out_buf,
+                    input.buffer(),
+                    input.size(),
+                    input.ndim(),
+                    Some(&prepare_metadata(&input)),
+                )?;
                 Ok(())
             })?;
         }
@@ -269,8 +377,9 @@ impl Tensor {
             result.with_grad()?;
 
             let input = self.clone();
-            let backward_fn =
-                Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> { Ok(vec![grad_out.mul(&input.cos()?)?]) });
+            let backward_fn = Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> {
+                Ok(vec![grad_out.mul(&input.cos()?)?])
+            });
             let node = TensorNode::new("sin".to_string(), vec![self.clone()], Some(backward_fn));
             result.node = Some(node);
         }
@@ -279,14 +388,24 @@ impl Tensor {
     }
 
     pub fn cos(&self) -> Result<Tensor> {
-        let target_dtype = if self.dtype().is_float() { self.dtype() } else { DType::F32 };
+        let target_dtype = if self.dtype().is_float() {
+            self.dtype()
+        } else {
+            DType::F32
+        };
 
         let input = promote_tensor(self, target_dtype)?;
         let mut result = Self::empty_with_spec(input.shape(), input.device(), input.dtype())?;
 
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::be::ops::unary::cos(out_buf, input.buffer(), input.size(), input.ndim(), Some(&prepare_metadata(&input)))?;
+                maidenx_core::be::ops::unary::cos(
+                    out_buf,
+                    input.buffer(),
+                    input.size(),
+                    input.ndim(),
+                    Some(&prepare_metadata(&input)),
+                )?;
                 Ok(())
             })?;
         }
@@ -295,8 +414,9 @@ impl Tensor {
             result.with_grad()?;
 
             let input = self.clone();
-            let backward_fn =
-                Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> { Ok(vec![grad_out.mul(&input.sin()?.neg()?)?]) });
+            let backward_fn = Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> {
+                Ok(vec![grad_out.mul(&input.sin()?.neg()?)?])
+            });
             let node = TensorNode::new("cos".to_string(), vec![self.clone()], Some(backward_fn));
             result.node = Some(node);
         }
@@ -305,14 +425,24 @@ impl Tensor {
     }
 
     pub fn tan(&self) -> Result<Tensor> {
-        let target_dtype = if self.dtype().is_float() { self.dtype() } else { DType::F32 };
+        let target_dtype = if self.dtype().is_float() {
+            self.dtype()
+        } else {
+            DType::F32
+        };
 
         let input = promote_tensor(self, target_dtype)?;
         let mut result = Self::empty_with_spec(input.shape(), input.device(), input.dtype())?;
 
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::be::ops::unary::tan(out_buf, input.buffer(), input.size(), input.ndim(), Some(&prepare_metadata(&input)))?;
+                maidenx_core::be::ops::unary::tan(
+                    out_buf,
+                    input.buffer(),
+                    input.size(),
+                    input.ndim(),
+                    Some(&prepare_metadata(&input)),
+                )?;
                 Ok(())
             })?;
         }
@@ -334,14 +464,24 @@ impl Tensor {
     }
 
     pub fn ln(&self) -> Result<Tensor> {
-        let target_dtype = if self.dtype().is_float() { self.dtype() } else { DType::F32 };
+        let target_dtype = if self.dtype().is_float() {
+            self.dtype()
+        } else {
+            DType::F32
+        };
 
         let input = promote_tensor(self, target_dtype)?;
         let mut result = Self::empty_with_spec(input.shape(), input.device(), input.dtype())?;
 
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::be::ops::unary::ln(out_buf, input.buffer(), input.size(), input.ndim(), Some(&prepare_metadata(&input)))?;
+                maidenx_core::be::ops::unary::ln(
+                    out_buf,
+                    input.buffer(),
+                    input.size(),
+                    input.ndim(),
+                    Some(&prepare_metadata(&input)),
+                )?;
                 Ok(())
             })?;
         }
@@ -350,7 +490,9 @@ impl Tensor {
             result.with_grad()?;
 
             let input = self.clone();
-            let backward_fn = Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> { Ok(vec![grad_out.div(&input)?]) });
+            let backward_fn = Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> {
+                Ok(vec![grad_out.div(&input)?])
+            });
             let node = TensorNode::new("ln".to_string(), vec![self.clone()], Some(backward_fn));
             result.node = Some(node);
         }
@@ -363,14 +505,24 @@ impl Tensor {
     }
 
     pub fn log10(&self) -> Result<Tensor> {
-        let target_dtype = if self.dtype().is_float() { self.dtype() } else { DType::F32 };
+        let target_dtype = if self.dtype().is_float() {
+            self.dtype()
+        } else {
+            DType::F32
+        };
 
         let input = promote_tensor(self, target_dtype)?;
         let mut result = Self::empty_with_spec(input.shape(), input.device(), input.dtype())?;
 
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::be::ops::unary::log10(out_buf, input.buffer(), input.size(), input.ndim(), Some(&prepare_metadata(&input)))?;
+                maidenx_core::be::ops::unary::log10(
+                    out_buf,
+                    input.buffer(),
+                    input.size(),
+                    input.ndim(),
+                    Some(&prepare_metadata(&input)),
+                )?;
                 Ok(())
             })?;
         }
@@ -380,8 +532,9 @@ impl Tensor {
 
             let input = self.clone();
             let ln10 = Scalar::from(std::f32::consts::LN_10); // ln(10)
-            let backward_fn =
-                Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> { Ok(vec![grad_out.div(&input)?.div_scalar(ln10)?]) });
+            let backward_fn = Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> {
+                Ok(vec![grad_out.div(&input)?.div_scalar(ln10)?])
+            });
             let node = TensorNode::new("log10".to_string(), vec![self.clone()], Some(backward_fn));
             result.node = Some(node);
         }
@@ -390,14 +543,24 @@ impl Tensor {
     }
 
     pub fn log2(&self) -> Result<Tensor> {
-        let target_dtype = if self.dtype().is_float() { self.dtype() } else { DType::F32 };
+        let target_dtype = if self.dtype().is_float() {
+            self.dtype()
+        } else {
+            DType::F32
+        };
 
         let input = promote_tensor(self, target_dtype)?;
         let mut result = Self::empty_with_spec(input.shape(), input.device(), input.dtype())?;
 
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::be::ops::unary::log2(out_buf, input.buffer(), input.size(), input.ndim(), Some(&prepare_metadata(&input)))?;
+                maidenx_core::be::ops::unary::log2(
+                    out_buf,
+                    input.buffer(),
+                    input.size(),
+                    input.ndim(),
+                    Some(&prepare_metadata(&input)),
+                )?;
                 Ok(())
             })?;
         }
@@ -407,8 +570,9 @@ impl Tensor {
 
             let input = self.clone();
             let ln2 = Scalar::from(std::f32::consts::LN_2); // ln(2)
-            let backward_fn =
-                Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> { Ok(vec![grad_out.div(&input)?.div_scalar(ln2)?]) });
+            let backward_fn = Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> {
+                Ok(vec![grad_out.div(&input)?.div_scalar(ln2)?])
+            });
             let node = TensorNode::new("log2".to_string(), vec![self.clone()], Some(backward_fn));
             result.node = Some(node);
         }
@@ -417,14 +581,24 @@ impl Tensor {
     }
 
     pub fn exp(&self) -> Result<Tensor> {
-        let target_dtype = if self.dtype().is_float() { self.dtype() } else { DType::F32 };
+        let target_dtype = if self.dtype().is_float() {
+            self.dtype()
+        } else {
+            DType::F32
+        };
 
         let input = promote_tensor(self, target_dtype)?;
         let mut result = Self::empty_with_spec(input.shape(), input.device(), input.dtype())?;
 
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::be::ops::unary::exp(out_buf, input.buffer(), input.size(), input.ndim(), Some(&prepare_metadata(&input)))?;
+                maidenx_core::be::ops::unary::exp(
+                    out_buf,
+                    input.buffer(),
+                    input.size(),
+                    input.ndim(),
+                    Some(&prepare_metadata(&input)),
+                )?;
                 Ok(())
             })?;
         }
@@ -433,7 +607,9 @@ impl Tensor {
             result.with_grad()?;
 
             let output = result.clone();
-            let backward_fn = Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> { Ok(vec![grad_out.mul(&output)?]) });
+            let backward_fn = Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> {
+                Ok(vec![grad_out.mul(&output)?])
+            });
             let node = TensorNode::new("exp".to_string(), vec![self.clone()], Some(backward_fn));
             result.node = Some(node);
         }
@@ -442,14 +618,24 @@ impl Tensor {
     }
 
     pub fn exp10(&self) -> Result<Tensor> {
-        let target_dtype = if self.dtype().is_float() { self.dtype() } else { DType::F32 };
+        let target_dtype = if self.dtype().is_float() {
+            self.dtype()
+        } else {
+            DType::F32
+        };
 
         let input = promote_tensor(self, target_dtype)?;
         let mut result = Self::empty_with_spec(input.shape(), input.device(), input.dtype())?;
 
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::be::ops::unary::exp10(out_buf, input.buffer(), input.size(), input.ndim(), Some(&prepare_metadata(&input)))?;
+                maidenx_core::be::ops::unary::exp10(
+                    out_buf,
+                    input.buffer(),
+                    input.size(),
+                    input.ndim(),
+                    Some(&prepare_metadata(&input)),
+                )?;
                 Ok(())
             })?;
         }
@@ -459,8 +645,9 @@ impl Tensor {
 
             let output = result.clone();
             let ln10 = Scalar::from(std::f32::consts::LN_10); // ln(10)
-            let backward_fn =
-                Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> { Ok(vec![grad_out.mul(&output)?.mul_scalar(ln10)?]) });
+            let backward_fn = Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> {
+                Ok(vec![grad_out.mul(&output)?.mul_scalar(ln10)?])
+            });
             let node = TensorNode::new("exp10".to_string(), vec![self.clone()], Some(backward_fn));
             result.node = Some(node);
         }
@@ -469,14 +656,24 @@ impl Tensor {
     }
 
     pub fn exp2(&self) -> Result<Tensor> {
-        let target_dtype = if self.dtype().is_float() { self.dtype() } else { DType::F32 };
+        let target_dtype = if self.dtype().is_float() {
+            self.dtype()
+        } else {
+            DType::F32
+        };
 
         let input = promote_tensor(self, target_dtype)?;
         let mut result = Self::empty_with_spec(input.shape(), input.device(), input.dtype())?;
 
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::be::ops::unary::exp2(out_buf, input.buffer(), input.size(), input.ndim(), Some(&prepare_metadata(&input)))?;
+                maidenx_core::be::ops::unary::exp2(
+                    out_buf,
+                    input.buffer(),
+                    input.size(),
+                    input.ndim(),
+                    Some(&prepare_metadata(&input)),
+                )?;
                 Ok(())
             })?;
         }
@@ -486,8 +683,9 @@ impl Tensor {
 
             let output = result.clone();
             let ln2 = Scalar::from(std::f32::consts::LN_2); // ln(2)
-            let backward_fn =
-                Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> { Ok(vec![grad_out.mul(&output)?.mul_scalar(ln2)?]) });
+            let backward_fn = Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> {
+                Ok(vec![grad_out.mul(&output)?.mul_scalar(ln2)?])
+            });
             let node = TensorNode::new("exp2".to_string(), vec![self.clone()], Some(backward_fn));
             result.node = Some(node);
         }
@@ -496,14 +694,24 @@ impl Tensor {
     }
 
     pub fn softplus(&self) -> Result<Tensor> {
-        let target_dtype = if self.dtype().is_float() { self.dtype() } else { DType::F32 };
+        let target_dtype = if self.dtype().is_float() {
+            self.dtype()
+        } else {
+            DType::F32
+        };
 
         let input = promote_tensor(self, target_dtype)?;
         let mut result = Self::empty_with_spec(input.shape(), input.device(), input.dtype())?;
 
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::be::ops::unary::softplus(out_buf, input.buffer(), input.size(), input.ndim(), Some(&prepare_metadata(&input)))?;
+                maidenx_core::be::ops::unary::softplus(
+                    out_buf,
+                    input.buffer(),
+                    input.size(),
+                    input.ndim(),
+                    Some(&prepare_metadata(&input)),
+                )?;
                 Ok(())
             })?;
         }
@@ -512,8 +720,9 @@ impl Tensor {
             result.with_grad()?;
 
             let input = self.clone();
-            let backward_fn =
-                Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> { Ok(vec![grad_out.mul(&input.sigmoid()?)?]) });
+            let backward_fn = Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> {
+                Ok(vec![grad_out.mul(&input.sigmoid()?)?])
+            });
             let node = TensorNode::new("softplus".to_string(), vec![self.clone()], Some(backward_fn));
             result.node = Some(node);
         }
@@ -522,14 +731,24 @@ impl Tensor {
     }
 
     pub fn recip(&self) -> Result<Tensor> {
-        let target_dtype = if self.dtype().is_float() { self.dtype() } else { DType::F32 };
+        let target_dtype = if self.dtype().is_float() {
+            self.dtype()
+        } else {
+            DType::F32
+        };
 
         let input = promote_tensor(self, target_dtype)?;
         let mut result = Self::empty_with_spec(input.shape(), input.device(), input.dtype())?;
 
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::be::ops::unary::recip(out_buf, input.buffer(), input.size(), input.ndim(), Some(&prepare_metadata(&input)))?;
+                maidenx_core::be::ops::unary::recip(
+                    out_buf,
+                    input.buffer(),
+                    input.size(),
+                    input.ndim(),
+                    Some(&prepare_metadata(&input)),
+                )?;
                 Ok(())
             })?;
         }
@@ -556,7 +775,13 @@ impl Tensor {
 
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::be::ops::unary::logical_not(out_buf, self.buffer(), self.size(), self.ndim(), Some(&prepare_metadata(self)))?;
+                maidenx_core::be::ops::unary::logical_not(
+                    out_buf,
+                    self.buffer(),
+                    self.size(),
+                    self.ndim(),
+                    Some(&prepare_metadata(self)),
+                )?;
                 Ok(())
             })?;
         }
@@ -594,7 +819,9 @@ impl Tensor {
 
         if self.requires_grad() {
             result.with_grad()?;
-            let backward_fn = Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> { Ok(vec![grad_out.clone()]) });
+            let backward_fn = Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> {
+                Ok(vec![grad_out.clone()])
+            });
             let node = TensorNode::new("add_scalar".to_string(), vec![self.clone()], Some(backward_fn));
             result.node = Some(node);
         }
@@ -630,7 +857,9 @@ impl Tensor {
 
         if self.requires_grad() {
             result.with_grad()?;
-            let backward_fn = Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> { Ok(vec![grad_out.clone()]) });
+            let backward_fn = Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> {
+                Ok(vec![grad_out.clone()])
+            });
             let node = TensorNode::new("sub_scalar".to_string(), vec![self.clone()], Some(backward_fn));
             result.node = Some(node);
         }
@@ -667,8 +896,9 @@ impl Tensor {
         if self.requires_grad() {
             result.with_grad()?;
             let scalar_clone = scalar;
-            let backward_fn =
-                Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> { Ok(vec![grad_out.mul_scalar(scalar_clone)?]) });
+            let backward_fn = Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> {
+                Ok(vec![grad_out.mul_scalar(scalar_clone)?])
+            });
             let node = TensorNode::new("mul_scalar".to_string(), vec![self.clone()], Some(backward_fn));
             result.node = Some(node);
         }
@@ -678,7 +908,11 @@ impl Tensor {
 
     pub fn div_scalar(&self, scalar: impl Into<Scalar>) -> Result<Tensor> {
         let scalar = scalar.into();
-        let target_dtype = if self.dtype().is_int() { DType::F32 } else { self.dtype() };
+        let target_dtype = if self.dtype().is_int() {
+            DType::F32
+        } else {
+            self.dtype()
+        };
 
         let input = promote_tensor(self, target_dtype)?;
         let scalar = promote_scalar_for_tensor(scalar, target_dtype, self)?;
@@ -701,8 +935,9 @@ impl Tensor {
         if self.requires_grad() {
             result.with_grad()?;
             let scalar_clone = scalar;
-            let backward_fn =
-                Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> { Ok(vec![grad_out.div_scalar(scalar_clone)?]) });
+            let backward_fn = Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> {
+                Ok(vec![grad_out.div_scalar(scalar_clone)?])
+            });
             let node = TensorNode::new("div_scalar".to_string(), vec![self.clone()], Some(backward_fn));
             result.node = Some(node);
         }
@@ -835,7 +1070,9 @@ impl Tensor {
 
             let input = self.clone();
             let backward_fn = Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> {
-                Ok(vec![grad_out.mul_scalar(exponent)?.mul(&input.pow(exponent.as_f32() - 1.0)?)?])
+                Ok(vec![grad_out
+                    .mul_scalar(exponent)?
+                    .mul(&input.pow(exponent.as_f32() - 1.0)?)?])
             });
             let node = TensorNode::new("pow".to_string(), vec![self.clone()], Some(backward_fn));
             result.node = Some(node);
@@ -846,7 +1083,11 @@ impl Tensor {
 
     pub fn leaky_relu(&self, exponent: impl Into<Scalar>) -> Result<Tensor> {
         let exponent = exponent.into();
-        let target_dtype = if self.dtype().is_int() { DType::F32 } else { self.dtype() };
+        let target_dtype = if self.dtype().is_int() {
+            DType::F32
+        } else {
+            self.dtype()
+        };
 
         let input = promote_tensor(self, target_dtype)?;
         let exponent = promote_scalar_for_tensor(exponent, target_dtype, self)?;
@@ -887,7 +1128,11 @@ impl Tensor {
 
     pub fn elu(&self, exponent: impl Into<Scalar>) -> Result<Tensor> {
         let exponent = exponent.into();
-        let target_dtype = if self.dtype().is_int() { DType::F32 } else { self.dtype() };
+        let target_dtype = if self.dtype().is_int() {
+            DType::F32
+        } else {
+            self.dtype()
+        };
 
         let input = promote_tensor(self, target_dtype)?;
         let exponent = promote_scalar_for_tensor(exponent, target_dtype, self)?;
@@ -935,7 +1180,14 @@ impl Tensor {
 
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::be::ops::unary::eq_scalar(out_buf, self.buffer(), scalar, self.size(), self.ndim(), Some(&prepare_metadata(self)))?;
+                maidenx_core::be::ops::unary::eq_scalar(
+                    out_buf,
+                    self.buffer(),
+                    scalar,
+                    self.size(),
+                    self.ndim(),
+                    Some(&prepare_metadata(self)),
+                )?;
                 Ok(())
             })?;
         }
@@ -950,7 +1202,14 @@ impl Tensor {
 
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::be::ops::unary::ne_scalar(out_buf, self.buffer(), scalar, self.size(), self.ndim(), Some(&prepare_metadata(self)))?;
+                maidenx_core::be::ops::unary::ne_scalar(
+                    out_buf,
+                    self.buffer(),
+                    scalar,
+                    self.size(),
+                    self.ndim(),
+                    Some(&prepare_metadata(self)),
+                )?;
                 Ok(())
             })?;
         }
@@ -965,7 +1224,14 @@ impl Tensor {
 
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::be::ops::unary::lt_scalar(out_buf, self.buffer(), scalar, self.size(), self.ndim(), Some(&prepare_metadata(self)))?;
+                maidenx_core::be::ops::unary::lt_scalar(
+                    out_buf,
+                    self.buffer(),
+                    scalar,
+                    self.size(),
+                    self.ndim(),
+                    Some(&prepare_metadata(self)),
+                )?;
                 Ok(())
             })?;
         }
@@ -980,7 +1246,14 @@ impl Tensor {
 
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::be::ops::unary::le_scalar(out_buf, self.buffer(), scalar, self.size(), self.ndim(), Some(&prepare_metadata(self)))?;
+                maidenx_core::be::ops::unary::le_scalar(
+                    out_buf,
+                    self.buffer(),
+                    scalar,
+                    self.size(),
+                    self.ndim(),
+                    Some(&prepare_metadata(self)),
+                )?;
                 Ok(())
             })?;
         }
@@ -995,7 +1268,14 @@ impl Tensor {
 
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::be::ops::unary::gt_scalar(out_buf, self.buffer(), scalar, self.size(), self.ndim(), Some(&prepare_metadata(self)))?;
+                maidenx_core::be::ops::unary::gt_scalar(
+                    out_buf,
+                    self.buffer(),
+                    scalar,
+                    self.size(),
+                    self.ndim(),
+                    Some(&prepare_metadata(self)),
+                )?;
                 Ok(())
             })?;
         }
@@ -1010,7 +1290,14 @@ impl Tensor {
 
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::be::ops::unary::ge_scalar(out_buf, self.buffer(), scalar, self.size(), self.ndim(), Some(&prepare_metadata(self)))?;
+                maidenx_core::be::ops::unary::ge_scalar(
+                    out_buf,
+                    self.buffer(),
+                    scalar,
+                    self.size(),
+                    self.ndim(),
+                    Some(&prepare_metadata(self)),
+                )?;
                 Ok(())
             })?;
         }

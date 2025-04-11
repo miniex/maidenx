@@ -15,7 +15,7 @@ mod test_functions {
                 let y = setup_tensor(vec![3u32, 4u32], dtype)?;
                 let result = x.add(&y)?;
                 assert_eq!(result.to_flatten_vec::<u32>()?, vec![4, 4]);
-            }
+            },
             DType::BF16 | DType::F16 => {
                 let x = setup_grad_tensor(vec![-1.0f32, 0.0], dtype)?;
                 let y = setup_grad_tensor(vec![3.0f32, 4.0f32], dtype)?;
@@ -43,7 +43,7 @@ mod test_functions {
                         assert!((a - e).abs() < 0.1, "Expected grad close to {}, got {}", e, a);
                     }
                 }
-            }
+            },
             _ => {
                 let x = setup_grad_tensor(vec![-1.0f32, 0.0], dtype)?;
                 let y = setup_grad_tensor(vec![3.0f32, 4.0f32], dtype)?;
@@ -58,7 +58,7 @@ mod test_functions {
                 if let Some(g) = y.grad()? {
                     assert_eq!(g.to_flatten_vec::<f32>()?, vec![1.0, 1.0]);
                 }
-            }
+            },
         }
         Ok(())
     }
@@ -70,7 +70,7 @@ mod test_functions {
                 let y = setup_tensor(vec![3u32, 1, 5], dtype)?;
                 let result = x.sub(&y)?;
                 assert_eq!(result.to_flatten_vec::<u32>()?, vec![0, 3, 0]);
-            }
+            },
             DType::BF16 | DType::F16 => {
                 let x = setup_grad_tensor(vec![-1.0f32, 0.0], dtype)?;
                 let y = setup_grad_tensor(vec![3.0f32, 4.0], dtype)?;
@@ -98,7 +98,7 @@ mod test_functions {
                         assert!((a - e).abs() < 0.1, "Expected grad close to {}, got {}", e, a);
                     }
                 }
-            }
+            },
             _ => {
                 let x = setup_grad_tensor(vec![-1.0f32, 0.0], dtype)?;
                 let y = setup_grad_tensor(vec![3.0f32, 4.0], dtype)?;
@@ -113,7 +113,7 @@ mod test_functions {
                 if let Some(g) = y.grad()? {
                     assert_eq!(g.to_flatten_vec::<f32>()?, vec![-1.0, -1.0]);
                 }
-            }
+            },
         }
         Ok(())
     }
@@ -125,7 +125,7 @@ mod test_functions {
                 let y = setup_tensor(vec![3u32, 4u32], dtype)?;
                 let result = x.mul(&y)?;
                 assert_eq!(result.to_flatten_vec::<u32>()?, vec![3, 0]);
-            }
+            },
             DType::BF16 | DType::F16 => {
                 let x = setup_grad_tensor(vec![-1.0f32, 0.0], dtype)?;
                 let y = setup_grad_tensor(vec![3.0f32, 4.0], dtype)?;
@@ -153,7 +153,7 @@ mod test_functions {
                         assert!((a - e).abs() < 0.1, "Expected grad close to {}, got {}", e, a);
                     }
                 }
-            }
+            },
             _ => {
                 let x = setup_grad_tensor(vec![-1.0f32, 0.0], dtype)?;
                 let y = setup_grad_tensor(vec![3.0f32, 4.0], dtype)?;
@@ -168,7 +168,7 @@ mod test_functions {
                 if let Some(g) = y.grad()? {
                     assert_eq!(g.to_flatten_vec::<f32>()?, vec![-1.0, 0.0]);
                 }
-            }
+            },
         }
         Ok(())
     }
@@ -180,7 +180,7 @@ mod test_functions {
                 let y = setup_tensor(vec![2u32, 4u32], dtype)?;
                 let result = x.div(&y)?;
                 assert_eq!(result.to_flatten_vec::<u32>()?, vec![3, 2]);
-            }
+            },
             DType::BF16 | DType::F16 => {
                 let x = setup_grad_tensor(vec![6.0f32, 10.0], dtype)?;
                 let y = setup_grad_tensor(vec![2.0f32, 4.0], dtype)?;
@@ -208,7 +208,7 @@ mod test_functions {
                         assert!((a - e).abs() < 0.1, "Expected grad close to {}, got {}", e, a);
                     }
                 }
-            }
+            },
             _ => {
                 let x = setup_grad_tensor(vec![6.0f32, 10.0], dtype)?;
                 let y = setup_grad_tensor(vec![2.0f32, 4.0], dtype)?;
@@ -223,7 +223,7 @@ mod test_functions {
                 if let Some(g) = y.grad()? {
                     assert_eq!(g.to_flatten_vec::<f32>()?, vec![-1.5, -0.625]);
                 }
-            }
+            },
         }
         Ok(())
     }
@@ -235,7 +235,7 @@ mod test_functions {
                 let y = setup_tensor(vec![3u32, 2, 3], dtype)?;
                 let result = x.maximum(&y)?;
                 assert_eq!(result.to_flatten_vec::<u32>()?, vec![3, 5, 3]);
-            }
+            },
             DType::BF16 | DType::F16 => {
                 let x = setup_grad_tensor(vec![1.0f32, 5.0, 3.0], dtype)?;
                 let y = setup_grad_tensor(vec![3.0f32, 2.0, 3.0], dtype)?;
@@ -263,7 +263,7 @@ mod test_functions {
                         assert!((a - e).abs() < 0.1, "Expected grad close to {}, got {}", e, a);
                     }
                 }
-            }
+            },
             _ => {
                 let x = setup_grad_tensor(vec![1.0f32, 5.0, 3.0], dtype)?;
                 let y = setup_grad_tensor(vec![3.0f32, 2.0, 3.0], dtype)?;
@@ -278,7 +278,7 @@ mod test_functions {
                 if let Some(g) = y.grad()? {
                     assert_eq!(g.to_flatten_vec::<f32>()?, vec![1.0, 0.0, 0.5]);
                 }
-            }
+            },
         }
         Ok(())
     }
@@ -290,7 +290,7 @@ mod test_functions {
                 let y = setup_tensor(vec![3u32, 2, 3], dtype)?;
                 let result = x.minimum(&y)?;
                 assert_eq!(result.to_flatten_vec::<u32>()?, vec![1, 2, 3]);
-            }
+            },
             DType::BF16 | DType::F16 => {
                 let x = setup_grad_tensor(vec![1.0f32, 5.0, 3.0], dtype)?;
                 let y = setup_grad_tensor(vec![3.0f32, 2.0, 3.0], dtype)?;
@@ -318,7 +318,7 @@ mod test_functions {
                         assert!((a - e).abs() < 0.1, "Expected grad close to {}, got {}", e, a);
                     }
                 }
-            }
+            },
             _ => {
                 let x = setup_grad_tensor(vec![1.0f32, 5.0, 3.0], dtype)?;
                 let y = setup_grad_tensor(vec![3.0f32, 2.0, 3.0], dtype)?;
@@ -333,7 +333,7 @@ mod test_functions {
                 if let Some(g) = y.grad()? {
                     assert_eq!(g.to_flatten_vec::<f32>()?, vec![0.0, 1.0, 0.5]);
                 }
-            }
+            },
         }
         Ok(())
     }
@@ -345,19 +345,19 @@ mod test_functions {
                 let y = setup_tensor(vec![true, true, false, false], dtype)?;
                 let result = x.logical_and(&y)?;
                 assert_eq!(result.to_flatten_vec::<bool>()?, vec![true, false, false, false]);
-            }
+            },
             DType::U8 | DType::U16 | DType::U32 | DType::U64 | DType::I8 | DType::I16 | DType::I32 | DType::I64 => {
                 let x = setup_tensor(vec![1u32, 0, 2, 0], dtype)?;
                 let y = setup_tensor(vec![3u32, 4, 0, 0], dtype)?;
                 let result = x.logical_and(&y)?;
                 assert_eq!(result.to_flatten_vec::<bool>()?, vec![true, false, false, false]);
-            }
+            },
             _ => {
                 let x = setup_tensor(vec![1.0f32, 0.0, 2.0, 0.0], dtype)?;
                 let y = setup_tensor(vec![3.0f32, 4.0, 0.0, 0.0], dtype)?;
                 let result = x.logical_and(&y)?;
                 assert_eq!(result.to_flatten_vec::<bool>()?, vec![true, false, false, false]);
-            }
+            },
         }
         Ok(())
     }
@@ -369,19 +369,19 @@ mod test_functions {
                 let y = setup_tensor(vec![true, true, false, false], dtype)?;
                 let result = x.logical_or(&y)?;
                 assert_eq!(result.to_flatten_vec::<bool>()?, vec![true, true, true, false]);
-            }
+            },
             DType::U8 | DType::U16 | DType::U32 | DType::U64 | DType::I8 | DType::I16 | DType::I32 | DType::I64 => {
                 let x = setup_tensor(vec![1u32, 0, 2, 0], dtype)?;
                 let y = setup_tensor(vec![3u32, 4, 0, 0], dtype)?;
                 let result = x.logical_or(&y)?;
                 assert_eq!(result.to_flatten_vec::<bool>()?, vec![true, true, true, false]);
-            }
+            },
             _ => {
                 let x = setup_tensor(vec![1.0f32, 0.0, 2.0, 0.0], dtype)?;
                 let y = setup_tensor(vec![3.0f32, 4.0, 0.0, 0.0], dtype)?;
                 let result = x.logical_or(&y)?;
                 assert_eq!(result.to_flatten_vec::<bool>()?, vec![true, true, true, false]);
-            }
+            },
         }
         Ok(())
     }
@@ -393,19 +393,19 @@ mod test_functions {
                 let y = setup_tensor(vec![true, true, false, false], dtype)?;
                 let result = x.logical_xor(&y)?;
                 assert_eq!(result.to_flatten_vec::<bool>()?, vec![false, true, true, false]);
-            }
+            },
             DType::U8 | DType::U16 | DType::U32 | DType::U64 | DType::I8 | DType::I16 | DType::I32 | DType::I64 => {
                 let x = setup_tensor(vec![1u32, 0, 2, 0], dtype)?;
                 let y = setup_tensor(vec![3u32, 4, 0, 0], dtype)?;
                 let result = x.logical_xor(&y)?;
                 assert_eq!(result.to_flatten_vec::<bool>()?, vec![false, true, true, false]);
-            }
+            },
             _ => {
                 let x = setup_tensor(vec![1.0f32, 0.0, 2.0, 0.0], dtype)?;
                 let y = setup_tensor(vec![3.0f32, 4.0, 0.0, 0.0], dtype)?;
                 let result = x.logical_xor(&y)?;
                 assert_eq!(result.to_flatten_vec::<bool>()?, vec![false, true, true, false]);
-            }
+            },
         }
         Ok(())
     }
@@ -417,19 +417,19 @@ mod test_functions {
                 let y = setup_tensor(vec![true, true], dtype)?;
                 let result = x.eq(&y)?;
                 assert_eq!(result.to_flatten_vec::<bool>()?, vec![true, false]);
-            }
+            },
             DType::U8 | DType::U16 | DType::U32 | DType::U64 | DType::I8 | DType::I16 | DType::I32 | DType::I64 => {
                 let x = setup_tensor(vec![1u32, 0], dtype)?;
                 let y = setup_tensor(vec![1u32, 3], dtype)?;
                 let result = x.eq(&y)?;
                 assert_eq!(result.to_flatten_vec::<bool>()?, vec![true, false]);
-            }
+            },
             _ => {
                 let x = setup_tensor(vec![-1.0f32, 0.0], dtype)?;
                 let y = setup_tensor(vec![1.0f32, 3.0], dtype)?;
                 let result = x.eq(&y)?;
                 assert_eq!(result.to_flatten_vec::<bool>()?, vec![false, false]);
-            }
+            },
         }
         Ok(())
     }
@@ -441,19 +441,19 @@ mod test_functions {
                 let y = setup_tensor(vec![true, true], dtype)?;
                 let result = x.ne(&y)?;
                 assert_eq!(result.to_flatten_vec::<bool>()?, vec![false, true]);
-            }
+            },
             DType::U8 | DType::U16 | DType::U32 | DType::U64 | DType::I8 | DType::I16 | DType::I32 | DType::I64 => {
                 let x = setup_tensor(vec![1u32, 0], dtype)?;
                 let y = setup_tensor(vec![1u32, 3], dtype)?;
                 let result = x.ne(&y)?;
                 assert_eq!(result.to_flatten_vec::<bool>()?, vec![false, true]);
-            }
+            },
             _ => {
                 let x = setup_tensor(vec![-1.0f32, 0.0], dtype)?;
                 let y = setup_tensor(vec![1.0f32, 3.0], dtype)?;
                 let result = x.ne(&y)?;
                 assert_eq!(result.to_flatten_vec::<bool>()?, vec![true, true]);
-            }
+            },
         }
         Ok(())
     }
@@ -465,19 +465,19 @@ mod test_functions {
                 let y = setup_tensor(vec![true, true], dtype)?;
                 let result = x.lt(&y)?;
                 assert_eq!(result.to_flatten_vec::<bool>()?, vec![true, false]);
-            }
+            },
             DType::U8 | DType::U16 | DType::U32 | DType::U64 | DType::I8 | DType::I16 | DType::I32 | DType::I64 => {
                 let x = setup_tensor(vec![1u32, 0], dtype)?;
                 let y = setup_tensor(vec![1u32, 5], dtype)?;
                 let result = x.lt(&y)?;
                 assert_eq!(result.to_flatten_vec::<bool>()?, vec![false, true]);
-            }
+            },
             _ => {
                 let x = setup_tensor(vec![-1.0f32, 0.0], dtype)?;
                 let y = setup_tensor(vec![1.5f32, 1.5], dtype)?;
                 let result = x.lt(&y)?;
                 assert_eq!(result.to_flatten_vec::<bool>()?, vec![true, true]);
-            }
+            },
         }
         Ok(())
     }
@@ -489,19 +489,19 @@ mod test_functions {
                 let y = setup_tensor(vec![true, true], dtype)?;
                 let result = x.le(&y)?;
                 assert_eq!(result.to_flatten_vec::<bool>()?, vec![true, true]);
-            }
+            },
             DType::U8 | DType::U16 | DType::U32 | DType::U64 | DType::I8 | DType::I16 | DType::I32 | DType::I64 => {
                 let x = setup_tensor(vec![1u32, 0], dtype)?;
                 let y = setup_tensor(vec![1u32, 5], dtype)?;
                 let result = x.le(&y)?;
                 assert_eq!(result.to_flatten_vec::<bool>()?, vec![true, true]);
-            }
+            },
             _ => {
                 let x = setup_tensor(vec![-1.0f32, 0.0], dtype)?;
                 let y = setup_tensor(vec![1.0f32, 1.5], dtype)?;
                 let result = x.le(&y)?;
                 assert_eq!(result.to_flatten_vec::<bool>()?, vec![true, true]);
-            }
+            },
         }
         Ok(())
     }
@@ -513,19 +513,19 @@ mod test_functions {
                 let y = setup_tensor(vec![false, false], dtype)?;
                 let result = x.gt(&y)?;
                 assert_eq!(result.to_flatten_vec::<bool>()?, vec![true, false]);
-            }
+            },
             DType::U8 | DType::U16 | DType::U32 | DType::U64 | DType::I8 | DType::I16 | DType::I32 | DType::I64 => {
                 let x = setup_tensor(vec![1u32, 0], dtype)?;
                 let y = setup_tensor(vec![0u32, 2], dtype)?;
                 let result = x.gt(&y)?;
                 assert_eq!(result.to_flatten_vec::<bool>()?, vec![true, false]);
-            }
+            },
             _ => {
                 let x = setup_tensor(vec![-1.0f32, 0.0], dtype)?;
                 let y = setup_tensor(vec![0.5f32, 2.0], dtype)?;
                 let result = x.gt(&y)?;
                 assert_eq!(result.to_flatten_vec::<bool>()?, vec![false, false]);
-            }
+            },
         }
         Ok(())
     }
@@ -537,19 +537,19 @@ mod test_functions {
                 let y = setup_tensor(vec![false, false], dtype)?;
                 let result = x.ge(&y)?;
                 assert_eq!(result.to_flatten_vec::<bool>()?, vec![true, true]);
-            }
+            },
             DType::U8 | DType::U16 | DType::U32 | DType::U64 | DType::I8 | DType::I16 | DType::I32 | DType::I64 => {
                 let x = setup_tensor(vec![1u32, 0], dtype)?;
                 let y = setup_tensor(vec![0u32, 2], dtype)?;
                 let result = x.ge(&y)?;
                 assert_eq!(result.to_flatten_vec::<bool>()?, vec![true, false]);
-            }
+            },
             _ => {
                 let x = setup_tensor(vec![-1.0f32, 0.0], dtype)?;
                 let y = setup_tensor(vec![1.0f32, 2.5], dtype)?;
                 let result = x.ge(&y)?;
                 assert_eq!(result.to_flatten_vec::<bool>()?, vec![false, false]);
-            }
+            },
         }
         Ok(())
     }
@@ -561,7 +561,7 @@ mod test_functions {
                 let y = setup_tensor(vec![3u32, 4u32], dtype)?;
                 x.add_(&y)?;
                 assert_eq!(x.to_flatten_vec::<u32>()?, vec![4, 4]);
-            }
+            },
             DType::BF16 | DType::F16 => {
                 let mut x = setup_tensor(vec![-1.0f32, 0.0], dtype)?;
                 let y = setup_tensor(vec![3.0f32, 4.0], dtype)?;
@@ -572,13 +572,13 @@ mod test_functions {
                 for (a, e) in actual.iter().zip(expected.iter()) {
                     assert!((a - e).abs() < 0.1, "Expected value close to {}, got {}", e, a);
                 }
-            }
+            },
             _ => {
                 let mut x = setup_tensor(vec![-1.0f32, 0.0], dtype)?;
                 let y = setup_tensor(vec![3.0f32, 4.0], dtype)?;
                 x.add_(&y)?;
                 assert_eq!(x.to_flatten_vec::<f32>()?, vec![2.0, 4.0]);
-            }
+            },
         }
         Ok(())
     }
@@ -590,7 +590,7 @@ mod test_functions {
                 let y = setup_tensor(vec![1u32, 0], dtype)?;
                 x.sub_(&y)?;
                 assert_eq!(x.to_flatten_vec::<u32>()?, vec![0, 0]);
-            }
+            },
             DType::BF16 | DType::F16 => {
                 let mut x = setup_tensor(vec![-1.0f32, 0.0], dtype)?;
                 let y = setup_tensor(vec![3.0f32, 4.0], dtype)?;
@@ -601,13 +601,13 @@ mod test_functions {
                 for (a, e) in actual.iter().zip(expected.iter()) {
                     assert!((a - e).abs() < 0.1, "Expected value close to {}, got {}", e, a);
                 }
-            }
+            },
             _ => {
                 let mut x = setup_tensor(vec![-1.0f32, 0.0], dtype)?;
                 let y = setup_tensor(vec![3.0f32, 4.0], dtype)?;
                 x.sub_(&y)?;
                 assert_eq!(x.to_flatten_vec::<f32>()?, vec![-4.0, -4.0]);
-            }
+            },
         }
         Ok(())
     }
@@ -619,7 +619,7 @@ mod test_functions {
                 let y = setup_tensor(vec![3u32, 4u32], dtype)?;
                 x.mul_(&y)?;
                 assert_eq!(x.to_flatten_vec::<u32>()?, vec![3, 0]);
-            }
+            },
             DType::BF16 | DType::F16 => {
                 let mut x = setup_tensor(vec![-1.0f32, 0.0], dtype)?;
                 let y = setup_tensor(vec![3.0f32, 4.0], dtype)?;
@@ -630,13 +630,13 @@ mod test_functions {
                 for (a, e) in actual.iter().zip(expected.iter()) {
                     assert!((a - e).abs() < 0.1, "Expected value close to {}, got {}", e, a);
                 }
-            }
+            },
             _ => {
                 let mut x = setup_tensor(vec![-1.0f32, 0.0], dtype)?;
                 let y = setup_tensor(vec![3.0f32, 4.0], dtype)?;
                 x.mul_(&y)?;
                 assert_eq!(x.to_flatten_vec::<f32>()?, vec![-3.0, 0.0]);
-            }
+            },
         }
         Ok(())
     }
@@ -648,7 +648,7 @@ mod test_functions {
                 let y = setup_tensor(vec![2u32, 4u32], dtype)?;
                 x.div_(&y)?;
                 assert_eq!(x.to_flatten_vec::<u32>()?, vec![3, 2]);
-            }
+            },
             DType::BF16 | DType::F16 => {
                 let mut x = setup_tensor(vec![6.0f32, 8.0], dtype)?;
                 let y = setup_tensor(vec![2.0f32, 4.0], dtype)?;
@@ -659,13 +659,13 @@ mod test_functions {
                 for (a, e) in actual.iter().zip(expected.iter()) {
                     assert!((a - e).abs() < 0.1, "Expected value close to {}, got {}", e, a);
                 }
-            }
+            },
             _ => {
                 let mut x = setup_tensor(vec![6.0f32, 8.0], dtype)?;
                 let y = setup_tensor(vec![2.0f32, 4.0], dtype)?;
                 x.div_(&y)?;
                 assert_eq!(x.to_flatten_vec::<f32>()?, vec![3.0, 2.0]);
-            }
+            },
         }
         Ok(())
     }

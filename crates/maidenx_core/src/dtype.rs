@@ -154,7 +154,15 @@ impl DType {
     pub fn is_float(&self) -> bool {
         match self {
             Self::BF16 | Self::F16 | Self::F32 | Self::F64 => true,
-            Self::BOOL | Self::U8 | Self::U16 | Self::U32 | Self::U64 | Self::I8 | Self::I16 | Self::I32 | Self::I64 => false,
+            Self::BOOL
+            | Self::U8
+            | Self::U16
+            | Self::U32
+            | Self::U64
+            | Self::I8
+            | Self::I16
+            | Self::I32
+            | Self::I64 => false,
         }
     }
 
@@ -197,55 +205,55 @@ impl DType {
             Self::BF16 => {
                 let val = *(ptr as *const half::bf16);
                 Scalar::from(f32::from(val))
-            }
+            },
             Self::F16 => {
                 let val = *(ptr as *const half::f16);
                 Scalar::from(f32::from(val))
-            }
+            },
             Self::F32 => {
                 let val = *(ptr as *const f32);
                 Scalar::from(val)
-            }
+            },
             Self::F64 => {
                 let val = *(ptr as *const f64);
                 Scalar::from(val)
-            }
+            },
             Self::BOOL => {
                 let val = *(ptr as *const bool);
                 Scalar::from(val)
-            }
+            },
             Self::U8 => {
                 let val = *ptr;
                 Scalar::from(val)
-            }
+            },
             Self::U16 => {
                 let val = *(ptr as *const u16);
                 Scalar::from(val)
-            }
+            },
             Self::U32 => {
                 let val = *(ptr as *const u32);
                 Scalar::from(val as i32)
-            }
+            },
             Self::U64 => {
                 let val = *(ptr as *const u64);
                 Scalar::from(val)
-            }
+            },
             Self::I8 => {
                 let val = *(ptr as *const i8);
                 Scalar::from(val)
-            }
+            },
             Self::I16 => {
                 let val = *(ptr as *const i16);
                 Scalar::from(val)
-            }
+            },
             Self::I32 => {
                 let val = *(ptr as *const i32);
                 Scalar::from(val)
-            }
+            },
             Self::I64 => {
                 let val = *(ptr as *const i64);
                 Scalar::from(val)
-            }
+            },
         }
     }
 
@@ -262,44 +270,44 @@ impl DType {
             Self::BF16 => {
                 let float_val = value.as_f32();
                 *(ptr as *mut half::bf16) = half::bf16::from_f32(float_val);
-            }
+            },
             Self::F16 => {
                 let float_val = value.as_f32();
                 *(ptr as *mut half::f16) = half::f16::from_f32(float_val);
-            }
+            },
             Self::F32 => {
                 *(ptr as *mut f32) = value.as_f32();
-            }
+            },
             Self::F64 => {
                 *(ptr as *mut f64) = value.as_f64();
-            }
+            },
             Self::BOOL => {
                 *(ptr as *mut bool) = value.as_bool();
-            }
+            },
             Self::U8 => {
                 *ptr = value.as_u8();
-            }
+            },
             Self::U16 => {
                 *(ptr as *mut u16) = value.as_u16();
-            }
+            },
             Self::U32 => {
                 *(ptr as *mut u32) = value.as_u32();
-            }
+            },
             Self::U64 => {
                 *(ptr as *mut u64) = value.as_u64();
-            }
+            },
             Self::I8 => {
                 *(ptr as *mut i8) = value.as_i8();
-            }
+            },
             Self::I16 => {
                 *(ptr as *mut i16) = value.as_i16();
-            }
+            },
             Self::I32 => {
                 *(ptr as *mut i32) = value.as_i32();
-            }
+            },
             Self::I64 => {
                 *(ptr as *mut i64) = value.as_i64();
-            }
+            },
         }
     }
 }

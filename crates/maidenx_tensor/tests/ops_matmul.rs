@@ -16,7 +16,7 @@ mod test_functions {
                 let c = a.matmul(&b)?;
                 assert_eq!(c.ndim(), 0);
                 assert_eq!(c.to_flatten_vec::<u32>()?, vec![32u32]);
-            }
+            },
             DType::BF16 | DType::F16 => {
                 let a = setup_grad_tensor_with_shape(vec![1.0f32, 2.0, 3.0], dtype, &[3])?;
                 let b = setup_grad_tensor_with_shape(vec![4.0f32, 5.0, 6.0], dtype, &[3])?;
@@ -45,7 +45,7 @@ mod test_functions {
                         assert!((a - e).abs() < 0.1, "Expected grad close to {}, got {}", e, a);
                     }
                 }
-            }
+            },
             _ => {
                 let a = setup_grad_tensor_with_shape(vec![1.0f32, 2.0, 3.0], dtype, &[3])?;
                 let b = setup_grad_tensor_with_shape(vec![4.0f32, 5.0, 6.0], dtype, &[3])?;
@@ -61,7 +61,7 @@ mod test_functions {
                 if let Some(b_grad) = b.grad()? {
                     assert_eq!(b_grad.to_flatten_vec::<f32>()?, vec![1.0f32, 2.0, 3.0]);
                 }
-            }
+            },
         }
         Ok(())
     }
@@ -74,7 +74,7 @@ mod test_functions {
                 let result = matrix.matmul(&vector)?;
                 assert_eq!(result.shape(), &[2]);
                 assert_eq!(result.to_flatten_vec::<u32>()?, vec![13u32, 31]);
-            }
+            },
             DType::BF16 | DType::F16 => {
                 let matrix = setup_grad_tensor_with_shape(vec![1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0], dtype, &[2, 3])?;
                 let vector = setup_grad_tensor_with_shape(vec![2.0f32, 1.0, 3.0], dtype, &[3])?;
@@ -103,7 +103,7 @@ mod test_functions {
                         assert!((a - e).abs() < 0.1, "Expected grad close to {}, got {}", e, a);
                     }
                 }
-            }
+            },
             _ => {
                 let matrix = setup_grad_tensor_with_shape(vec![1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0], dtype, &[2, 3])?;
                 let vector = setup_grad_tensor_with_shape(vec![2.0f32, 1.0, 3.0], dtype, &[3])?;
@@ -113,13 +113,16 @@ mod test_functions {
 
                 result.backward()?;
                 if let Some(matrix_grad) = matrix.grad()? {
-                    assert_eq!(matrix_grad.to_flatten_vec::<f32>()?, vec![2.0f32, 1.0, 3.0, 2.0, 1.0, 3.0]);
+                    assert_eq!(
+                        matrix_grad.to_flatten_vec::<f32>()?,
+                        vec![2.0f32, 1.0, 3.0, 2.0, 1.0, 3.0]
+                    );
                 }
 
                 if let Some(vector_grad) = vector.grad()? {
                     assert_eq!(vector_grad.to_flatten_vec::<f32>()?, vec![5.0f32, 7.0, 9.0]);
                 }
-            }
+            },
         }
         Ok(())
     }
@@ -132,7 +135,7 @@ mod test_functions {
                 let result = vector.matmul(&matrix)?;
                 assert_eq!(result.shape(), &[3]);
                 assert_eq!(result.to_flatten_vec::<u32>()?, vec![14u32, 19, 24]);
-            }
+            },
             DType::BF16 | DType::F16 => {
                 let vector = setup_grad_tensor_with_shape(vec![2.0f32, 3.0], dtype, &[2])?;
                 let matrix = setup_grad_tensor_with_shape(vec![1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0], dtype, &[2, 3])?;
@@ -161,7 +164,7 @@ mod test_functions {
                         assert!((a - e).abs() < 0.1, "Expected grad close to {}, got {}", e, a);
                     }
                 }
-            }
+            },
             _ => {
                 let vector = setup_grad_tensor_with_shape(vec![2.0f32, 3.0], dtype, &[2])?;
                 let matrix = setup_grad_tensor_with_shape(vec![1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0], dtype, &[2, 3])?;
@@ -175,9 +178,12 @@ mod test_functions {
                 }
 
                 if let Some(matrix_grad) = matrix.grad()? {
-                    assert_eq!(matrix_grad.to_flatten_vec::<f32>()?, vec![2.0f32, 2.0, 2.0, 3.0, 3.0, 3.0]);
+                    assert_eq!(
+                        matrix_grad.to_flatten_vec::<f32>()?,
+                        vec![2.0f32, 2.0, 2.0, 3.0, 3.0, 3.0]
+                    );
                 }
-            }
+            },
         }
         Ok(())
     }
@@ -190,7 +196,7 @@ mod test_functions {
                 let c = a.matmul(&b)?;
                 assert_eq!(c.shape(), &[2, 2]);
                 assert_eq!(c.to_flatten_vec::<u32>()?, vec![19u32, 22, 43, 50]);
-            }
+            },
             DType::BF16 | DType::F16 => {
                 let a = setup_grad_tensor_with_shape(vec![1.0f32, 2.0, 3.0, 4.0], dtype, &[2, 2])?;
                 let b = setup_grad_tensor_with_shape(vec![5.0f32, 6.0, 7.0, 8.0], dtype, &[2, 2])?;
@@ -219,7 +225,7 @@ mod test_functions {
                         assert!((a - e).abs() < 0.1, "Expected grad close to {}, got {}", e, a);
                     }
                 }
-            }
+            },
             _ => {
                 let a = setup_grad_tensor_with_shape(vec![1.0f32, 2.0, 3.0, 4.0], dtype, &[2, 2])?;
                 let b = setup_grad_tensor_with_shape(vec![5.0f32, 6.0, 7.0, 8.0], dtype, &[2, 2])?;
@@ -235,7 +241,7 @@ mod test_functions {
                 if let Some(b_grad) = b.grad()? {
                     assert_eq!(b_grad.to_flatten_vec::<f32>()?, vec![4.0f32, 4.0, 6.0, 6.0]);
                 }
-            }
+            },
         }
         Ok(())
     }
@@ -248,10 +254,15 @@ mod test_functions {
                 let c = a.matmul(&b)?;
                 assert_eq!(c.shape(), &[2, 2, 2]);
                 assert_eq!(c.to_flatten_vec::<u32>()?, vec![31u32, 34, 71, 78, 155, 166, 211, 226]);
-            }
+            },
             DType::BF16 | DType::F16 => {
-                let a = setup_grad_tensor_with_shape(vec![1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0], dtype, &[2, 2, 2])?;
-                let b = setup_grad_tensor_with_shape(vec![9.0f32, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0], dtype, &[2, 2, 2])?;
+                let a =
+                    setup_grad_tensor_with_shape(vec![1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0], dtype, &[2, 2, 2])?;
+                let b = setup_grad_tensor_with_shape(
+                    vec![9.0f32, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0],
+                    dtype,
+                    &[2, 2, 2],
+                )?;
                 let c = a.matmul(&b)?;
                 assert_eq!(c.shape(), &[2, 2, 2]);
 
@@ -277,26 +288,46 @@ mod test_functions {
                         assert!((a - e).abs() < 0.1, "Expected grad close to {}, got {}", e, a);
                     }
                 }
-            }
+            },
             _ => {
-                let a = setup_grad_tensor_with_shape(vec![1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0], dtype, &[2, 2, 2])?;
-                let b = setup_grad_tensor_with_shape(vec![9.0f32, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0], dtype, &[2, 2, 2])?;
+                let a =
+                    setup_grad_tensor_with_shape(vec![1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0], dtype, &[2, 2, 2])?;
+                let b = setup_grad_tensor_with_shape(
+                    vec![9.0f32, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0, 16.0],
+                    dtype,
+                    &[2, 2, 2],
+                )?;
                 let c = a.matmul(&b)?;
                 assert_eq!(c.shape(), &[2, 2, 2]);
-                assert_eq!(c.to_flatten_vec::<f32>()?, vec![31.0f32, 34.0, 71.0, 78.0, 155.0, 166.0, 211.0, 226.0]);
+                assert_eq!(
+                    c.to_flatten_vec::<f32>()?,
+                    vec![31.0f32, 34.0, 71.0, 78.0, 155.0, 166.0, 211.0, 226.0]
+                );
 
                 c.backward()?;
                 if let Some(a_grad) = a.grad()? {
-                    assert_eq!(a_grad.to_flatten_vec::<f32>()?, vec![19.0f32, 23.0, 19.0, 23.0, 27.0, 31.0, 27.0, 31.0]);
+                    assert_eq!(
+                        a_grad.to_flatten_vec::<f32>()?,
+                        vec![19.0f32, 23.0, 19.0, 23.0, 27.0, 31.0, 27.0, 31.0]
+                    );
                 }
 
                 if let Some(b_grad) = b.grad()? {
-                    assert_eq!(b_grad.to_flatten_vec::<f32>()?, vec![4.0f32, 4.0, 6.0, 6.0, 12.0, 12.0, 14.0, 14.0]);
+                    assert_eq!(
+                        b_grad.to_flatten_vec::<f32>()?,
+                        vec![4.0f32, 4.0, 6.0, 6.0, 12.0, 12.0, 14.0, 14.0]
+                    );
                 }
-            }
+            },
         }
         Ok(())
     }
 }
 
-test_ops!([vector_vector, matrix_vector, vector_matrix, matrix_matrix, batched_matrix_matrix]);
+test_ops!([
+    vector_vector,
+    matrix_vector,
+    vector_matrix,
+    matrix_matrix,
+    batched_matrix_matrix
+]);

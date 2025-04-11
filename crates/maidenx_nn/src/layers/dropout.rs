@@ -14,7 +14,10 @@ pub struct Dropout {
 
 impl Dropout {
     pub fn new(p: f32) -> Result<Self> {
-        Ok(Self { p, state: LayerState::new() })
+        Ok(Self {
+            p,
+            state: LayerState::new(),
+        })
     }
 
     pub fn forward(&self, input: &Tensor) -> Result<Tensor> {
@@ -84,7 +87,11 @@ mod tests {
 
         assert!(zeros_count > 0, "There should be at least some zeros");
         assert!(non_zeros_count > 0, "There should be at least some non-zero values");
-        assert_eq!(zeros_count + non_zeros_count, 1000, "All values should be either 0 or 2.0");
+        assert_eq!(
+            zeros_count + non_zeros_count,
+            1000,
+            "All values should be either 0 or 2.0"
+        );
 
         Ok(())
     }

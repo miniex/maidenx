@@ -30,7 +30,14 @@ impl Tensor {
         let metadata = prepare_metadata(self, dim);
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::be::ops::reduction::sum(out_buf, self.buffer(), self.size(), self.ndim(), 1, Some(&metadata))?;
+                maidenx_core::be::ops::reduction::sum(
+                    out_buf,
+                    self.buffer(),
+                    self.size(),
+                    self.ndim(),
+                    1,
+                    Some(&metadata),
+                )?;
 
                 Ok(())
             })?;
@@ -107,7 +114,13 @@ impl Tensor {
         let metadata = prepare_metadata_for_shape(self, shape);
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::be::ops::reduction::sum_to_shape(out_buf, self.buffer(), self.size(), self.ndim(), Some(&metadata))?;
+                maidenx_core::be::ops::reduction::sum_to_shape(
+                    out_buf,
+                    self.buffer(),
+                    self.size(),
+                    self.ndim(),
+                    Some(&metadata),
+                )?;
 
                 Ok(())
             })?;
@@ -117,8 +130,9 @@ impl Tensor {
             result.with_grad()?;
 
             let input_shape = self.shape().to_vec();
-            let backward_fn =
-                Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> { Ok(vec![grad_out.broadcast(&input_shape)?]) });
+            let backward_fn = Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> {
+                Ok(vec![grad_out.broadcast(&input_shape)?])
+            });
 
             let node = TensorNode::new("sum_to_shape".to_string(), vec![self.clone()], Some(backward_fn));
             result.node = Some(node);
@@ -146,7 +160,11 @@ impl Tensor {
         let original_shape = shape.clone();
         shape.remove(dim);
 
-        let target_dtype = if self.dtype().is_int() { DType::F32 } else { self.dtype() };
+        let target_dtype = if self.dtype().is_int() {
+            DType::F32
+        } else {
+            self.dtype()
+        };
         let input = promote_tensor(self, target_dtype)?;
 
         let mut result = Self::zeros_with_spec(&shape, input.device(), input.dtype())?;
@@ -154,7 +172,14 @@ impl Tensor {
         let metadata = prepare_metadata(self, dim);
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::be::ops::reduction::mean(out_buf, input.buffer(), input.size(), input.ndim(), 1, Some(&metadata))?;
+                maidenx_core::be::ops::reduction::mean(
+                    out_buf,
+                    input.buffer(),
+                    input.size(),
+                    input.ndim(),
+                    1,
+                    Some(&metadata),
+                )?;
 
                 Ok(())
             })?;
@@ -248,7 +273,13 @@ impl Tensor {
 
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::be::ops::reduction::fold(out_buf, self.buffer(), self.size(), self.ndim(), Some(&metadata))?;
+                maidenx_core::be::ops::reduction::fold(
+                    out_buf,
+                    self.buffer(),
+                    self.size(),
+                    self.ndim(),
+                    Some(&metadata),
+                )?;
                 Ok(())
             })?;
         }
@@ -308,7 +339,14 @@ impl Tensor {
         let metadata = prepare_metadata(self, dim);
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::be::ops::reduction::max(out_buf, self.buffer(), self.size(), self.ndim(), 1, Some(&metadata))?;
+                maidenx_core::be::ops::reduction::max(
+                    out_buf,
+                    self.buffer(),
+                    self.size(),
+                    self.ndim(),
+                    1,
+                    Some(&metadata),
+                )?;
 
                 Ok(())
             })?;
@@ -444,7 +482,14 @@ impl Tensor {
         let metadata = prepare_metadata(self, dim);
         unsafe {
             result.with_buffer_mut(|out_buf| {
-                maidenx_core::be::ops::reduction::min(out_buf, self.buffer(), self.size(), self.ndim(), 1, Some(&metadata))?;
+                maidenx_core::be::ops::reduction::min(
+                    out_buf,
+                    self.buffer(),
+                    self.size(),
+                    self.ndim(),
+                    1,
+                    Some(&metadata),
+                )?;
 
                 Ok(())
             })?;
@@ -620,7 +665,11 @@ impl Tensor {
             });
         }
 
-        let target_dtype = if self.dtype().is_int() { DType::F32 } else { self.dtype() };
+        let target_dtype = if self.dtype().is_int() {
+            DType::F32
+        } else {
+            self.dtype()
+        };
         let input = promote_tensor(self, target_dtype)?;
 
         let mean = input.mean(dim, true)?;
@@ -666,7 +715,14 @@ fn prepare_metadata_for_shape(tensor: &Tensor, target_shape: &[usize]) -> Vec<us
     info
 }
 
-fn prepare_metadata_for_fold(tensor: &Tensor, fold_dim: usize, window_dim: usize, fold_size: usize, step: usize, window_size: usize) -> Vec<usize> {
+fn prepare_metadata_for_fold(
+    tensor: &Tensor,
+    fold_dim: usize,
+    window_dim: usize,
+    fold_size: usize,
+    step: usize,
+    window_size: usize,
+) -> Vec<usize> {
     let mut info = Vec::new();
     let input_shape = tensor.shape();
     let input_strides = tensor.strides();

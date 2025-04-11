@@ -12,7 +12,14 @@ macro_rules! implement_binary_op {
         /// - Buffer contents match the expected types ($in_type for inputs, $out_type for output)
         /// - num_els and num_dims correctly describe the buffer dimensions
         /// - All pointers and memory access are valid for the entire operation
-        pub unsafe fn $fn_name(num_els: usize, num_dims: usize, metadata: *const c_void, lhs: *const c_void, rhs: *const c_void, out: *const c_void) {
+        pub unsafe fn $fn_name(
+            num_els: usize,
+            num_dims: usize,
+            metadata: *const c_void,
+            lhs: *const c_void,
+            rhs: *const c_void,
+            out: *const c_void,
+        ) {
             if let Err(e) = initialize_ops() {
                 eprintln!("Failed to initialize binary ops: {:?}", e);
                 return;
@@ -24,7 +31,7 @@ macro_rules! implement_binary_op {
                 None => {
                     eprintln!("Failed to get Metal buffer for lhs pointer");
                     return;
-                }
+                },
             };
 
             let rhs_buffer = match get_buffer_from_map(rhs as *mut c_void) {
@@ -32,7 +39,7 @@ macro_rules! implement_binary_op {
                 None => {
                     eprintln!("Failed to get Metal buffer for rhs pointer");
                     return;
-                }
+                },
             };
 
             let out_buffer = match get_buffer_from_map(out as *mut c_void) {
@@ -40,7 +47,7 @@ macro_rules! implement_binary_op {
                 None => {
                     eprintln!("Failed to get Metal buffer for out pointer");
                     return;
-                }
+                },
             };
 
             // Get metadata buffer if provided
@@ -50,7 +57,7 @@ macro_rules! implement_binary_op {
                     None => {
                         eprintln!("Failed to get Metal buffer for metadata pointer");
                         return;
-                    }
+                    },
                 }
             } else {
                 None
@@ -184,7 +191,13 @@ macro_rules! implement_binary_op_inplace {
         /// - num_els and num_dims correctly describe the buffer dimensions
         /// - All pointers and memory access are valid for the entire operation
         /// - The operation is performed in-place on lhs, the out parameter is not used but must be provided
-        pub unsafe fn $fn_name(num_els: usize, num_dims: usize, metadata: *const c_void, lhs: *const c_void, rhs: *const c_void) {
+        pub unsafe fn $fn_name(
+            num_els: usize,
+            num_dims: usize,
+            metadata: *const c_void,
+            lhs: *const c_void,
+            rhs: *const c_void,
+        ) {
             if let Err(e) = initialize_ops() {
                 eprintln!("Failed to initialize binary ops: {:?}", e);
                 return;
@@ -196,7 +209,7 @@ macro_rules! implement_binary_op_inplace {
                 None => {
                     eprintln!("Failed to get Metal buffer for lhs pointer");
                     return;
-                }
+                },
             };
 
             let rhs_buffer = match get_buffer_from_map(rhs as *mut c_void) {
@@ -204,7 +217,7 @@ macro_rules! implement_binary_op_inplace {
                 None => {
                     eprintln!("Failed to get Metal buffer for rhs pointer");
                     return;
-                }
+                },
             };
 
             // Get metadata buffer if provided
@@ -214,7 +227,7 @@ macro_rules! implement_binary_op_inplace {
                     None => {
                         eprintln!("Failed to get Metal buffer for metadata pointer");
                         return;
-                    }
+                    },
                 }
             } else {
                 None
@@ -273,7 +286,13 @@ macro_rules! implement_dummy_binary_op_inplace {
         ///
         /// This is a dummy function for 64-bit types in MPS which are not supported.
         /// It's unsafe to maintain the same signature as the actual implementation.
-        pub unsafe fn $fn_name(_num_els: usize, _num_dims: usize, _metadata: *const c_void, _lhs: *const c_void, _rhs: *const c_void) {
+        pub unsafe fn $fn_name(
+            _num_els: usize,
+            _num_dims: usize,
+            _metadata: *const c_void,
+            _lhs: *const c_void,
+            _rhs: *const c_void,
+        ) {
             // MPS doesn't support 64-bit types, this is a dummy function
             // that will never actually be called because the tensor layer
             // will prevent execution reaching this point.

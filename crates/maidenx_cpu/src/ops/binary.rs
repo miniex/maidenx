@@ -39,8 +39,16 @@ macro_rules! binary_op_with_output {
             let dims = std::slice::from_raw_parts(metadata, num_dims);
             let lhs_strides = std::slice::from_raw_parts(metadata.add(num_dims), num_dims);
             let rhs_strides = std::slice::from_raw_parts(metadata.add(2 * num_dims), num_dims);
-            let lhs_offset = if metadata.is_null() { 0 } else { *metadata.add(3 * num_dims) };
-            let rhs_offset = if metadata.is_null() { 0 } else { *metadata.add(3 * num_dims + 1) };
+            let lhs_offset = if metadata.is_null() {
+                0
+            } else {
+                *metadata.add(3 * num_dims)
+            };
+            let rhs_offset = if metadata.is_null() {
+                0
+            } else {
+                *metadata.add(3 * num_dims + 1)
+            };
 
             let lhs_cont = is_contiguous(num_dims, dims, lhs_strides);
             let rhs_cont = is_contiguous(num_dims, dims, rhs_strides);
@@ -116,7 +124,13 @@ macro_rules! binary_op_inplace {
         /// * The memory regions of `rhs` and `lhs` may overlap only if they are identical
         /// * The alignment requirements of the data type must be respected for all arrays
         /// * All array indices calculated from dims and strides must be in bounds
-        pub unsafe fn $name(num_els: usize, num_dims: usize, metadata: *const usize, lhs: *mut $type, rhs: *const $type) {
+        pub unsafe fn $name(
+            num_els: usize,
+            num_dims: usize,
+            metadata: *const usize,
+            lhs: *mut $type,
+            rhs: *const $type,
+        ) {
             // Copy metadata to local variables to avoid thread safety issues
             let (dims, lhs_strides, rhs_strides, lhs_offset, rhs_offset) = if !metadata.is_null() {
                 let dims_slice = std::slice::from_raw_parts(metadata, num_dims);
@@ -219,12 +233,27 @@ macro_rules! logical_op {
         /// * The memory regions of `lhs`, `rhs`, and `out` must not overlap
         /// * The alignment requirements of the data type must be respected for all arrays
         /// * All array indices calculated from dims and strides must be in bounds
-        pub unsafe fn $name(num_els: usize, num_dims: usize, metadata: *const usize, lhs: *const $t, rhs: *const $t, out: *mut bool) {
+        pub unsafe fn $name(
+            num_els: usize,
+            num_dims: usize,
+            metadata: *const usize,
+            lhs: *const $t,
+            rhs: *const $t,
+            out: *mut bool,
+        ) {
             let dims = std::slice::from_raw_parts(metadata, num_dims);
             let lhs_strides = std::slice::from_raw_parts(metadata.add(num_dims), num_dims);
             let rhs_strides = std::slice::from_raw_parts(metadata.add(2 * num_dims), num_dims);
-            let lhs_offset = if metadata.is_null() { 0 } else { *metadata.add(3 * num_dims) };
-            let rhs_offset = if metadata.is_null() { 0 } else { *metadata.add(3 * num_dims + 1) };
+            let lhs_offset = if metadata.is_null() {
+                0
+            } else {
+                *metadata.add(3 * num_dims)
+            };
+            let rhs_offset = if metadata.is_null() {
+                0
+            } else {
+                *metadata.add(3 * num_dims + 1)
+            };
 
             let lhs_cont = is_contiguous(num_dims, dims, lhs_strides);
             let rhs_cont = is_contiguous(num_dims, dims, rhs_strides);

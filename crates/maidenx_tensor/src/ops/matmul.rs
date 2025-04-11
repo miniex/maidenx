@@ -145,7 +145,11 @@ impl Tensor {
                 Ok(vec![grad_lhs, grad_rhs])
             });
 
-            let node = TensorNode::new("matmul".to_string(), vec![original_lhs, original_rhs], Some(backward_fn));
+            let node = TensorNode::new(
+                "matmul".to_string(),
+                vec![original_lhs, original_rhs],
+                Some(backward_fn),
+            );
             result.node = Some(node);
         }
 
@@ -193,8 +197,16 @@ fn broadcast_leading_dims(a_leading: &[usize], b_leading: &[usize]) -> Result<Ve
     let max_len = a_leading.len().max(b_leading.len());
     let mut shape = vec![0; max_len];
     for i in 0..max_len {
-        let a_dim = if i < a_leading.len() { a_leading[a_leading.len() - 1 - i] } else { 1 };
-        let b_dim = if i < b_leading.len() { b_leading[b_leading.len() - 1 - i] } else { 1 };
+        let a_dim = if i < a_leading.len() {
+            a_leading[a_leading.len() - 1 - i]
+        } else {
+            1
+        };
+        let b_dim = if i < b_leading.len() {
+            b_leading[b_leading.len() - 1 - i]
+        } else {
+            1
+        };
         if a_dim != b_dim && a_dim != 1 && b_dim != 1 {
             return Err(Error::InvalidShape {
                 message: format!("Cannot broadcast leading dims: mismatch {} vs {}", a_dim, b_dim),

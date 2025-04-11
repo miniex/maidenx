@@ -56,7 +56,7 @@ mod test_functions {
 
                 assert_eq!(result.to_flatten_vec::<f32>()?, vec![6.0, 15.0]);
                 assert_eq!(result.shape(), &[2, 1]); // Second dimension kept as 1
-            }
+            },
             DType::BF16 | DType::F16 => {
                 // Test 1D sum (keep_dim=false)
                 let x = setup_grad_tensor_with_shape(TEST_DATA_F32_1D.to_vec(), dtype, &[4])?;
@@ -64,7 +64,11 @@ mod test_functions {
                 result.backward()?;
 
                 let result_vec = result.to_flatten_vec::<f32>()?;
-                assert!((result_vec[0] - 10.0).abs() < 0.1, "Expected close to 10.0, got {}", result_vec[0]);
+                assert!(
+                    (result_vec[0] - 10.0).abs() < 0.1,
+                    "Expected close to 10.0, got {}",
+                    result_vec[0]
+                );
                 assert!(result.shape().is_empty()); // Scalar result
 
                 if let Some(g) = x.grad()? {
@@ -85,7 +89,11 @@ mod test_functions {
                 result.backward()?;
 
                 let result_vec = result.to_flatten_vec::<f32>()?;
-                assert!((result_vec[0] - 10.0).abs() < 0.1, "Expected close to 10.0, got {}", result_vec[0]);
+                assert!(
+                    (result_vec[0] - 10.0).abs() < 0.1,
+                    "Expected close to 10.0, got {}",
+                    result_vec[0]
+                );
                 assert_eq!(result.shape(), &[1]); // Dimension is kept
 
                 if let Some(g) = x.grad()? {
@@ -101,14 +109,21 @@ mod test_functions {
                 }
 
                 // Test 2D sum along dim 0 (keep_dim=false)
-                let x = setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
+                let x =
+                    setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
                 let result = x.sum(0, false)?;
                 result.backward()?;
 
                 let expected = vec![5.0, 7.0, 9.0];
                 let result_vec = result.to_flatten_vec::<f32>()?;
                 for (i, (a, e)) in result_vec.iter().zip(expected.iter()).enumerate() {
-                    assert!((a - e).abs() < 0.1, "Result at index {} expected to be close to {}, got {}", i, e, a);
+                    assert!(
+                        (a - e).abs() < 0.1,
+                        "Result at index {} expected to be close to {}, got {}",
+                        i,
+                        e,
+                        a
+                    );
                 }
                 assert_eq!(result.shape(), &[3]); // First dimension removed
 
@@ -125,7 +140,7 @@ mod test_functions {
                 }
 
                 // Other tests in similar fashion...
-            }
+            },
             _ => {
                 // Test 1D sum (keep_dim=false)
                 let x = setup_grad_tensor_with_shape(TEST_DATA_F32_1D.to_vec(), dtype, &[4])?;
@@ -150,7 +165,8 @@ mod test_functions {
                 }
 
                 // Test 2D sum along dim 0 (keep_dim=false)
-                let x = setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
+                let x =
+                    setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
                 let result = x.sum(0, false)?;
                 result.backward()?;
 
@@ -161,7 +177,8 @@ mod test_functions {
                 }
 
                 // Test 2D sum along dim 0 (keep_dim=true)
-                let x = setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
+                let x =
+                    setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
                 let result = x.sum(0, true)?;
                 result.backward()?;
 
@@ -172,7 +189,8 @@ mod test_functions {
                 }
 
                 // Test 2D sum along dim 1 (keep_dim=false)
-                let x = setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
+                let x =
+                    setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
                 let result = x.sum(1, false)?;
                 result.backward()?;
 
@@ -183,7 +201,8 @@ mod test_functions {
                 }
 
                 // Test 2D sum along dim 1 (keep_dim=true)
-                let x = setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
+                let x =
+                    setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
                 let result = x.sum(1, true)?;
                 result.backward()?;
 
@@ -192,7 +211,7 @@ mod test_functions {
                 if let Some(g) = x.grad()? {
                     assert_eq!(g.to_flatten_vec::<f32>()?, vec![1.0, 1.0, 1.0, 1.0, 1.0, 1.0]);
                 }
-            }
+            },
         }
         Ok(())
     }
@@ -204,14 +223,19 @@ mod test_functions {
                 let result = x.sum_all()?;
 
                 assert_eq!(result.to_flatten_vec::<f32>()?, vec![21.0]);
-            }
+            },
             DType::BF16 | DType::F16 => {
-                let x = setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
+                let x =
+                    setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
                 let result = x.sum_all()?;
                 result.backward()?;
 
                 let result_val = result.to_flatten_vec::<f32>()?[0];
-                assert!((result_val - 21.0).abs() < 0.1, "Expected close to 21.0, got {}", result_val);
+                assert!(
+                    (result_val - 21.0).abs() < 0.1,
+                    "Expected close to 21.0, got {}",
+                    result_val
+                );
 
                 if let Some(g) = x.grad()? {
                     let grad_data = g.to_flatten_vec::<f32>()?;
@@ -224,9 +248,10 @@ mod test_functions {
                         );
                     }
                 }
-            }
+            },
             _ => {
-                let x = setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
+                let x =
+                    setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
                 let result = x.sum_all()?;
                 result.backward()?;
 
@@ -234,7 +259,7 @@ mod test_functions {
                 if let Some(g) = x.grad()? {
                     assert_eq!(g.to_flatten_vec::<f32>()?, vec![1.0, 1.0, 1.0, 1.0, 1.0, 1.0]);
                 }
-            }
+            },
         }
         Ok(())
     }
@@ -246,16 +271,23 @@ mod test_functions {
                 let result = x.sum_to_shape(&[1, 3])?;
 
                 assert_eq!(result.to_flatten_vec::<f32>()?, vec![5.0, 7.0, 9.0]);
-            }
+            },
             DType::BF16 | DType::F16 => {
-                let x = setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
+                let x =
+                    setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
                 let result = x.sum_to_shape(&[1, 3])?;
                 result.backward()?;
 
                 let expected = vec![5.0, 7.0, 9.0];
                 let result_vec = result.to_flatten_vec::<f32>()?;
                 for (i, (a, e)) in result_vec.iter().zip(expected.iter()).enumerate() {
-                    assert!((a - e).abs() < 0.1, "Result at index {} expected to be close to {}, got {}", i, e, a);
+                    assert!(
+                        (a - e).abs() < 0.1,
+                        "Result at index {} expected to be close to {}, got {}",
+                        i,
+                        e,
+                        a
+                    );
                 }
 
                 if let Some(g) = x.grad()? {
@@ -269,9 +301,10 @@ mod test_functions {
                         );
                     }
                 }
-            }
+            },
             _ => {
-                let x = setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
+                let x =
+                    setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
                 let result = x.sum_to_shape(&[1, 3])?;
                 result.backward()?;
 
@@ -279,7 +312,7 @@ mod test_functions {
                 if let Some(g) = x.grad()? {
                     assert_eq!(g.to_flatten_vec::<f32>()?, vec![1.0, 1.0, 1.0, 1.0, 1.0, 1.0]);
                 }
-            }
+            },
         }
         Ok(())
     }
@@ -300,17 +333,24 @@ mod test_functions {
                 // Should be automatically converted to f32
                 assert_eq!(result.to_flatten_vec::<f32>()?, vec![2.0, 3.0]);
                 assert_eq!(result.shape(), &[1, 2]); // Dimension is kept
-            }
+            },
             DType::BF16 | DType::F16 => {
                 // Test with floating point data (keepdims=false)
-                let x = setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
+                let x =
+                    setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
                 let result = x.mean(0, false)?;
                 result.backward()?;
 
                 let expected = vec![2.5, 3.5, 4.5];
                 let result_vec = result.to_flatten_vec::<f32>()?;
                 for (i, (a, e)) in result_vec.iter().zip(expected.iter()).enumerate() {
-                    assert!((a - e).abs() < 0.1, "Result at index {} expected to be close to {}, got {}", i, e, a);
+                    assert!(
+                        (a - e).abs() < 0.1,
+                        "Result at index {} expected to be close to {}, got {}",
+                        i,
+                        e,
+                        a
+                    );
                 }
                 assert_eq!(result.shape(), &[3]);
 
@@ -318,19 +358,32 @@ mod test_functions {
                     let grad_data = g.to_flatten_vec::<f32>()?;
                     let expected_grad = vec![0.5, 0.5, 0.5, 0.5, 0.5, 0.5];
                     for (i, (a, e)) in grad_data.iter().zip(expected_grad.iter()).enumerate() {
-                        assert!((a - e).abs() < 0.1, "Gradient at index {} expected to be close to {}, got {}", i, e, a);
+                        assert!(
+                            (a - e).abs() < 0.1,
+                            "Gradient at index {} expected to be close to {}, got {}",
+                            i,
+                            e,
+                            a
+                        );
                     }
                 }
 
                 // Test with floating point data (keepdims=true)
-                let x = setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
+                let x =
+                    setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
                 let result = x.mean(0, true)?;
                 result.backward()?;
 
                 let expected = vec![2.5, 3.5, 4.5];
                 let result_vec = result.to_flatten_vec::<f32>()?;
                 for (i, (a, e)) in result_vec.iter().zip(expected.iter()).enumerate() {
-                    assert!((a - e).abs() < 0.1, "Result at index {} expected to be close to {}, got {}", i, e, a);
+                    assert!(
+                        (a - e).abs() < 0.1,
+                        "Result at index {} expected to be close to {}, got {}",
+                        i,
+                        e,
+                        a
+                    );
                 }
                 assert_eq!(result.shape(), &[1, 3]); // Dimension is kept
 
@@ -338,13 +391,20 @@ mod test_functions {
                     let grad_data = g.to_flatten_vec::<f32>()?;
                     let expected_grad = vec![0.5, 0.5, 0.5, 0.5, 0.5, 0.5];
                     for (i, (a, e)) in grad_data.iter().zip(expected_grad.iter()).enumerate() {
-                        assert!((a - e).abs() < 0.1, "Gradient at index {} expected to be close to {}, got {}", i, e, a);
+                        assert!(
+                            (a - e).abs() < 0.1,
+                            "Gradient at index {} expected to be close to {}, got {}",
+                            i,
+                            e,
+                            a
+                        );
                     }
                 }
-            }
+            },
             _ => {
                 // Test with floating point data (keepdims=false)
-                let x = setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
+                let x =
+                    setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
                 let result = x.mean(0, false)?;
                 result.backward()?;
                 assert_eq!(result.to_flatten_vec::<f32>()?, vec![2.5, 3.5, 4.5]);
@@ -354,7 +414,8 @@ mod test_functions {
                 }
 
                 // Test with floating point data (keepdims=true)
-                let x = setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
+                let x =
+                    setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
                 let result = x.mean(0, true)?;
                 result.backward()?;
                 assert_eq!(result.to_flatten_vec::<f32>()?, vec![2.5, 3.5, 4.5]);
@@ -362,7 +423,7 @@ mod test_functions {
                 if let Some(g) = x.grad()? {
                     assert_eq!(g.to_flatten_vec::<f32>()?, vec![0.5, 0.5, 0.5, 0.5, 0.5, 0.5]);
                 }
-            }
+            },
         }
         Ok(())
     }
@@ -374,14 +435,19 @@ mod test_functions {
                 let result = x.mean_all()?;
 
                 assert_eq!(result.to_flatten_vec::<f32>()?, vec![3.5]);
-            }
+            },
             DType::BF16 | DType::F16 => {
-                let x = setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
+                let x =
+                    setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
                 let result = x.mean_all()?;
                 result.backward()?;
 
                 let result_val = result.to_flatten_vec::<f32>()?[0];
-                assert!((result_val - 3.5).abs() < 0.1, "Expected close to 3.5, got {}", result_val);
+                assert!(
+                    (result_val - 3.5).abs() < 0.1,
+                    "Expected close to 3.5, got {}",
+                    result_val
+                );
 
                 if let Some(g) = x.grad()? {
                     let grad_data = g.to_flatten_vec::<f32>()?;
@@ -396,9 +462,10 @@ mod test_functions {
                         );
                     }
                 }
-            }
+            },
             _ => {
-                let x = setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
+                let x =
+                    setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
                 let result = x.mean_all()?;
                 result.backward()?;
 
@@ -409,7 +476,7 @@ mod test_functions {
                         vec![1.0 / 6.0, 1.0 / 6.0, 1.0 / 6.0, 1.0 / 6.0, 1.0 / 6.0, 1.0 / 6.0]
                     );
                 }
-            }
+            },
         }
         Ok(())
     }
@@ -427,7 +494,7 @@ mod test_functions {
 
                 assert_eq!(folded.shape(), &[5]);
                 assert_eq!(folded.to_flatten_vec::<f32>()?, vec![1.0, 4.0, 6.0, 8.0, 5.0]);
-            }
+            },
             DType::BF16 | DType::F16 => {
                 let data = vec![1.0, 2.0, 3.0, 4.0, 5.0];
                 let x = setup_grad_tensor_with_shape(data, dtype, &[5])?;
@@ -441,7 +508,13 @@ mod test_functions {
                 let expected = vec![1.0, 4.0, 6.0, 8.0, 5.0];
                 let result_vec = folded.to_flatten_vec::<f32>()?;
                 for (i, (a, e)) in result_vec.iter().zip(expected.iter()).enumerate() {
-                    assert!((a - e).abs() < 0.1, "Result at index {} expected to be close to {}, got {}", i, e, a);
+                    assert!(
+                        (a - e).abs() < 0.1,
+                        "Result at index {} expected to be close to {}, got {}",
+                        i,
+                        e,
+                        a
+                    );
                 }
 
                 let data_2d = TEST_DATA_F32_2D.iter().flatten().copied().collect();
@@ -457,7 +530,13 @@ mod test_functions {
                 let expected = vec![1.0, 4.0, 3.0, 4.0, 10.0, 6.0];
                 let result_vec = folded_2d.to_flatten_vec::<f32>()?;
                 for (i, (a, e)) in result_vec.iter().zip(expected.iter()).enumerate() {
-                    assert!((a - e).abs() < 0.1, "Result at index {} expected to be close to {}, got {}", i, e, a);
+                    assert!(
+                        (a - e).abs() < 0.1,
+                        "Result at index {} expected to be close to {}, got {}",
+                        i,
+                        e,
+                        a
+                    );
                 }
 
                 folded_2d.backward()?;
@@ -478,10 +557,16 @@ mod test_functions {
                     let expected_grad = vec![1.0, 2.0, 1.0, 1.0, 2.0, 1.0];
                     let grad_data = g.to_flatten_vec::<f32>()?;
                     for (i, (a, e)) in grad_data.iter().zip(expected_grad.iter()).enumerate() {
-                        assert!((a - e).abs() < 0.1, "Gradient at index {} expected to be close to {}, got {}", i, e, a);
+                        assert!(
+                            (a - e).abs() < 0.1,
+                            "Gradient at index {} expected to be close to {}, got {}",
+                            i,
+                            e,
+                            a
+                        );
                     }
                 }
-            }
+            },
             _ => {
                 let data = vec![1.0, 2.0, 3.0, 4.0, 5.0];
                 let x = setup_grad_tensor_with_shape(data, dtype, &[5])?;
@@ -520,7 +605,7 @@ mod test_functions {
                 if let Some(g) = x_2d.grad()? {
                     assert_eq!(g.to_flatten_vec::<f32>()?, vec![1.0, 2.0, 1.0, 1.0, 2.0, 1.0]);
                 }
-            }
+            },
         }
         Ok(())
     }
@@ -539,17 +624,24 @@ mod test_functions {
                 let result = x.max(0, true)?;
                 assert_eq!(result.to_flatten_vec::<u32>()?, vec![3, 4]);
                 assert_eq!(result.shape(), &[1, 2]); // Dimension is kept
-            }
+            },
             DType::BF16 | DType::F16 => {
                 // Test with floating point data (keepdims=false)
-                let x = setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
+                let x =
+                    setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
                 let result = x.max(0, false)?;
                 result.backward()?;
 
                 let expected = vec![4.0, 5.0, 6.0];
                 let result_vec = result.to_flatten_vec::<f32>()?;
                 for (i, (a, e)) in result_vec.iter().zip(expected.iter()).enumerate() {
-                    assert!((a - e).abs() < 0.1, "Result at index {} expected to be close to {}, got {}", i, e, a);
+                    assert!(
+                        (a - e).abs() < 0.1,
+                        "Result at index {} expected to be close to {}, got {}",
+                        i,
+                        e,
+                        a
+                    );
                 }
                 assert_eq!(result.shape(), &[3]);
 
@@ -558,19 +650,32 @@ mod test_functions {
                     let expected_grad = vec![0.0, 0.0, 0.0, 1.0, 1.0, 1.0];
                     let grad_data = g.to_flatten_vec::<f32>()?;
                     for (i, (a, e)) in grad_data.iter().zip(expected_grad.iter()).enumerate() {
-                        assert!((a - e).abs() < 0.1, "Gradient at index {} expected to be close to {}, got {}", i, e, a);
+                        assert!(
+                            (a - e).abs() < 0.1,
+                            "Gradient at index {} expected to be close to {}, got {}",
+                            i,
+                            e,
+                            a
+                        );
                     }
                 }
 
                 // Test with floating point data (keepdims=true)
-                let x = setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
+                let x =
+                    setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
                 let result = x.max(0, true)?;
                 result.backward()?;
 
                 let expected = vec![4.0, 5.0, 6.0];
                 let result_vec = result.to_flatten_vec::<f32>()?;
                 for (i, (a, e)) in result_vec.iter().zip(expected.iter()).enumerate() {
-                    assert!((a - e).abs() < 0.1, "Result at index {} expected to be close to {}, got {}", i, e, a);
+                    assert!(
+                        (a - e).abs() < 0.1,
+                        "Result at index {} expected to be close to {}, got {}",
+                        i,
+                        e,
+                        a
+                    );
                 }
                 assert_eq!(result.shape(), &[1, 3]); // Dimension is kept
 
@@ -579,13 +684,20 @@ mod test_functions {
                     let expected_grad = vec![0.0, 0.0, 0.0, 1.0, 1.0, 1.0];
                     let grad_data = g.to_flatten_vec::<f32>()?;
                     for (i, (a, e)) in grad_data.iter().zip(expected_grad.iter()).enumerate() {
-                        assert!((a - e).abs() < 0.1, "Gradient at index {} expected to be close to {}, got {}", i, e, a);
+                        assert!(
+                            (a - e).abs() < 0.1,
+                            "Gradient at index {} expected to be close to {}, got {}",
+                            i,
+                            e,
+                            a
+                        );
                     }
                 }
-            }
+            },
             _ => {
                 // Test with floating point data (keepdims=false)
-                let x = setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
+                let x =
+                    setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
                 let result = x.max(0, false)?;
                 result.backward()?;
                 assert_eq!(result.to_flatten_vec::<f32>()?, vec![4.0, 5.0, 6.0]);
@@ -596,7 +708,8 @@ mod test_functions {
                 }
 
                 // Test with floating point data (keepdims=true)
-                let x = setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
+                let x =
+                    setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
                 let result = x.max(0, true)?;
                 result.backward()?;
                 assert_eq!(result.to_flatten_vec::<f32>()?, vec![4.0, 5.0, 6.0]);
@@ -605,7 +718,7 @@ mod test_functions {
                     // Gradient should be 1.0 for max values (second row) and 0.0 for others (first row)
                     assert_eq!(g.to_flatten_vec::<f32>()?, vec![0.0, 0.0, 0.0, 1.0, 1.0, 1.0]);
                 }
-            }
+            },
         }
         Ok(())
     }
@@ -621,21 +734,32 @@ mod test_functions {
                 let x = setup_tensor_with_shape(TEST_DATA_F32_1D.to_vec(), dtype, &[4])?;
                 let result = x.max_all()?;
                 assert_eq!(result.to_flatten_vec::<f32>()?, vec![4.0]);
-            }
+            },
             DType::BF16 | DType::F16 => {
-                let x = setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
+                let x =
+                    setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
                 let result = x.max_all()?;
                 result.backward()?;
 
                 let result_val = result.to_flatten_vec::<f32>()?[0];
-                assert!((result_val - 6.0).abs() < 0.1, "Expected close to 6.0, got {}", result_val);
+                assert!(
+                    (result_val - 6.0).abs() < 0.1,
+                    "Expected close to 6.0, got {}",
+                    result_val
+                );
 
                 if let Some(g) = x.grad()? {
                     // Gradient should be 1.0 for the maximum value (6.0) and 0.0 for all others
                     let expected_grad = vec![0.0, 0.0, 0.0, 0.0, 0.0, 1.0];
                     let grad_data = g.to_flatten_vec::<f32>()?;
                     for (i, (a, e)) in grad_data.iter().zip(expected_grad.iter()).enumerate() {
-                        assert!((a - e).abs() < 0.1, "Gradient at index {} expected to be close to {}, got {}", i, e, a);
+                        assert!(
+                            (a - e).abs() < 0.1,
+                            "Gradient at index {} expected to be close to {}, got {}",
+                            i,
+                            e,
+                            a
+                        );
                     }
                 }
 
@@ -645,19 +769,30 @@ mod test_functions {
                 result.backward()?;
 
                 let result_val = result.to_flatten_vec::<f32>()?[0];
-                assert!((result_val - 4.0).abs() < 0.1, "Expected close to 4.0, got {}", result_val);
+                assert!(
+                    (result_val - 4.0).abs() < 0.1,
+                    "Expected close to 4.0, got {}",
+                    result_val
+                );
 
                 if let Some(g) = x.grad()? {
                     // Gradient should be 1.0 for the maximum value (4.0) and 0.0 for all others
                     let expected_grad = vec![0.0, 0.0, 0.0, 1.0];
                     let grad_data = g.to_flatten_vec::<f32>()?;
                     for (i, (a, e)) in grad_data.iter().zip(expected_grad.iter()).enumerate() {
-                        assert!((a - e).abs() < 0.1, "Gradient at index {} expected to be close to {}, got {}", i, e, a);
+                        assert!(
+                            (a - e).abs() < 0.1,
+                            "Gradient at index {} expected to be close to {}, got {}",
+                            i,
+                            e,
+                            a
+                        );
                     }
                 }
-            }
+            },
             _ => {
-                let x = setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
+                let x =
+                    setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
                 let result = x.max_all()?;
                 result.backward()?;
                 assert_eq!(result.to_flatten_vec::<f32>()?, vec![6.0]);
@@ -675,7 +810,7 @@ mod test_functions {
                     // Gradient should be 1.0 for the maximum value (4.0) and 0.0 for all others
                     assert_eq!(g.to_flatten_vec::<f32>()?, vec![0.0, 0.0, 0.0, 1.0]);
                 }
-            }
+            },
         }
         Ok(())
     }
@@ -694,17 +829,24 @@ mod test_functions {
                 let result = x.min(0, true)?;
                 assert_eq!(result.to_flatten_vec::<u32>()?, vec![1, 2]);
                 assert_eq!(result.shape(), &[1, 2]); // Dimension is kept
-            }
+            },
             DType::BF16 | DType::F16 => {
                 // Test with floating point data (keepdims=false)
-                let x = setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
+                let x =
+                    setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
                 let result = x.min(0, false)?;
                 result.backward()?;
 
                 let expected = vec![1.0, 2.0, 3.0];
                 let result_vec = result.to_flatten_vec::<f32>()?;
                 for (i, (a, e)) in result_vec.iter().zip(expected.iter()).enumerate() {
-                    assert!((a - e).abs() < 0.1, "Result at index {} expected to be close to {}, got {}", i, e, a);
+                    assert!(
+                        (a - e).abs() < 0.1,
+                        "Result at index {} expected to be close to {}, got {}",
+                        i,
+                        e,
+                        a
+                    );
                 }
                 assert_eq!(result.shape(), &[3]);
 
@@ -713,19 +855,32 @@ mod test_functions {
                     let expected_grad = vec![1.0, 1.0, 1.0, 0.0, 0.0, 0.0];
                     let grad_data = g.to_flatten_vec::<f32>()?;
                     for (i, (a, e)) in grad_data.iter().zip(expected_grad.iter()).enumerate() {
-                        assert!((a - e).abs() < 0.1, "Gradient at index {} expected to be close to {}, got {}", i, e, a);
+                        assert!(
+                            (a - e).abs() < 0.1,
+                            "Gradient at index {} expected to be close to {}, got {}",
+                            i,
+                            e,
+                            a
+                        );
                     }
                 }
 
                 // Test with floating point data (keepdims=true)
-                let x = setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
+                let x =
+                    setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
                 let result = x.min(0, true)?;
                 result.backward()?;
 
                 let expected = vec![1.0, 2.0, 3.0];
                 let result_vec = result.to_flatten_vec::<f32>()?;
                 for (i, (a, e)) in result_vec.iter().zip(expected.iter()).enumerate() {
-                    assert!((a - e).abs() < 0.1, "Result at index {} expected to be close to {}, got {}", i, e, a);
+                    assert!(
+                        (a - e).abs() < 0.1,
+                        "Result at index {} expected to be close to {}, got {}",
+                        i,
+                        e,
+                        a
+                    );
                 }
                 assert_eq!(result.shape(), &[1, 3]); // Dimension is kept
 
@@ -734,13 +889,20 @@ mod test_functions {
                     let expected_grad = vec![1.0, 1.0, 1.0, 0.0, 0.0, 0.0];
                     let grad_data = g.to_flatten_vec::<f32>()?;
                     for (i, (a, e)) in grad_data.iter().zip(expected_grad.iter()).enumerate() {
-                        assert!((a - e).abs() < 0.1, "Gradient at index {} expected to be close to {}, got {}", i, e, a);
+                        assert!(
+                            (a - e).abs() < 0.1,
+                            "Gradient at index {} expected to be close to {}, got {}",
+                            i,
+                            e,
+                            a
+                        );
                     }
                 }
-            }
+            },
             _ => {
                 // Test with floating point data (keepdims=false)
-                let x = setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
+                let x =
+                    setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
                 let result = x.min(0, false)?;
                 result.backward()?;
                 assert_eq!(result.to_flatten_vec::<f32>()?, vec![1.0, 2.0, 3.0]);
@@ -751,7 +913,8 @@ mod test_functions {
                 }
 
                 // Test with floating point data (keepdims=true)
-                let x = setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
+                let x =
+                    setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
                 let result = x.min(0, true)?;
                 result.backward()?;
                 assert_eq!(result.to_flatten_vec::<f32>()?, vec![1.0, 2.0, 3.0]);
@@ -760,7 +923,7 @@ mod test_functions {
                     // Gradient should be 1.0 for min values (first row) and 0.0 for others (second row)
                     assert_eq!(g.to_flatten_vec::<f32>()?, vec![1.0, 1.0, 1.0, 0.0, 0.0, 0.0]);
                 }
-            }
+            },
         }
         Ok(())
     }
@@ -776,21 +939,32 @@ mod test_functions {
                 let x = setup_tensor_with_shape(TEST_DATA_F32_1D.to_vec(), dtype, &[4])?;
                 let result = x.min_all()?;
                 assert_eq!(result.to_flatten_vec::<f32>()?, vec![1.0]);
-            }
+            },
             DType::BF16 | DType::F16 => {
-                let x = setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
+                let x =
+                    setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
                 let result = x.min_all()?;
                 result.backward()?;
 
                 let result_val = result.to_flatten_vec::<f32>()?[0];
-                assert!((result_val - 1.0).abs() < 0.1, "Expected close to 1.0, got {}", result_val);
+                assert!(
+                    (result_val - 1.0).abs() < 0.1,
+                    "Expected close to 1.0, got {}",
+                    result_val
+                );
 
                 if let Some(g) = x.grad()? {
                     // Gradient should be 1.0 for the minimum value (1.0) and 0.0 for all others
                     let expected_grad = vec![1.0, 0.0, 0.0, 0.0, 0.0, 0.0];
                     let grad_data = g.to_flatten_vec::<f32>()?;
                     for (i, (a, e)) in grad_data.iter().zip(expected_grad.iter()).enumerate() {
-                        assert!((a - e).abs() < 0.1, "Gradient at index {} expected to be close to {}, got {}", i, e, a);
+                        assert!(
+                            (a - e).abs() < 0.1,
+                            "Gradient at index {} expected to be close to {}, got {}",
+                            i,
+                            e,
+                            a
+                        );
                     }
                 }
 
@@ -800,19 +974,30 @@ mod test_functions {
                 result.backward()?;
 
                 let result_val = result.to_flatten_vec::<f32>()?[0];
-                assert!((result_val - 1.0).abs() < 0.1, "Expected close to 1.0, got {}", result_val);
+                assert!(
+                    (result_val - 1.0).abs() < 0.1,
+                    "Expected close to 1.0, got {}",
+                    result_val
+                );
 
                 if let Some(g) = x.grad()? {
                     // Gradient should be 1.0 for the minimum value (1.0) and 0.0 for all others
                     let expected_grad = vec![1.0, 0.0, 0.0, 0.0];
                     let grad_data = g.to_flatten_vec::<f32>()?;
                     for (i, (a, e)) in grad_data.iter().zip(expected_grad.iter()).enumerate() {
-                        assert!((a - e).abs() < 0.1, "Gradient at index {} expected to be close to {}, got {}", i, e, a);
+                        assert!(
+                            (a - e).abs() < 0.1,
+                            "Gradient at index {} expected to be close to {}, got {}",
+                            i,
+                            e,
+                            a
+                        );
                     }
                 }
-            }
+            },
             _ => {
-                let x = setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
+                let x =
+                    setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
                 let result = x.min_all()?;
                 result.backward()?;
                 assert_eq!(result.to_flatten_vec::<f32>()?, vec![1.0]);
@@ -830,7 +1015,7 @@ mod test_functions {
                     // Gradient should be 1.0 for the minimum value (1.0) and 0.0 for all others
                     assert_eq!(g.to_flatten_vec::<f32>()?, vec![1.0, 0.0, 0.0, 0.0]);
                 }
-            }
+            },
         }
         Ok(())
     }
@@ -856,14 +1041,21 @@ mod test_functions {
                 let tolerance = 0.05;
 
                 for (a, b) in result_vec.iter().zip(expected_l2_norm.iter()) {
-                    assert!((a - b).abs() < tolerance, "Expected {} but got {} (tolerance: {})", b, a, tolerance);
+                    assert!(
+                        (a - b).abs() < tolerance,
+                        "Expected {} but got {} (tolerance: {})",
+                        b,
+                        a,
+                        tolerance
+                    );
                 }
                 assert_eq!(result.shape(), &[1, 3]);
-            }
+            },
             DType::BF16 | DType::F16 => {
                 let tolerance = 0.05;
 
-                let x = setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
+                let x =
+                    setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
                 let result = x.norm(1.0, 0, false)?;
                 result.backward()?;
 
@@ -892,7 +1084,8 @@ mod test_functions {
                     }
                 }
 
-                let x = setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
+                let x =
+                    setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
                 let result = x.norm(2.0, 0, true)?;
                 result.backward()?;
 
@@ -904,7 +1097,13 @@ mod test_functions {
                 let result_vec = result.to_flatten_vec::<f32>()?;
 
                 for (a, b) in result_vec.iter().zip(expected_l2_norm.iter()) {
-                    assert!((a - b).abs() < tolerance, "Expected {} but got {} (tolerance: {})", b, a, tolerance);
+                    assert!(
+                        (a - b).abs() < tolerance,
+                        "Expected {} but got {} (tolerance: {})",
+                        b,
+                        a,
+                        tolerance
+                    );
                 }
                 assert_eq!(result.shape(), &[1, 3]);
 
@@ -912,7 +1111,8 @@ mod test_functions {
                 let result = x.norm(3.0, 0, false)?;
                 result.backward()?;
 
-                let expected_p3_norm = (1.0_f32.powi(3) + 2.0_f32.powi(3) + 3.0_f32.powi(3) + 4.0_f32.powi(3)).powf(1.0 / 3.0);
+                let expected_p3_norm =
+                    (1.0_f32.powi(3) + 2.0_f32.powi(3) + 3.0_f32.powi(3) + 4.0_f32.powi(3)).powf(1.0 / 3.0);
                 let result_value = result.item()?.as_f32();
 
                 assert!(
@@ -923,7 +1123,8 @@ mod test_functions {
                     tolerance
                 );
 
-                let x = setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
+                let x =
+                    setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
                 let result = x.norm(2.0, -1, false)?;
 
                 assert_eq!(result.shape(), &[2]);
@@ -934,11 +1135,18 @@ mod test_functions {
                 let result_vec = result.to_flatten_vec::<f32>()?;
 
                 for (a, b) in result_vec.iter().zip(expected.iter()) {
-                    assert!((a - b).abs() < tolerance, "Expected {} but got {} (tolerance: {})", b, a, tolerance);
+                    assert!(
+                        (a - b).abs() < tolerance,
+                        "Expected {} but got {} (tolerance: {})",
+                        b,
+                        a,
+                        tolerance
+                    );
                 }
-            }
+            },
             _ => {
-                let x = setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
+                let x =
+                    setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
                 let result = x.norm(1.0, 0, false)?;
                 result.backward()?;
 
@@ -949,7 +1157,8 @@ mod test_functions {
                     assert_eq!(g.to_flatten_vec::<f32>()?, vec![1.0, 1.0, 1.0, 1.0, 1.0, 1.0]);
                 }
 
-                let x = setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
+                let x =
+                    setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
                 let result = x.norm(2.0, 0, true)?;
                 result.backward()?;
 
@@ -964,7 +1173,13 @@ mod test_functions {
                 let tolerance = 1e-5;
 
                 for (a, b) in result_vec.iter().zip(expected_l2_norm.iter()) {
-                    assert!((a - b).abs() < tolerance, "Expected {} but got {} (tolerance: {})", b, a, tolerance);
+                    assert!(
+                        (a - b).abs() < tolerance,
+                        "Expected {} but got {} (tolerance: {})",
+                        b,
+                        a,
+                        tolerance
+                    );
                 }
                 assert_eq!(result.shape(), &[1, 3]);
 
@@ -972,7 +1187,8 @@ mod test_functions {
                 let result = x.norm(3.0, 0, false)?;
                 result.backward()?;
 
-                let expected_p3_norm = (1.0_f32.powi(3) + 2.0_f32.powi(3) + 3.0_f32.powi(3) + 4.0_f32.powi(3)).powf(1.0 / 3.0);
+                let expected_p3_norm =
+                    (1.0_f32.powi(3) + 2.0_f32.powi(3) + 3.0_f32.powi(3) + 4.0_f32.powi(3)).powf(1.0 / 3.0);
                 let result_value = result.item()?.as_f32();
 
                 assert!(
@@ -983,7 +1199,8 @@ mod test_functions {
                     tolerance
                 );
 
-                let x = setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
+                let x =
+                    setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
                 let result = x.norm(2.0, -1, false)?;
 
                 assert_eq!(result.shape(), &[2]);
@@ -994,9 +1211,15 @@ mod test_functions {
                 let result_vec = result.to_flatten_vec::<f32>()?;
 
                 for (a, b) in result_vec.iter().zip(expected.iter()) {
-                    assert!((a - b).abs() < tolerance, "Expected {} but got {} (tolerance: {})", b, a, tolerance);
+                    assert!(
+                        (a - b).abs() < tolerance,
+                        "Expected {} but got {} (tolerance: {})",
+                        b,
+                        a,
+                        tolerance
+                    );
                 }
-            }
+            },
         }
         Ok(())
     }
@@ -1028,8 +1251,13 @@ mod test_functions {
                 let x = setup_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
                 let result = x.norm_all(2.0)?;
 
-                let expected_l2_norm =
-                    (1.0_f32.powi(2) + 2.0_f32.powi(2) + 3.0_f32.powi(2) + 4.0_f32.powi(2) + 5.0_f32.powi(2) + 6.0_f32.powi(2)).sqrt();
+                let expected_l2_norm = (1.0_f32.powi(2)
+                    + 2.0_f32.powi(2)
+                    + 3.0_f32.powi(2)
+                    + 4.0_f32.powi(2)
+                    + 5.0_f32.powi(2)
+                    + 6.0_f32.powi(2))
+                .sqrt();
                 assert!(
                     (result.item()?.as_f32() - expected_l2_norm).abs() < tolerance,
                     "L2 norm: Expected {} but got {} (tolerance: {})",
@@ -1037,12 +1265,13 @@ mod test_functions {
                     result.item()?.as_f32(),
                     tolerance
                 );
-            }
+            },
             DType::BF16 | DType::F16 => {
                 // Use appropriate tolerance for low precision types
                 let tolerance = 0.05;
 
-                let x = setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
+                let x =
+                    setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
                 let result = x.norm_all(1.0)?;
                 result.backward()?;
 
@@ -1067,12 +1296,18 @@ mod test_functions {
                     }
                 }
 
-                let x = setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
+                let x =
+                    setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
                 let result = x.norm_all(2.0)?;
                 result.backward()?;
 
-                let expected_l2_norm =
-                    (1.0_f32.powi(2) + 2.0_f32.powi(2) + 3.0_f32.powi(2) + 4.0_f32.powi(2) + 5.0_f32.powi(2) + 6.0_f32.powi(2)).sqrt();
+                let expected_l2_norm = (1.0_f32.powi(2)
+                    + 2.0_f32.powi(2)
+                    + 3.0_f32.powi(2)
+                    + 4.0_f32.powi(2)
+                    + 5.0_f32.powi(2)
+                    + 6.0_f32.powi(2))
+                .sqrt();
                 assert!(
                     (result.item()?.as_f32() - expected_l2_norm).abs() < tolerance,
                     "L2 norm: Expected {} but got {} (tolerance: {})",
@@ -1109,12 +1344,13 @@ mod test_functions {
                         p_tolerance
                     );
                 }
-            }
+            },
             _ => {
                 // Use appropriate tolerance
                 let tolerance = 1e-5;
 
-                let x = setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
+                let x =
+                    setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
                 let result = x.norm_all(1.0)?;
                 result.backward()?;
 
@@ -1131,12 +1367,18 @@ mod test_functions {
                     assert_eq!(g.to_flatten_vec::<f32>()?, vec![1.0, 1.0, 1.0, 1.0, 1.0, 1.0]);
                 }
 
-                let x = setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
+                let x =
+                    setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
                 let result = x.norm_all(2.0)?;
                 result.backward()?;
 
-                let expected_l2_norm =
-                    (1.0_f32.powi(2) + 2.0_f32.powi(2) + 3.0_f32.powi(2) + 4.0_f32.powi(2) + 5.0_f32.powi(2) + 6.0_f32.powi(2)).sqrt();
+                let expected_l2_norm = (1.0_f32.powi(2)
+                    + 2.0_f32.powi(2)
+                    + 3.0_f32.powi(2)
+                    + 4.0_f32.powi(2)
+                    + 5.0_f32.powi(2)
+                    + 6.0_f32.powi(2))
+                .sqrt();
                 assert!(
                     (result.item()?.as_f32() - expected_l2_norm).abs() < tolerance,
                     "L2 norm: Expected {} but got {} (tolerance: {})",
@@ -1170,7 +1412,7 @@ mod test_functions {
                         tolerance
                     );
                 }
-            }
+            },
         }
         Ok(())
     }
@@ -1187,36 +1429,57 @@ mod test_functions {
                 let expected_var = vec![1.0, 1.0];
                 let result_vec = result.to_flatten_vec::<f32>()?;
                 for (a, b) in result_vec.iter().zip(expected_var.iter()) {
-                    assert!((a - b).abs() < tolerance, "Expected {} but got {} (tolerance: {})", b, a, tolerance);
+                    assert!(
+                        (a - b).abs() < tolerance,
+                        "Expected {} but got {} (tolerance: {})",
+                        b,
+                        a,
+                        tolerance
+                    );
                 }
-            }
+            },
             DType::BF16 | DType::F16 => {
                 // Use appropriate tolerance for low precision types
                 let tolerance = 0.1;
 
-                let x = setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
+                let x =
+                    setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
                 let result = x.var(0, false, false)?;
                 result.backward()?;
 
                 let expected_var = vec![2.2500, 2.2500, 2.2500];
                 let result_vec = result.to_flatten_vec::<f32>()?;
                 for (a, b) in result_vec.iter().zip(expected_var.iter()) {
-                    assert!((a - b).abs() < tolerance, "Expected {} but got {} (tolerance: {})", b, a, tolerance);
+                    assert!(
+                        (a - b).abs() < tolerance,
+                        "Expected {} but got {} (tolerance: {})",
+                        b,
+                        a,
+                        tolerance
+                    );
                 }
                 assert_eq!(result.shape(), &[3]);
 
-                let x = setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
+                let x =
+                    setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
                 let result = x.var(0, true, true)?;
                 result.backward()?;
 
                 let expected_var = vec![4.5000, 4.5000, 4.5000];
                 let result_vec = result.to_flatten_vec::<f32>()?;
                 for (a, b) in result_vec.iter().zip(expected_var.iter()) {
-                    assert!((a - b).abs() < tolerance, "Expected {} but got {} (tolerance: {})", b, a, tolerance);
+                    assert!(
+                        (a - b).abs() < tolerance,
+                        "Expected {} but got {} (tolerance: {})",
+                        b,
+                        a,
+                        tolerance
+                    );
                 }
                 assert_eq!(result.shape(), &[1, 3]);
 
-                let x = setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
+                let x =
+                    setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
                 let result = x.var(1, false, false)?;
 
                 let expected_var = vec![2.0 / 3.0, 2.0 / 3.0];
@@ -1235,34 +1498,49 @@ mod test_functions {
                     );
                 }
                 assert_eq!(result.shape(), &[2]);
-            }
+            },
             _ => {
                 // Use appropriate tolerance
                 let tolerance = 1e-5;
 
-                let x = setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
+                let x =
+                    setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
                 let result = x.var(0, false, false)?;
                 result.backward()?;
 
                 let expected_var = vec![2.2500, 2.2500, 2.2500];
                 let result_vec = result.to_flatten_vec::<f32>()?;
                 for (a, b) in result_vec.iter().zip(expected_var.iter()) {
-                    assert!((a - b).abs() < tolerance, "Expected {} but got {} (tolerance: {})", b, a, tolerance);
+                    assert!(
+                        (a - b).abs() < tolerance,
+                        "Expected {} but got {} (tolerance: {})",
+                        b,
+                        a,
+                        tolerance
+                    );
                 }
                 assert_eq!(result.shape(), &[3]);
 
-                let x = setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
+                let x =
+                    setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
                 let result = x.var(0, true, true)?;
                 result.backward()?;
 
                 let expected_var = vec![4.5000, 4.5000, 4.5000];
                 let result_vec = result.to_flatten_vec::<f32>()?;
                 for (a, b) in result_vec.iter().zip(expected_var.iter()) {
-                    assert!((a - b).abs() < tolerance, "Expected {} but got {} (tolerance: {})", b, a, tolerance);
+                    assert!(
+                        (a - b).abs() < tolerance,
+                        "Expected {} but got {} (tolerance: {})",
+                        b,
+                        a,
+                        tolerance
+                    );
                 }
                 assert_eq!(result.shape(), &[1, 3]);
 
-                let x = setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
+                let x =
+                    setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
                 let result = x.var(1, false, false)?;
 
                 let expected_var = vec![2.0 / 3.0, 2.0 / 3.0];
@@ -1282,15 +1560,25 @@ mod test_functions {
                 }
                 assert_eq!(result.shape(), &[2]);
 
-                let x = setup_tensor_with_shape(TEST_DATA_U32_2D.iter().flatten().copied().collect(), DType::U32, &[2, 2])?;
+                let x = setup_tensor_with_shape(
+                    TEST_DATA_U32_2D.iter().flatten().copied().collect(),
+                    DType::U32,
+                    &[2, 2],
+                )?;
                 let result = x.var(0, false, false)?;
 
                 let expected_var = vec![1.0, 1.0];
                 let result_vec = result.to_flatten_vec::<f32>()?;
                 for (a, b) in result_vec.iter().zip(expected_var.iter()) {
-                    assert!((a - b).abs() < tolerance, "Expected {} but got {} (tolerance: {})", b, a, tolerance);
+                    assert!(
+                        (a - b).abs() < tolerance,
+                        "Expected {} but got {} (tolerance: {})",
+                        b,
+                        a,
+                        tolerance
+                    );
                 }
-            }
+            },
         }
         Ok(())
     }
@@ -1307,25 +1595,39 @@ mod test_functions {
                 let expected_std = vec![1.0, 1.0];
                 let result_vec = result.to_flatten_vec::<f32>()?;
                 for (a, b) in result_vec.iter().zip(expected_std.iter()) {
-                    assert!((a - b).abs() < tolerance, "Expected {} but got {} (tolerance: {})", b, a, tolerance);
+                    assert!(
+                        (a - b).abs() < tolerance,
+                        "Expected {} but got {} (tolerance: {})",
+                        b,
+                        a,
+                        tolerance
+                    );
                 }
-            }
+            },
             DType::BF16 | DType::F16 => {
                 // Use appropriate tolerance for low precision types
                 let tolerance = 0.1;
 
-                let x = setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
+                let x =
+                    setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
                 let result = x.std(0, false, false)?;
                 result.backward()?;
 
                 let expected_std = vec![1.5000, 1.5000, 1.5000];
                 let result_vec = result.to_flatten_vec::<f32>()?;
                 for (a, b) in result_vec.iter().zip(expected_std.iter()) {
-                    assert!((a - b).abs() < tolerance, "Expected {} but got {} (tolerance: {})", b, a, tolerance);
+                    assert!(
+                        (a - b).abs() < tolerance,
+                        "Expected {} but got {} (tolerance: {})",
+                        b,
+                        a,
+                        tolerance
+                    );
                 }
                 assert_eq!(result.shape(), &[3]);
 
-                let x = setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
+                let x =
+                    setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
                 let result = x.std(0, true, true)?;
                 result.backward()?;
 
@@ -1334,7 +1636,13 @@ mod test_functions {
                 let expected_std = vec![2.1213, 2.1213, 2.1213];
                 let result_vec = result.to_flatten_vec::<f32>()?;
                 for (a, b) in result_vec.iter().zip(expected_std.iter()) {
-                    assert!((a - b).abs() < tolerance, "Expected {} but got {} (tolerance: {})", b, a, tolerance);
+                    assert!(
+                        (a - b).abs() < tolerance,
+                        "Expected {} but got {} (tolerance: {})",
+                        b,
+                        a,
+                        tolerance
+                    );
                 }
                 assert_eq!(result.shape(), &[1, 3]);
 
@@ -1349,23 +1657,31 @@ mod test_functions {
                     result.item()?.as_f32(),
                     tolerance
                 );
-            }
+            },
             _ => {
                 // Need larger tolerance based on error message
                 let tolerance = 0.001;
 
-                let x = setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
+                let x =
+                    setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
                 let result = x.std(0, false, false)?;
                 result.backward()?;
 
                 let expected_std = vec![1.5000, 1.5000, 1.5000];
                 let result_vec = result.to_flatten_vec::<f32>()?;
                 for (a, b) in result_vec.iter().zip(expected_std.iter()) {
-                    assert!((a - b).abs() < tolerance, "Expected {} but got {} (tolerance: {})", b, a, tolerance);
+                    assert!(
+                        (a - b).abs() < tolerance,
+                        "Expected {} but got {} (tolerance: {})",
+                        b,
+                        a,
+                        tolerance
+                    );
                 }
                 assert_eq!(result.shape(), &[3]);
 
-                let x = setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
+                let x =
+                    setup_grad_tensor_with_shape(TEST_DATA_F32_2D.iter().flatten().copied().collect(), dtype, &[2, 3])?;
                 let result = x.std(0, true, true)?;
                 result.backward()?;
 
@@ -1374,7 +1690,13 @@ mod test_functions {
                 let expected_std = vec![2.1213, 2.1213, 2.1213];
                 let result_vec = result.to_flatten_vec::<f32>()?;
                 for (a, b) in result_vec.iter().zip(expected_std.iter()) {
-                    assert!((a - b).abs() < tolerance, "Expected {} but got {} (tolerance: {})", b, a, tolerance);
+                    assert!(
+                        (a - b).abs() < tolerance,
+                        "Expected {} but got {} (tolerance: {})",
+                        b,
+                        a,
+                        tolerance
+                    );
                 }
                 assert_eq!(result.shape(), &[1, 3]);
 
@@ -1390,15 +1712,25 @@ mod test_functions {
                     tolerance
                 );
 
-                let x = setup_tensor_with_shape(TEST_DATA_U32_2D.iter().flatten().copied().collect(), DType::U32, &[2, 2])?;
+                let x = setup_tensor_with_shape(
+                    TEST_DATA_U32_2D.iter().flatten().copied().collect(),
+                    DType::U32,
+                    &[2, 2],
+                )?;
                 let result = x.std(0, false, false)?;
 
                 let expected_std = vec![1.0, 1.0];
                 let result_vec = result.to_flatten_vec::<f32>()?;
                 for (a, b) in result_vec.iter().zip(expected_std.iter()) {
-                    assert!((a - b).abs() < tolerance, "Expected {} but got {} (tolerance: {})", b, a, tolerance);
+                    assert!(
+                        (a - b).abs() < tolerance,
+                        "Expected {} but got {} (tolerance: {})",
+                        b,
+                        a,
+                        tolerance
+                    );
                 }
-            }
+            },
         }
         Ok(())
     }
