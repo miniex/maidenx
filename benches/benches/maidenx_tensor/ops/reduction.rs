@@ -6,18 +6,12 @@ use maidenx_tensor::Tensor;
 const SIZES: [(usize, &str); 3] = [(20, "small"), (200, "medium"), (1000, "large")];
 
 // Helper function for tensor creation and benchmarking
-fn bench_op<F>(
-    b: &mut criterion::Bencher,
-    device: Device, 
-    dtype: DType,
-    dims: &[usize],
-    op_fn: F,
-) 
+fn bench_op<F>(b: &mut criterion::Bencher, device: Device, dtype: DType, dims: &[usize], op_fn: F)
 where
     F: Fn(&Tensor) -> Result<Tensor>,
 {
     let data: Vec<f32> = (0..dims.iter().product::<usize>()).map(|i| i as f32).collect();
-    
+
     b.iter(|| {
         let mut x = Tensor::new(data.clone()).unwrap().reshape(dims).unwrap();
         x.with_device(device).unwrap();
@@ -73,16 +67,14 @@ pub fn basic(criterion: &mut Criterion) {
     {
         let device = Device::CPU;
         let dtype = DType::F32;
-        
+
         for (op_name, op_fn) in &operations {
             for &(size, size_name) in &SIZES {
                 let dims = create_dims(size);
                 let dims_str = dims.iter().map(|d| d.to_string()).collect::<Vec<_>>().join("x");
                 let bench_name = format!("{}/cpu/{}/{}", op_name, size_name, dims_str);
-                
-                group.bench_function(&bench_name, |b| {
-                    bench_op(b, device, dtype, &dims, op_fn)
-                });
+
+                group.bench_function(&bench_name, |b| bench_op(b, device, dtype, &dims, op_fn));
             }
         }
     }
@@ -92,16 +84,14 @@ pub fn basic(criterion: &mut Criterion) {
     {
         let device = Device::CUDA(0);
         let dtype = DType::F32;
-        
+
         for (op_name, op_fn) in &operations {
             for &(size, size_name) in &SIZES {
                 let dims = create_dims(size);
                 let dims_str = dims.iter().map(|d| d.to_string()).collect::<Vec<_>>().join("x");
                 let bench_name = format!("{}/cuda/{}/{}", op_name, size_name, dims_str);
-                
-                group.bench_function(&bench_name, |b| {
-                    bench_op(b, device, dtype, &dims, op_fn)
-                });
+
+                group.bench_function(&bench_name, |b| bench_op(b, device, dtype, &dims, op_fn));
             }
         }
     }

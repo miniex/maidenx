@@ -2,7 +2,14 @@
 
 [Introduction](./README.md)
 
+---
+
 # User Guide
+
+- [Installation](./guide/installation.md)
+- [Create Tensors](./guide/create-tensors.md)
+
+---
 
 # Documentation
 
@@ -18,7 +25,7 @@
     - [Utils](./tensor/utils.md)
 - [Neural Networks](./nn/README.md)
     - [Layer](./nn/layer.md)
-        - [Activation](./nn/activation.md)
+        - [Activation Layer](./nn/activation.md)
         - [Convolution Layer](./nn/convolution.md)
         - [Dropout Layer](./nn/dropout.md)
         - [Embedding Layer](./nn/embedding.md)
