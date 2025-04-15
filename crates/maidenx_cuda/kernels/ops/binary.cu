@@ -37,7 +37,7 @@ template <typename T> __device__ T minimum(T x, T y) { return (x < y) ? x : y; }
         unsigned int rhs_i = 0;                                                \
         for (int d = num_dims - 1; d >= 0; d--) {                              \
           unsigned int i_dim = tmp_i % dims[d];                                \
-          rhs_i += i_dim * rhs_strides[d];                                     \
+          rhs_i += (rhs_strides[d] == 0 ? 0 : i_dim * rhs_strides[d]);         \
           tmp_i /= dims[d];                                                    \
         }                                                                      \
         IN_TYPENAME x = lhs[lhs_offset + i];                                   \
@@ -51,7 +51,7 @@ template <typename T> __device__ T minimum(T x, T y) { return (x < y) ? x : y; }
         unsigned int lhs_i = 0;                                                \
         for (int d = num_dims - 1; d >= 0; d--) {                              \
           unsigned int i_dim = tmp_i % dims[d];                                \
-          lhs_i += i_dim * lhs_strides[d];                                     \
+          lhs_i += (lhs_strides[d] == 0 ? 0 : i_dim * lhs_strides[d]);         \
           tmp_i /= dims[d];                                                    \
         }                                                                      \
         IN_TYPENAME x = lhs[lhs_offset + lhs_i];                               \
@@ -66,8 +66,8 @@ template <typename T> __device__ T minimum(T x, T y) { return (x < y) ? x : y; }
         unsigned int rhs_i = 0;                                                \
         for (int d = num_dims - 1; d >= 0; d--) {                              \
           unsigned int i_dim = tmp_i % dims[d];                                \
-          lhs_i += i_dim * lhs_strides[d];                                     \
-          rhs_i += i_dim * rhs_strides[d];                                     \
+          lhs_i += (lhs_strides[d] == 0 ? 0 : i_dim * lhs_strides[d]);         \
+          rhs_i += (rhs_strides[d] == 0 ? 0 : i_dim * rhs_strides[d]);         \
           tmp_i /= dims[d];                                                    \
         }                                                                      \
         IN_TYPENAME x = lhs[lhs_offset + lhs_i];                               \
@@ -113,7 +113,7 @@ template <typename T> __device__ T minimum(T x, T y) { return (x < y) ? x : y; }
         unsigned int rhs_i = 0;                                                \
         for (int d = num_dims - 1; d >= 0; d--) {                              \
           unsigned int i_dim = tmp_i % dims[d];                                \
-          rhs_i += i_dim * rhs_strides[d];                                     \
+          rhs_i += (rhs_strides[d] == 0 ? 0 : i_dim * rhs_strides[d]);         \
           tmp_i /= dims[d];                                                    \
         }                                                                      \
         TYPENAME x = lhs[lhs_offset + i];                                      \
@@ -127,7 +127,7 @@ template <typename T> __device__ T minimum(T x, T y) { return (x < y) ? x : y; }
         unsigned int lhs_i = 0;                                                \
         for (int d = num_dims - 1; d >= 0; d--) {                              \
           unsigned int i_dim = tmp_i % dims[d];                                \
-          lhs_i += i_dim * lhs_strides[d];                                     \
+          lhs_i += (lhs_strides[d] == 0 ? 0 : i_dim * lhs_strides[d]);         \
           tmp_i /= dims[d];                                                    \
         }                                                                      \
         TYPENAME x = lhs[lhs_offset + lhs_i];                                  \
@@ -142,8 +142,8 @@ template <typename T> __device__ T minimum(T x, T y) { return (x < y) ? x : y; }
         unsigned int rhs_i = 0;                                                \
         for (int d = num_dims - 1; d >= 0; d--) {                              \
           unsigned int i_dim = tmp_i % dims[d];                                \
-          lhs_i += i_dim * lhs_strides[d];                                     \
-          rhs_i += i_dim * rhs_strides[d];                                     \
+          lhs_i += (lhs_strides[d] == 0 ? 0 : i_dim * lhs_strides[d]);         \
+          rhs_i += (rhs_strides[d] == 0 ? 0 : i_dim * rhs_strides[d]);         \
           tmp_i /= dims[d];                                                    \
         }                                                                      \
         TYPENAME x = lhs[lhs_offset + lhs_i];                                  \

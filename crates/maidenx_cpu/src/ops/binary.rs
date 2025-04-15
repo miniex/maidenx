@@ -68,7 +68,11 @@ macro_rules! binary_op_with_output {
 
                     for d in (0..num_dims).rev() {
                         let i_dim = tmp_i % dims[d];
-                        rhs_i += i_dim * rhs_strides[d];
+                        rhs_i += if rhs_strides[d] != 0 {
+                            i_dim * rhs_strides[d]
+                        } else {
+                            0
+                        };
                         tmp_i /= dims[d];
                     }
 
@@ -81,7 +85,11 @@ macro_rules! binary_op_with_output {
 
                     for d in (0..num_dims).rev() {
                         let i_dim = tmp_i % dims[d];
-                        lhs_i += i_dim * lhs_strides[d];
+                        lhs_i += if lhs_strides[d] != 0 {
+                            i_dim * lhs_strides[d]
+                        } else {
+                            0
+                        };
                         tmp_i /= dims[d];
                     }
 
@@ -95,8 +103,16 @@ macro_rules! binary_op_with_output {
 
                     for d in (0..num_dims).rev() {
                         let i_dim = tmp_i % dims[d];
-                        lhs_i += i_dim * lhs_strides[d];
-                        rhs_i += i_dim * rhs_strides[d];
+                        lhs_i += if lhs_strides[d] != 0 {
+                            i_dim * lhs_strides[d]
+                        } else {
+                            0
+                        };
+                        rhs_i += if rhs_strides[d] != 0 {
+                            i_dim * rhs_strides[d]
+                        } else {
+                            0
+                        };
                         tmp_i /= dims[d];
                     }
 
@@ -168,7 +184,11 @@ macro_rules! binary_op_inplace {
 
                     for d in (0..num_dims).rev() {
                         let i_dim = tmp_i % dims[d];
-                        rhs_i += i_dim * rhs_strides[d];
+                        rhs_i += if rhs_strides[d] != 0 {
+                            i_dim * rhs_strides[d]
+                        } else {
+                            0
+                        };
                         tmp_i /= dims[d];
                     }
 
@@ -184,7 +204,11 @@ macro_rules! binary_op_inplace {
 
                     for d in (0..num_dims).rev() {
                         let i_dim = tmp_i % dims[d];
-                        lhs_i += i_dim * lhs_strides[d];
+                        lhs_i += if lhs_strides[d] != 0 {
+                            i_dim * lhs_strides[d]
+                        } else {
+                            0
+                        };
                         tmp_i /= dims[d];
                     }
 
@@ -201,8 +225,16 @@ macro_rules! binary_op_inplace {
 
                     for d in (0..num_dims).rev() {
                         let i_dim = tmp_i % dims[d];
-                        lhs_i += i_dim * lhs_strides[d];
-                        rhs_i += i_dim * rhs_strides[d];
+                        lhs_i += if lhs_strides[d] != 0 {
+                            i_dim * lhs_strides[d]
+                        } else {
+                            0
+                        };
+                        rhs_i += if rhs_strides[d] != 0 {
+                            i_dim * rhs_strides[d]
+                        } else {
+                            0
+                        };
                         tmp_i /= dims[d];
                     }
 
@@ -275,7 +307,11 @@ macro_rules! logical_op {
 
                     for d in (0..num_dims).rev() {
                         let i_dim = tmp_i % dims[d];
-                        rhs_i += i_dim * rhs_strides[d];
+                        rhs_i += if rhs_strides[d] != 0 {
+                            i_dim * rhs_strides[d]
+                        } else {
+                            0
+                        };
                         tmp_i /= dims[d];
                     }
 
@@ -290,7 +326,11 @@ macro_rules! logical_op {
 
                     for d in (0..num_dims).rev() {
                         let i_dim = tmp_i % dims[d];
-                        lhs_i += i_dim * lhs_strides[d];
+                        lhs_i += if lhs_strides[d] != 0 {
+                            i_dim * lhs_strides[d]
+                        } else {
+                            0
+                        };
                         tmp_i /= dims[d];
                     }
 
@@ -306,8 +346,16 @@ macro_rules! logical_op {
 
                     for d in (0..num_dims).rev() {
                         let i_dim = tmp_i % dims[d];
-                        lhs_i += i_dim * lhs_strides[d];
-                        rhs_i += i_dim * rhs_strides[d];
+                        lhs_i += if lhs_strides[d] != 0 {
+                            i_dim * lhs_strides[d]
+                        } else {
+                            0
+                        };
+                        rhs_i += if rhs_strides[d] != 0 {
+                            i_dim * rhs_strides[d]
+                        } else {
+                            0
+                        };
                         tmp_i /= dims[d];
                     }
 

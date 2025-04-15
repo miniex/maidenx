@@ -20,13 +20,13 @@ __device__ __forceinline__ bool is_contiguous(const size_t num_dims,
 }
 
 __device__ __forceinline__ unsigned int
-get_strided_index(unsigned int idx, const size_t num_dims, const size_t *dims,
+get_strided_index(size_t idx, size_t num_dims, const size_t *dims,
                   const size_t *strides) {
-  unsigned int strided_i = 0;
-  for (unsigned int d = 0; d < num_dims; d++) {
-    unsigned int dim_idx = num_dims - 1 - d;
-    strided_i += (idx % dims[dim_idx]) * strides[dim_idx];
-    idx /= dims[dim_idx];
+  size_t strided_i = 0;
+  for (int d = num_dims - 1; d >= 0; d--) {
+    size_t dim_idx_value = idx % dims[d];
+    strided_i += (strides[d] == 0 ? 0 : dim_idx_value * strides[d]);
+    idx /= dims[d];
   }
   return strided_i;
 }

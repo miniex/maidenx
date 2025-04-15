@@ -73,49 +73,76 @@ impl Embedding {
             )));
         }
 
-        let mut output = self.weight.index_select(0, input)?;
+        let original_shape = input.shape().to_vec();
+
+        let flattened_input = if original_shape.len() > 1 {
+            let flat_size: usize = original_shape.iter().product();
+            input.reshape(&[flat_size])?
+        } else {
+            input.clone()
+        };
+
+        let mut flat_output = self.weight.index_select(0, &flattened_input)?;
 
         if let Some(max_norm) = self.max_norm {
-            let norms = output.norm(self.norm_type, -1, true)?;
+            let norms = flat_output.norm(self.norm_type, -1, true)?;
             let mask = norms.gt_scalar(max_norm)?;
-
             if mask.any()? {
                 let scale = norms.div_scalar(max_norm)?;
-
                 let ones = Tensor::ones_like(&scale)?;
                 let scale_factors = scale.maximum(&ones)?;
-
-                let normed_output = output.div(&scale_factors)?;
-
-                output = normed_output;
+                let normed_output = flat_output.div(&scale_factors)?;
+                flat_output = normed_output;
             }
         }
+
+        let mut output = if original_shape.len() > 1 {
+            let mut new_shape = original_shape.clone();
+            new_shape.push(self.embedding_dim());
+            flat_output.reshape(&new_shape)?
+        } else {
+            flat_output
+        };
 
         {
             let input_clone = input.clone();
             let weight_clone = self.weight.clone();
             let scale_grad = self.scale_grad_by_freq;
+            let original_shape_clone = original_shape.clone();
 
             let backward_fn = Box::new(move |_inputs: &[Tensor], grad_out: &Tensor| -> Result<Vec<Tensor>> {
                 let mut grad_weight = Tensor::zeros_like(&weight_clone)?;
 
-                if scale_grad {
-                    let counts = input_clone.bincount(None, None)?;
+                let flattened_input = if original_shape_clone.len() > 1 {
+                    let flat_size: usize = original_shape_clone.iter().product();
+                    input_clone.reshape(&[flat_size])?
+                } else {
+                    input_clone.clone()
+                };
 
-                    for i in 0..input_clone.size() {
-                        let idx = input_clone.get(&[i])?.as_i32() as usize;
+                let flattened_grad_out = if original_shape_clone.len() > 1 {
+                    let flat_size: usize = original_shape_clone.iter().product();
+                    grad_out.reshape(&[flat_size, grad_out.shape().last().unwrap().clone()])?
+                } else {
+                    grad_out.clone()
+                };
+
+                if scale_grad {
+                    let counts = flattened_input.bincount(None, None)?;
+
+                    for i in 0..flattened_input.size() {
+                        let idx = flattened_input.get(&[i])?.as_i32() as usize;
                         let count = counts.get(&[idx])?.as_f32().max(1.0);
                         let scale = 1.0 / count;
 
-                        let pos_grad = grad_out.slice(0, i, Some(i + 1), 1)?;
+                        let pos_grad = flattened_grad_out.slice(0, i, Some(i + 1), 1)?;
                         let scaled_grad = pos_grad.mul_scalar(scale)?;
 
                         let idx_tensor = Tensor::new(vec![idx as i32])?;
-
                         grad_weight.index_add_(0, &idx_tensor, &scaled_grad)?;
                     }
                 } else {
-                    grad_weight.index_add_(0, &input_clone, grad_out)?;
+                    grad_weight.index_add_(0, &flattened_input, &flattened_grad_out)?;
                 }
 
                 Ok(vec![grad_weight])
@@ -123,7 +150,6 @@ impl Embedding {
 
             let node =
                 maidenx_tensor::TensorNode::new("embedding".to_string(), vec![self.weight.clone()], Some(backward_fn));
-
             output.set_node(node);
         }
 
@@ -300,10 +326,6 @@ mod tests {
         let grad_1_sum = grad_1.sum_all()?.item()?.as_f32();
         let grad_3_sum = grad_3.sum_all()?.item()?.as_f32();
         let grad_5_sum = grad_5.sum_all()?.item()?.as_f32();
-
-        println!("{}", grad_1_sum);
-        println!("{}", grad_3_sum);
-        println!("{}", grad_5_sum);
 
         assert!(
             (grad_1_sum - grad_5_sum).abs() < 1e-5,

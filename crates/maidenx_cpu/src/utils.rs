@@ -18,7 +18,12 @@ pub fn get_strided_index(idx: usize, num_dims: usize, dims: &[usize], strides: &
 
     for d in 0..num_dims {
         let dim_idx = num_dims - 1 - d;
-        strided_i += (remaining_idx % dims[dim_idx]) * strides[dim_idx];
+
+        if strides[dim_idx] != 0 {
+            let dim_idx_value = remaining_idx % dims[dim_idx];
+            strided_i += dim_idx_value * strides[dim_idx];
+        }
+
         remaining_idx /= dims[dim_idx];
     }
 

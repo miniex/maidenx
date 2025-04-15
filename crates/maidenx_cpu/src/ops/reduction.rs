@@ -64,9 +64,13 @@ macro_rules! sum_op {
                     let mut dst_idx = i;
                     for nd in 0..num_sum_dims {
                         let stride = sum_dims_s[nd];
-                        let pre = dst_idx / stride;
-                        let post = dst_idx % stride;
-                        dst_idx = (pre / sum_dims_l[nd]) * stride + post;
+                        if stride != 0 {
+                            let pre = dst_idx / stride;
+                            let post = dst_idx % stride;
+                            dst_idx = (pre / sum_dims_l[nd]) * stride + post;
+                        } else {
+                            dst_idx /= sum_dims_l[nd];
+                        }
                     }
 
                     if let Ok(mut out) = out_slice[dst_idx].lock() {
@@ -241,9 +245,13 @@ macro_rules! mean_op {
                     let mut dst_idx = i;
                     for nd in 0..num_red_dims {
                         let stride = mean_dims_s[nd];
-                        let pre = dst_idx / stride;
-                        let post = dst_idx % stride;
-                        dst_idx = (pre / mean_dims_l[nd]) * stride + post;
+                        if stride != 0 {
+                            let pre = dst_idx / stride;
+                            let post = dst_idx % stride;
+                            dst_idx = (pre / mean_dims_l[nd]) * stride + post;
+                        } else {
+                            dst_idx /= mean_dims_l[nd];
+                        }
                     }
 
                     if let Ok(mut out) = out_slice[dst_idx].lock() {
@@ -432,9 +440,13 @@ macro_rules! max_op {
                     let mut dst_idx = i;
                     for nd in 0..num_red_dims {
                         let stride = max_dims_s[nd];
-                        let pre = dst_idx / stride;
-                        let post = dst_idx % stride;
-                        dst_idx = (pre / max_dims_l[nd]) * stride + post;
+                        if stride != 0 {
+                            let pre = dst_idx / stride;
+                            let post = dst_idx % stride;
+                            dst_idx = (pre / max_dims_l[nd]) * stride + post;
+                        } else {
+                            dst_idx /= max_dims_l[nd];
+                        }
                     }
 
                     let val = input[strided_i];
@@ -514,9 +526,13 @@ macro_rules! min_op {
                     let mut dst_idx = i;
                     for nd in 0..num_red_dims {
                         let stride = min_dims_s[nd];
-                        let pre = dst_idx / stride;
-                        let post = dst_idx % stride;
-                        dst_idx = (pre / min_dims_l[nd]) * stride + post;
+                        if stride != 0 {
+                            let pre = dst_idx / stride;
+                            let post = dst_idx % stride;
+                            dst_idx = (pre / min_dims_l[nd]) * stride + post;
+                        } else {
+                            dst_idx /= min_dims_l[nd];
+                        }
                     }
 
                     let val = input[strided_i];
