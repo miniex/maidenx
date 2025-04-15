@@ -23,8 +23,16 @@ get_strided_index(unsigned int idx, const size_t num_dims, constant size_t *dims
     unsigned int strided_i = 0;
     for (unsigned int d = 0; d < num_dims; d++) {
         unsigned int dim_idx = num_dims - 1 - d;
-        strided_i += (idx % dims[dim_idx]) * strides[dim_idx];
-        idx /= dims[dim_idx];
+        unsigned int current_dim = dims[dim_idx];
+        unsigned int current_stride = strides[dim_idx];
+
+        unsigned int idx_mod_dim = current_dim == 0 ? 0 : (idx % current_dim);
+
+        if (current_stride != 0) {
+            strided_i += idx_mod_dim * current_stride;
+        }
+
+        idx = current_dim == 0 ? 0 : (idx / current_dim);
     }
     return strided_i;
 }
