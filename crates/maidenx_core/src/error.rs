@@ -21,6 +21,8 @@ pub enum Error {
     InvalidDevice(String),
     InvalidOperation(String),
     IncompatibleShape(String),
+    InvalidState(String),
+    Lock,
     #[cfg(feature = "cuda")]
     CudaError(String),
     #[cfg(feature = "mps")]
@@ -81,6 +83,8 @@ impl fmt::Display for Error {
             Self::InvalidDevice(msg) => write!(f, "Invalid device: {}", msg),
             Self::InvalidOperation(msg) => write!(f, "Invalid operation: {}", msg),
             Self::IncompatibleShape(msg) => write!(f, "Incompatible shape: {}", msg),
+            Self::InvalidState(msg) => write!(f, "Invalid state: {}", msg),
+            Self::Lock => write!(f, "Failed to acquire or hold a lock"),
             #[cfg(feature = "cuda")]
             Self::CudaError(msg) => write!(f, "CUDA error: {}", msg),
             #[cfg(feature = "mps")]
