@@ -1,6 +1,6 @@
 [package]
 name = "maidenx_nn_macros"
-version = "0.1.0-dev"
+version = "0.2.0-dev"
 description = "maidenx nn macros"
 license = "BSD-3-Clause"
 authors = ["Han Damin <miniex@daminstudio.net>"]
@@ -15,7 +15,7 @@ proc-macro = true
 serde = []
 
 [dependencies]
-maidenx_macro_utils = { path = "../../maidenx_macro_utils", version = "0.1.0-dev" }
+maidenx_macro_utils = { path = "../../maidenx_macro_utils", version = "0.2.0-dev" }
 syn = { version = "2.0", features = ["full"] }
 quote = "1.0"
 proc-macro2 = "1.0"

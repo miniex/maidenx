@@ -1,6 +1,6 @@
 [package]
 name = "maidenx_mps"
-version = "0.1.0-dev"
+version = "0.2.0-dev"
 description = "maidenx MPS backend"
 license = "BSD-3-Clause"
 authors = ["Han Damin <miniex@daminstudio.net>"]
