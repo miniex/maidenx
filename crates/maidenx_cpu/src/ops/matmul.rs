@@ -9,11 +9,11 @@ macro_rules! matmul_op {
         ///
         /// * `metadata` must be a valid pointer to array containing:
         ///   - out_ndim, a_ndim, b_ndim
-        ///   - out_shape[out_ndim]
-        ///   - a_shape[a_ndim]
-        ///   - b_shape[b_ndim]
-        ///   - a_strides[a_ndim]
-        ///   - b_strides[b_ndim]
+        ///   - out_shape\[out_ndim\]
+        ///   - a_shape\[a_ndim\]
+        ///   - b_shape\[b_ndim\]
+        ///   - a_strides\[a_ndim\]
+        ///   - b_strides\[b_ndim\]
         /// * `A`, `B`, and `C` must be valid pointers to arrays of appropriate sizes
         /// * The matrix dimensions must be compatible for multiplication
         pub unsafe fn $name(num_els: usize, metadata: *const usize, a: *const $type, b: *const $type, c: *mut $type) {

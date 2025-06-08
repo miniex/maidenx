@@ -10,17 +10,16 @@ repository = "https://github.com/miniex/maidenx"
 
 [features]
 serde = ["maidenx_core/serde", "dep:serde", "dep:serde_json", "dep:bincode"]
-graph = []
 
 cuda = ["maidenx_core/cuda"]
 mps = ["maidenx_core/mps"]
 
 [dependencies]
-maidenx_core = { path = "../maidenx_core", version = "0.1.0-dev" }
+maidenx_core = { path = "../maidenx_core", version = "0.2.0-dev" }
 half = { workspace = true }
 paste = { workspace = true }
-rand = { version = "0.8.5" }
-rand_distr = { version = "0.4.3" }
+rand = { version = "0.9.1" }
+rand_distr = { version = "0.5.1" }
 serde = { workspace = true, optional = true, features = ["derive"] }
 serde_json = { workspace = true, optional = true }
 bincode = { workspace = true, optional = true, features = ["serde"] }

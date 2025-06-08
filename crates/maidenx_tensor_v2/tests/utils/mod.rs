@@ -333,3 +333,23 @@
 //         )*
 //     };
 // }
+
+use maidenx_core::error::Result;
+use maidenx_tensor_v2::{eager_mode, lazy_mode, TensorMode};
+
+pub fn test_both_modes<F>(test_fn: F) -> Result<()>
+where
+    F: Fn(TensorMode) -> Result<()>,
+{
+    {
+        let _guard = eager_mode();
+        test_fn(TensorMode::Eager)?;
+    }
+
+    {
+        let _guard = lazy_mode();
+        test_fn(TensorMode::Lazy)?;
+    }
+
+    Ok(())
+}

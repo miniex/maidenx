@@ -9,10 +9,10 @@ macro_rules! sum_op {
         /// # Safety
         ///
         /// * `metadata` must be a valid pointer to an array containing:
-        ///   - dims[num_dims]: array dimensions
-        ///   - strides[num_dims]: strides for input array
-        ///   - sum_dims_l[num_sum_dims]: length of dimensions to sum over
-        ///   - sum_dims_s[num_sum_dims]: stride of dimensions to sum over
+        ///   - dims\[num_dims\]: array dimensions
+        ///   - strides\[num_dims\]: strides for input array
+        ///   - sum_dims_l\[num_sum_dims\]: length of dimensions to sum over
+        ///   - sum_dims_s\[num_sum_dims\]: stride of dimensions to sum over
         /// * `inp` must be a valid pointer to an array of at least `num_els` elements
         /// * `out` must be a valid pointer to an array of appropriate size for the output
         /// * The alignment requirements of the type must be respected
@@ -94,9 +94,9 @@ macro_rules! sum_to_shape_op {
         /// # Safety
         ///
         /// * `metadata` must be a valid pointer to an array containing:
-        ///   - dims[num_dims]: array dimensions for input
-        ///   - strides[num_dims]: strides for input array
-        ///   - output_dims[num_dims]: dimensions for output array
+        ///   - dims\[num_dims\]: array dimensions for input
+        ///   - strides\[num_dims\]: strides for input array
+        ///   - output_dims\[num_dims\]: dimensions for output array
         /// * `inp` must be a valid pointer to an array of at least `num_els` elements
         /// * `out` must be a valid pointer to an array of appropriate size for the output
         /// * The alignment requirements of the type must be respected
@@ -188,10 +188,10 @@ macro_rules! mean_op {
         /// # Safety
         ///
         /// * `metadata` must be a valid pointer to an array containing:
-        ///   - dims[num_dims]: array dimensions
-        ///   - strides[num_dims]: strides for input array
-        ///   - mean_dims_l[num_mean_dims]: length of dimensions to average over
-        ///   - mean_dims_s[num_mean_dims]: stride of dimensions to average over
+        ///   - dims\[num_dims\]: array dimensions
+        ///   - strides\[num_dims\]: strides for input array
+        ///   - mean_dims_l\[num_mean_dims\]: length of dimensions to average over
+        ///   - mean_dims_s\[num_mean_dims\]: stride of dimensions to average over
         /// * `inp` must be a valid pointer to an array of at least `num_els` elements
         /// * `out` must be a valid pointer to an array of appropriate size for the output
         /// * The alignment requirements of the type must be respected
@@ -277,8 +277,8 @@ macro_rules! fold_op {
         /// # Safety
         ///
         /// * `metadata` must be a valid pointer to an array containing:
-        ///   - input_dims[num_dims]: array dimensions
-        ///   - input_strides[num_dims]: strides for input array
+        ///   - input_dims\[num_dims\]: array dimensions
+        ///   - input_strides\[num_dims\]: strides for input array
         ///   - fold_dim: dimension to fold
         ///   - window_dim: window dimension
         ///   - fold_size: size of the folded dimension
@@ -386,10 +386,10 @@ macro_rules! max_op {
         /// # Safety
         ///
         /// * `metadata` must be a valid pointer to an array containing:
-        ///   - dims[num_dims]: array dimensions
-        ///   - strides[num_dims]: strides for input array
-        ///   - max_dims_l[num_max_dims]: length of dimensions to max over
-        ///   - max_dims_s[num_max_dims]: stride of dimensions to max over
+        ///   - dims\[num_dims\]: array dimensions
+        ///   - strides\[num_dims\]: strides for input array
+        ///   - max_dims_l\[num_max_dims\]: length of dimensions to max over
+        ///   - max_dims_s\[num_max_dims\]: stride of dimensions to max over
         /// * `inp` must be a valid pointer to an array of at least `num_els` elements
         /// * `out` must be a valid pointer to an array of appropriate size for the output
         /// * The alignment requirements of the type must be respected
@@ -472,10 +472,10 @@ macro_rules! min_op {
         /// # Safety
         ///
         /// * `metadata` must be a valid pointer to an array containing:
-        ///   - dims[num_dims]: array dimensions
-        ///   - strides[num_dims]: strides for input array
-        ///   - min_dims_l[num_min_dims]: length of dimensions to min over
-        ///   - min_dims_s[num_min_dims]: stride of dimensions to min over
+        ///   - dims\[num_dims\]: array dimensions
+        ///   - strides\[num_dims\]: strides for input array
+        ///   - min_dims_l\[num_min_dims\]: length of dimensions to min over
+        ///   - min_dims_s\[num_min_dims\]: stride of dimensions to min over
         /// * `inp` must be a valid pointer to an array of at least `num_els` elements
         /// * `out` must be a valid pointer to an array of appropriate size for the output
         /// * The alignment requirements of the type must be respected

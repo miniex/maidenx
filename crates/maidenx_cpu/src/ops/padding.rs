@@ -10,10 +10,10 @@ macro_rules! pad_with_constant_op {
         /// # Safety
         ///
         /// * `metadata` must be a valid pointer to an array containing:
-        ///   - input_dims[num_dims]: array dimensions for input
-        ///   - input_strides[num_dims]: strides for input array
+        ///   - input_dims\[num_dims\]: array dimensions for input
+        ///   - input_strides\[num_dims\]: strides for input array
         ///   - input_offset: offset for input array
-        ///   - output_dims[num_dims]: dimensions for output array
+        ///   - output_dims\[num_dims\]: dimensions for output array
         ///   - paddings[num_dims * 2]: padding values for each dimension (before, after)
         /// * `inp` must be a valid pointer to an array of at least `num_els_in` elements
         /// * `out` must be a valid pointer to an array of at least `num_els_out` elements
@@ -118,10 +118,10 @@ macro_rules! pad_with_reflection_op {
         /// # Safety
         ///
         /// * `metadata` must be a valid pointer to an array containing:
-        ///   - input_dims[num_dims]: array dimensions for input
-        ///   - input_strides[num_dims]: strides for input array
+        ///   - input_dims\[num_dims\]: array dimensions for input
+        ///   - input_strides\[num_dims\]: strides for input array
         ///   - input_offset: offset for input array
-        ///   - output_dims[num_dims]: dimensions for output array
+        ///   - output_dims\[num_dims\]: dimensions for output array
         ///   - paddings[num_dims * 2]: padding values for each dimension (before, after)
         /// * `inp` must be a valid pointer to an array of at least `num_els_in` elements
         /// * `out` must be a valid pointer to an array of at least `num_els_out` elements
@@ -232,10 +232,10 @@ macro_rules! pad_with_replication_op {
         /// # Safety
         ///
         /// * `metadata` must be a valid pointer to an array containing:
-        ///   - input_dims[num_dims]: array dimensions for input
-        ///   - input_strides[num_dims]: strides for input array
+        ///   - input_dims\[num_dims\]: array dimensions for input
+        ///   - input_strides\[num_dims\]: strides for input array
         ///   - input_offset: offset for input array
-        ///   - output_dims[num_dims]: dimensions for output array
+        ///   - output_dims\[num_dims\]: dimensions for output array
         ///   - paddings[num_dims * 2]: padding values for each dimension (before, after)
         /// * `inp` must be a valid pointer to an array of at least `num_els_in` elements
         /// * `out` must be a valid pointer to an array of at least `num_els_out` elements
@@ -330,10 +330,10 @@ macro_rules! pad_with_constant_backward_op {
         /// # Safety
         ///
         /// * `metadata` must be a valid pointer to an array containing:
-        ///   - input_dims[num_dims]: array dimensions for input gradient
-        ///   - input_strides[num_dims]: strides for input gradient array
+        ///   - input_dims\[num_dims\]: array dimensions for input gradient
+        ///   - input_strides\[num_dims\]: strides for input gradient array
         ///   - input_offset: offset for input gradient array
-        ///   - output_dims[num_dims]: dimensions for output gradient array
+        ///   - output_dims\[num_dims\]: dimensions for output gradient array
         ///   - paddings[num_dims * 2]: padding values for each dimension (before, after)
         /// * `grad_out` must be a valid pointer to an array of at least `num_els_out` elements (gradient of output)
         /// * `grad_in` must be a valid pointer to an array of at least `num_els_in` elements (gradient of input)
@@ -441,10 +441,10 @@ macro_rules! pad_with_reflection_backward_op {
         /// # Safety
         ///
         /// * `metadata` must be a valid pointer to an array containing:
-        ///   - input_dims[num_dims]: array dimensions for input gradient
-        ///   - input_strides[num_dims]: strides for input gradient array
+        ///   - input_dims\[num_dims\]: array dimensions for input gradient
+        ///   - input_strides\[num_dims\]: strides for input gradient array
         ///   - input_offset: offset for input gradient array
-        ///   - output_dims[num_dims]: dimensions for output gradient array
+        ///   - output_dims\[num_dims\]: dimensions for output gradient array
         ///   - paddings[num_dims * 2]: padding values for each dimension (before, after)
         /// * `grad_out` must be a valid pointer to an array of at least `num_els_out` elements (gradient of output)
         /// * `grad_in` must be a valid pointer to an array of at least `num_els_in` elements (gradient of input)
@@ -563,10 +563,10 @@ macro_rules! pad_with_replication_backward_op {
         /// # Safety
         ///
         /// * `metadata` must be a valid pointer to an array containing:
-        ///   - input_dims[num_dims]: array dimensions for input gradient
-        ///   - input_strides[num_dims]: strides for input gradient array
+        ///   - input_dims\[num_dims\]: array dimensions for input gradient
+        ///   - input_strides\[num_dims\]: strides for input gradient array
         ///   - input_offset: offset for input gradient array
-        ///   - output_dims[num_dims]: dimensions for output gradient array
+        ///   - output_dims\[num_dims\]: dimensions for output gradient array
         ///   - paddings[num_dims * 2]: padding values for each dimension (before, after)
         /// * `grad_out` must be a valid pointer to an array of at least `num_els_out` elements (gradient of output)
         /// * `grad_in` must be a valid pointer to an array of at least `num_els_in` elements (gradient of input)

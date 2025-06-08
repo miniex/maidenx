@@ -19,9 +19,9 @@ macro_rules! binary_op_with_output {
         /// * `metadata` must be either:
         ///   - null (indicating contiguous arrays) or
         ///   - a valid pointer to an array of `3 * num_dims` elements containing:
-        ///     - dims[num_dims]: array dimensions
-        ///     - lhs_strides[num_dims]: strides for left-hand side array
-        ///     - rhs_strides[num_dims]: strides for right-hand side array
+        ///     - dims\[num_dims\]: array dimensions
+        ///     - lhs_strides\[num_dims\]: strides for left-hand side array
+        ///     - rhs_strides\[num_dims\]: strides for right-hand side array
         /// * `lhs` must be a valid pointer to an array of at least `num_els` elements
         /// * `rhs` must be a valid pointer to an array of at least `num_els` elements
         /// * `out` must be a valid pointer to an array of at least `num_els` elements
@@ -132,9 +132,9 @@ macro_rules! binary_op_inplace {
         /// * `metadata` must be either:
         ///   - null (indicating contiguous arrays) or
         ///   - a valid pointer to an array of `3 * num_dims` elements containing:
-        ///     - dims[num_dims]: array dimensions
-        ///     - lhs_strides[num_dims]: strides for left-hand side array
-        ///     - rhs_strides[num_dims]: strides for right-hand side array
+        ///     - dims\[num_dims\]: array dimensions
+        ///     - lhs_strides\[num_dims\]: strides for left-hand side array
+        ///     - rhs_strides\[num_dims\]: strides for right-hand side array
         /// * `lhs` must be a valid pointer to an array of at least `num_els` elements
         /// * `rhs` must be a valid pointer to an array of at least `num_els` elements
         /// * The memory regions of `rhs` and `lhs` may overlap only if they are identical
@@ -256,9 +256,9 @@ macro_rules! logical_op {
         /// * `metadata` must be either:
         ///   - null (indicating contiguous arrays) or
         ///   - a valid pointer to an array of `3 * num_dims` elements containing:
-        ///     - dims[num_dims]: array dimensions
-        ///     - lhs_strides[num_dims]: strides for left-hand side array
-        ///     - rhs_strides[num_dims]: strides for right-hand side array
+        ///     - dims\[num_dims\]: array dimensions
+        ///     - lhs_strides\[num_dims\]: strides for left-hand side array
+        ///     - rhs_strides\[num_dims\]: strides for right-hand side array
         /// * `lhs` must be a valid pointer to an array of at least `num_els` elements
         /// * `rhs` must be a valid pointer to an array of at least `num_els` elements
         /// * `out` must be a valid pointer to an array of at least `num_els` elements

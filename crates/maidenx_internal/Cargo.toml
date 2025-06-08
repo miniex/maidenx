@@ -11,7 +11,6 @@ repository = "https://github.com/miniex/maidenx"
 [features]
 nn = ["maidenx_core/nn", "dep:maidenx_nn"]
 serde = ["maidenx_core/serde", "maidenx_tensor/serde", "maidenx_nn?/serde"]
-graph = ["maidenx_tensor/graph"]
 
 cuda = ["maidenx_core/cuda", "maidenx_tensor/cuda"]
 mps = ["maidenx_core/mps", "maidenx_tensor/mps"]

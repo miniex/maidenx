@@ -25,11 +25,10 @@ bincode = "2.0.1"
 dashmap = "6.1.0"
 
 [features]
-default = ["nn", "serde", "graph"]
+default = ["nn", "serde"]
 
 nn = ["maidenx_internal/nn"]
 serde = ["maidenx_internal/serde"]
-graph = ["maidenx_internal/graph"]
 
 cuda = ["maidenx_internal/cuda"]
 mps = ["maidenx_internal/mps"]
@@ -44,11 +43,14 @@ path = "examples/device/cpu.rs"
 [[example]]
 name = "cuda"
 path = "examples/device/cuda.rs"
+features = ["cuda"]
 
 [[example]]
 name = "mps"
 path = "examples/device/mps.rs"
+features = ["mps"]
 
 [[example]]
 name = "serde"
 path = "examples/serde/serde.rs"
+features = ["serde"]

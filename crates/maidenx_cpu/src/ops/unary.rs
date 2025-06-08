@@ -19,8 +19,8 @@ macro_rules! unary_op_output {
         /// * `metadata` must be either:
         ///   - null, indicating contiguous arrays
         ///   - a valid pointer to an array of `2 * num_dims` elements containing:
-        ///     * dims[num_dims]: array dimensions
-        ///     * strides[num_dims]: strides for array
+        ///     * dims\[num_dims\]: array dimensions
+        ///     * strides\[num_dims\]: strides for array
         /// * `input` must be either:
         ///   - null, in which case output array is used as input
         ///   - a valid pointer to an array of at least `num_els` elements
@@ -76,8 +76,8 @@ macro_rules! unary_op_with_constant_output {
         /// * `metadata` must be either:
         ///   - null, indicating contiguous arrays
         ///   - a valid pointer to an array of `2 * num_dims` elements containing:
-        ///     * dims[num_dims]: array dimensions
-        ///     * strides[num_dims]: strides for array
+        ///     * dims\[num_dims\]: array dimensions
+        ///     * strides\[num_dims\]: strides for array
         /// * `input` must be either:
         ///   - null, in which case output array is used as input
         ///   - a valid pointer to an array of at least `num_els` elements
