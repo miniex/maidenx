@@ -41,7 +41,8 @@ impl Tensor {
     /// * When device transfer fails
     /// * When forward pass fails (for tensors in computation graphs)
     pub fn with_device(&mut self, device: Device) {
-        self.try_with_device(device).expect("failed to transfer tensor to device")
+        self.try_with_device(device)
+            .expect("failed to transfer tensor to device")
     }
 
     /// Runs [`try_with_dtype`](Self::try_with_dtype) and panics on failure.
@@ -80,8 +81,7 @@ impl Tensor {
     /// * When device transfer fails
     /// * When buffer creation or data copy fails
     pub fn to_device(&self, device: Device) -> Self {
-        self.try_to_device(device)
-            .expect("failed to transfer tensor to device")
+        self.try_to_device(device).expect("failed to transfer tensor to device")
     }
 
     /// Runs [`try_to_dtype`](Self::try_to_dtype) and panics on failure.
@@ -103,9 +103,7 @@ impl Tensor {
     pub fn to_dtype(&self, dtype: DType) -> Self {
         self.try_to_dtype(dtype).expect("failed to convert tensor dtype")
     }
-}
 
-impl Tensor {
     /// Attempts to move this tensor to a different device, modifying it in place.
     ///
     /// This operation transfers the tensor's data to the target device.
@@ -140,8 +138,18 @@ impl Tensor {
             return Ok(());
         }
 
-        let buffer_len = self.storage()?.buffer().len();
         let dtype = self.dtype();
+
+        // Check MPS 64-bit dtype compatibility
+        #[cfg(feature = "mps")]
+        if device == Device::MPS && dtype.size() == 8 {
+            return Err(Error::UnsupportedDevice {
+                device,
+                message: format!("MPS does not support 64-bit dtypes ({})", dtype).into(),
+            });
+        }
+
+        let buffer_len = self.storage()?.buffer().len();
 
         let mut buffer = BufferManager::create(buffer_len, device, dtype)?;
         {
@@ -239,6 +247,15 @@ impl Tensor {
     /// - The data copy operation fails
     /// - Graph operations fail in lazy mode
     pub fn try_to_device(&self, device: Device) -> Result<Self> {
+        // Check MPS 64-bit dtype compatibility
+        #[cfg(feature = "mps")]
+        if device == Device::MPS && self.dtype().size() == 8 {
+            return Err(Error::UnsupportedDevice {
+                device,
+                message: format!("MPS does not support 64-bit dtypes ({})", self.dtype()).into(),
+            });
+        }
+
         match get_mode() {
             TensorMode::Eager => {
                 // Always create new tensor in eager mode
@@ -295,8 +312,18 @@ impl Tensor {
     }
 
     fn execute_device_transfer(&self, device: Device) -> Result<Self> {
-        let buffer_len = self.storage()?.buffer().len();
         let dtype = self.dtype();
+
+        // Check MPS 64-bit dtype compatibility
+        #[cfg(feature = "mps")]
+        if device == Device::MPS && dtype.size() == 8 {
+            return Err(Error::UnsupportedDevice {
+                device,
+                message: format!("MPS does not support 64-bit dtypes ({})", dtype).into(),
+            });
+        }
+
+        let buffer_len = self.storage()?.buffer().len();
         let layout = self.layout();
 
         let mut buffer = BufferManager::create(buffer_len, device, dtype)?;
@@ -359,6 +386,17 @@ impl Tensor {
     }
 
     fn add_device_transfer_to_graph(&self, device: Device) -> Result<Self> {
+        let dtype = self.dtype();
+
+        // Check MPS 64-bit dtype compatibility
+        #[cfg(feature = "mps")]
+        if device == Device::MPS && dtype.size() == 8 {
+            return Err(Error::UnsupportedDevice {
+                device,
+                message: format!("MPS does not support 64-bit dtypes ({})", dtype).into(),
+            });
+        }
+
         let gid = self.gid.unwrap_or_else(|| {
             let new_gid = new_graph();
             new_gid
@@ -366,7 +404,6 @@ impl Tensor {
 
         let output_tid = next_tensor_id();
         let layout = self.layout();
-        let dtype = self.dtype();
 
         let metadata = TensorMetadata {
             device,
@@ -476,4 +513,3 @@ impl Tensor {
         })
     }
 }
-

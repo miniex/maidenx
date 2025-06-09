@@ -710,6 +710,20 @@ pub struct TensorEdge {
     to: TensorNodeId,
 }
 
+impl TensorEdge {
+    pub fn new(from: TensorNodeId, to: TensorNodeId) -> Self {
+        Self { from, to }
+    }
+
+    pub fn from(&self) -> TensorNodeId {
+        self.from
+    }
+
+    pub fn to(&self) -> TensorNodeId {
+        self.to
+    }
+}
+
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct TensorGraphId(usize);
 static GRAPH_COUNTER: AtomicUsize = AtomicUsize::new(1);

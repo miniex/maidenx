@@ -16,7 +16,7 @@ keywords = ["tensor", "machine-learning", "maidenx"]
 categories = ["science"]
 
 [workspace.dependencies]
-half = "2.4.1"
+half = "2.6.0"
 paste = "1.0"
 rayon = "1.10"
 serde = "1.0.219"
@@ -43,14 +43,11 @@ path = "examples/device/cpu.rs"
 [[example]]
 name = "cuda"
 path = "examples/device/cuda.rs"
-features = ["cuda"]
 
 [[example]]
 name = "mps"
 path = "examples/device/mps.rs"
-features = ["mps"]
 
 [[example]]
 name = "serde"
 path = "examples/serde/serde.rs"
-features = ["serde"]
