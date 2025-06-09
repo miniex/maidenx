@@ -1,6 +1,6 @@
 use crate::{
-    get_graph_mut, get_mode, insert_metadata, insert_storage, link_tensor_to_storage, new_graph, next_storage_id,
-    next_tensor_id, Tensor, TensorId, TensorMetadata, TensorMode, TensorNode, TensorStorage, TensorUpdateStatus,
+    get_mode, insert_metadata, insert_storage, link_tensor_to_storage, next_storage_id,
+    next_tensor_id, utils::graph::add_to_graph, Tensor, TensorId, TensorMetadata, TensorMode, TensorStorage, TensorUpdateStatus,
 };
 use maidenx_core::{
     buffer::BufferManager,
@@ -9,6 +9,51 @@ use maidenx_core::{
     error::{Error, Result},
 };
 use std::sync::Arc;
+
+// Helper function to check MPS 64-bit compatibility
+#[cfg(feature = "mps")]
+fn check_mps_compatibility(device: Device, dtype: DType) -> Result<()> {
+    if device == Device::MPS && dtype.size() == 8 {
+        return Err(Error::UnsupportedDevice {
+            device,
+            message: format!("MPS does not support 64-bit dtypes ({})", dtype).into(),
+        });
+    }
+    Ok(())
+}
+
+#[cfg(not(feature = "mps"))]
+fn check_mps_compatibility(_device: Device, _dtype: DType) -> Result<()> {
+    Ok(())
+}
+
+// Helper function to create new tensor with given metadata
+fn create_tensor_with_buffer(
+    device: Device,
+    dtype: DType,
+    layout: maidenx_core::layout::Layout,
+    buffer: Arc<dyn maidenx_core::buffer::Buffer>,
+) -> Result<Tensor> {
+    let tid = next_tensor_id();
+    let sid = next_storage_id();
+    link_tensor_to_storage(tid, sid);
+    insert_storage(sid, TensorStorage::new(buffer));
+
+    let metadata = TensorMetadata {
+        device,
+        dtype,
+        layout,
+        mode: get_mode(),
+        update_status: TensorUpdateStatus::Materialized,
+    };
+    insert_metadata(tid, metadata);
+
+    Ok(Tensor {
+        tid,
+        gtid: TensorId(0),
+        gid: None,
+    })
+}
 
 /// ## Device & dtype conversion helpers
 ///
@@ -129,28 +174,17 @@ impl Tensor {
     /// - Buffer creation on the new device fails
     /// - The data copy operation fails
     pub fn try_with_device(&mut self, device: Device) -> Result<()> {
-        // If tensor is in a computation graph and not materialized, compute it first
         if !self.is_const() && !self.is_storaged() {
             self.try_forward()?;
         }
-
         if self.device() == device {
             return Ok(());
         }
 
         let dtype = self.dtype();
-
-        // Check MPS 64-bit dtype compatibility
-        #[cfg(feature = "mps")]
-        if device == Device::MPS && dtype.size() == 8 {
-            return Err(Error::UnsupportedDevice {
-                device,
-                message: format!("MPS does not support 64-bit dtypes ({})", dtype).into(),
-            });
-        }
+        check_mps_compatibility(device, dtype)?;
 
         let buffer_len = self.storage()?.buffer().len();
-
         let mut buffer = BufferManager::create(buffer_len, device, dtype)?;
         {
             let buffer_mut = Arc::get_mut(&mut buffer).ok_or(Error::BufferShared)?;
@@ -161,7 +195,6 @@ impl Tensor {
         storage.buffer = buffer;
         let mut metadata = self.metadata_mut()?;
         metadata.set_device(device);
-
         Ok(())
     }
 
@@ -191,23 +224,17 @@ impl Tensor {
     /// - The data type conversion operation fails
     /// - When using MPS device (if MPS feature is enabled), if trying to use 64-bit data types
     pub fn try_with_dtype(&mut self, dtype: DType) -> Result<()> {
-        // If tensor is in a computation graph and not materialized, compute it first
         if !self.is_const() && !self.is_storaged() {
             self.try_forward()?;
         }
-
         if self.dtype() == dtype {
             return Ok(());
         }
 
-        #[cfg(feature = "mps")]
-        if self.device() == Device::MPS && dtype.size_in_bytes() == 8 {
-            return Err(Error::UnsupportedDType);
-        }
+        check_mps_compatibility(self.device(), dtype)?;
 
         let buffer_len = self.storage()?.buffer().len();
         let device = self.device();
-
         let mut buffer = BufferManager::create(buffer_len, device, dtype)?;
         {
             let buffer_mut = Arc::get_mut(&mut buffer).ok_or(Error::BufferShared)?;
@@ -218,7 +245,6 @@ impl Tensor {
         storage.buffer = buffer;
         let mut metadata = self.metadata_mut()?;
         metadata.set_dtype(dtype);
-
         Ok(())
     }
 
@@ -247,24 +273,11 @@ impl Tensor {
     /// - The data copy operation fails
     /// - Graph operations fail in lazy mode
     pub fn try_to_device(&self, device: Device) -> Result<Self> {
-        // Check MPS 64-bit dtype compatibility
-        #[cfg(feature = "mps")]
-        if device == Device::MPS && self.dtype().size() == 8 {
-            return Err(Error::UnsupportedDevice {
-                device,
-                message: format!("MPS does not support 64-bit dtypes ({})", self.dtype()).into(),
-            });
-        }
-
+        check_mps_compatibility(device, self.dtype())?;
         match get_mode() {
-            TensorMode::Eager => {
-                // Always create new tensor in eager mode
-                self.execute_device_transfer(device)
-            },
-            TensorMode::Lazy => {
-                // Always add to graph in lazy mode
-                self.add_device_transfer_to_graph(device)
-            },
+            TensorMode::Eager => self.execute_device_transfer(device),
+            TensorMode::Lazy => add_to_graph(self, "device_transfer", device, self.dtype(), 
+                move |tensor| tensor.execute_device_transfer(device)),
         }
     }
 
@@ -294,35 +307,16 @@ impl Tensor {
     /// - When using MPS device (if MPS feature is enabled), if trying to use 64-bit data types
     /// - Graph operations fail in lazy mode
     pub fn try_to_dtype(&self, dtype: DType) -> Result<Self> {
-        #[cfg(feature = "mps")]
-        if self.device() == Device::MPS && dtype.size_in_bytes() == 8 {
-            return Err(Error::UnsupportedDType);
-        }
-
+        check_mps_compatibility(self.device(), dtype)?;
         match get_mode() {
-            TensorMode::Eager => {
-                // Always create new tensor in eager mode
-                self.execute_dtype_conversion(dtype)
-            },
-            TensorMode::Lazy => {
-                // Always add to graph in lazy mode
-                self.add_dtype_conversion_to_graph(dtype)
-            },
+            TensorMode::Eager => self.execute_dtype_conversion(dtype),
+            TensorMode::Lazy => add_to_graph(self, "dtype_conversion", self.device(), dtype,
+                move |tensor| tensor.execute_dtype_conversion(dtype)),
         }
     }
 
     fn execute_device_transfer(&self, device: Device) -> Result<Self> {
         let dtype = self.dtype();
-
-        // Check MPS 64-bit dtype compatibility
-        #[cfg(feature = "mps")]
-        if device == Device::MPS && dtype.size() == 8 {
-            return Err(Error::UnsupportedDevice {
-                device,
-                message: format!("MPS does not support 64-bit dtypes ({})", dtype).into(),
-            });
-        }
-
         let buffer_len = self.storage()?.buffer().len();
         let layout = self.layout();
 
@@ -332,25 +326,7 @@ impl Tensor {
             buffer_mut.copy_from_with_device(self.storage()?.buffer(), 0, 0, buffer_len)?;
         }
 
-        let tid = next_tensor_id();
-        let sid = next_storage_id();
-        link_tensor_to_storage(tid, sid);
-        insert_storage(sid, TensorStorage::new(buffer));
-
-        let metadata = TensorMetadata {
-            device,
-            dtype,
-            layout,
-            mode: get_mode(),
-            update_status: TensorUpdateStatus::Materialized,
-        };
-        insert_metadata(tid, metadata);
-
-        Ok(Tensor {
-            tid,
-            gtid: TensorId(0),
-            gid: None,
-        })
+        create_tensor_with_buffer(device, dtype, layout, buffer)
     }
 
     fn execute_dtype_conversion(&self, dtype: DType) -> Result<Self> {
@@ -364,152 +340,7 @@ impl Tensor {
             buffer_mut.copy_from_with_dtype_cast(self.storage()?.buffer(), 0, 0, buffer_len)?;
         }
 
-        let tid = next_tensor_id();
-        let sid = next_storage_id();
-        link_tensor_to_storage(tid, sid);
-        insert_storage(sid, TensorStorage::new(buffer));
-
-        let metadata = TensorMetadata {
-            device,
-            dtype,
-            layout,
-            mode: get_mode(),
-            update_status: TensorUpdateStatus::Materialized,
-        };
-        insert_metadata(tid, metadata);
-
-        Ok(Tensor {
-            tid,
-            gtid: TensorId(0),
-            gid: None,
-        })
+        create_tensor_with_buffer(device, dtype, layout, buffer)
     }
 
-    fn add_device_transfer_to_graph(&self, device: Device) -> Result<Self> {
-        let dtype = self.dtype();
-
-        // Check MPS 64-bit dtype compatibility
-        #[cfg(feature = "mps")]
-        if device == Device::MPS && dtype.size() == 8 {
-            return Err(Error::UnsupportedDevice {
-                device,
-                message: format!("MPS does not support 64-bit dtypes ({})", dtype).into(),
-            });
-        }
-
-        let gid = self.gid.unwrap_or_else(|| {
-            let new_gid = new_graph();
-            new_gid
-        });
-
-        let output_tid = next_tensor_id();
-        let layout = self.layout();
-
-        let metadata = TensorMetadata {
-            device,
-            dtype,
-            layout,
-            mode: TensorMode::Lazy,
-            update_status: TensorUpdateStatus::Pending,
-        };
-        insert_metadata(output_tid, metadata);
-
-        let compute_fn = {
-            Arc::new(
-                move |inputs: &[TensorId], outputs: &[TensorId]| -> Result<Vec<TensorId>> {
-                    if inputs.len() != 1 || outputs.len() != 1 {
-                        return Err(Error::InvalidState(
-                            "device transfer expects 1 input and 1 output".into(),
-                        ));
-                    }
-
-                    let input_tensor = Tensor {
-                        tid: inputs[0],
-                        gtid: TensorId(0),
-                        gid: Some(gid),
-                    };
-
-                    let result = input_tensor.execute_device_transfer(device)?;
-
-                    let sid = next_storage_id();
-                    link_tensor_to_storage(outputs[0], sid);
-                    insert_storage(sid, TensorStorage::new(result.storage()?.buffer_arc()));
-
-                    Ok(outputs.to_vec())
-                },
-            )
-        };
-
-        let node = TensorNode::new("device_transfer", vec![self.tid], vec![output_tid], Some(compute_fn));
-
-        if let Some(graph_entry) = get_graph_mut(gid) {
-            let mut graph = graph_entry.write().map_err(|_| Error::Lock)?;
-            graph.add_node(node);
-        }
-
-        Ok(Tensor {
-            tid: output_tid,
-            gtid: TensorId(0),
-            gid: Some(gid),
-        })
-    }
-
-    fn add_dtype_conversion_to_graph(&self, dtype: DType) -> Result<Self> {
-        let gid = self.gid.unwrap_or_else(|| {
-            let new_gid = new_graph();
-            new_gid
-        });
-
-        let output_tid = next_tensor_id();
-        let device = self.device();
-        let layout = self.layout();
-
-        let metadata = TensorMetadata {
-            device,
-            dtype,
-            layout,
-            mode: TensorMode::Lazy,
-            update_status: TensorUpdateStatus::Pending,
-        };
-        insert_metadata(output_tid, metadata);
-
-        let compute_fn = {
-            Arc::new(
-                move |inputs: &[TensorId], outputs: &[TensorId]| -> Result<Vec<TensorId>> {
-                    if inputs.len() != 1 || outputs.len() != 1 {
-                        return Err(Error::InvalidState(
-                            "dtype conversion expects 1 input and 1 output".into(),
-                        ));
-                    }
-
-                    let input_tensor = Tensor {
-                        tid: inputs[0],
-                        gtid: TensorId(0),
-                        gid: Some(gid),
-                    };
-
-                    let result = input_tensor.execute_dtype_conversion(dtype)?;
-
-                    let sid = next_storage_id();
-                    link_tensor_to_storage(outputs[0], sid);
-                    insert_storage(sid, TensorStorage::new(result.storage()?.buffer_arc()));
-
-                    Ok(outputs.to_vec())
-                },
-            )
-        };
-
-        let node = TensorNode::new("dtype_conversion", vec![self.tid], vec![output_tid], Some(compute_fn));
-
-        if let Some(graph_entry) = get_graph_mut(gid) {
-            let mut graph = graph_entry.write().map_err(|_| Error::Lock)?;
-            graph.add_node(node);
-        }
-
-        Ok(Tensor {
-            tid: output_tid,
-            gtid: TensorId(0),
-            gid: Some(gid),
-        })
-    }
 }
