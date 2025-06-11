@@ -5,7 +5,7 @@ mod display;
 mod iterator;
 mod ops;
 pub mod prelude;
-mod utils;
+pub mod utils;
 mod vec;
 
 use dashmap::{

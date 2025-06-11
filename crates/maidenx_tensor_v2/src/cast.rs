@@ -1,6 +1,6 @@
 use crate::{
-    get_mode, insert_metadata, insert_storage, link_tensor_to_storage, next_storage_id,
-    next_tensor_id, utils::graph::add_to_graph, Tensor, TensorId, TensorMetadata, TensorMode, TensorStorage, TensorUpdateStatus,
+    get_mode, next_tensor_id, utils::graph::add_to_graph, utils::tensor::create_storage_with_buffer, Tensor, TensorId,
+    TensorMode,
 };
 use maidenx_core::{
     buffer::BufferManager,
@@ -27,34 +27,6 @@ fn check_mps_compatibility(_device: Device, _dtype: DType) -> Result<()> {
     Ok(())
 }
 
-// Helper function to create new tensor with given metadata
-fn create_tensor_with_buffer(
-    device: Device,
-    dtype: DType,
-    layout: maidenx_core::layout::Layout,
-    buffer: Arc<dyn maidenx_core::buffer::Buffer>,
-) -> Result<Tensor> {
-    let tid = next_tensor_id();
-    let sid = next_storage_id();
-    link_tensor_to_storage(tid, sid);
-    insert_storage(sid, TensorStorage::new(buffer));
-
-    let metadata = TensorMetadata {
-        device,
-        dtype,
-        layout,
-        mode: get_mode(),
-        update_status: TensorUpdateStatus::Materialized,
-    };
-    insert_metadata(tid, metadata);
-
-    Ok(Tensor {
-        tid,
-        gtid: TensorId(0),
-        gid: None,
-    })
-}
-
 /// ## Device & dtype conversion helpers
 ///
 /// This `impl` block provides methods for converting tensors between devices
@@ -67,8 +39,17 @@ fn create_tensor_with_buffer(
 /// its fallible counterpart (`try_*`).
 ///
 /// **Behavior by execution mode:**
-/// * **Eager mode**: Operations execute immediately
+/// * **Eager mode**: Operations execute immediately with direct storage modification
 /// * **Lazy mode**: Operations are added to the computation graph for deferred execution
+/// 
+/// **MPS compatibility notes:**
+/// * 64-bit data types (F64, I64, U64) are not supported on MPS devices
+/// * Compatibility checks are performed automatically before operations
+/// 
+/// **Memory efficiency:**
+/// * In-place operations (`with_*`) modify the original tensor's storage in eager mode
+/// * In lazy mode, `with_*` methods internally use `to_*` methods for graph consistency
+/// * New tensor operations (`to_*`) always create separate storage
 impl Tensor {
     /// Runs [`try_with_device`](Self::try_with_device) and panics on failure.
     ///
@@ -152,8 +133,8 @@ impl Tensor {
     /// Attempts to move this tensor to a different device, modifying it in place.
     ///
     /// This operation transfers the tensor's data to the target device.
-    /// If the tensor is part of a computation graph and not yet materialized,
-    /// it will be computed first before the device transfer.
+    /// In Eager mode, the tensor's storage is modified directly.
+    /// In Lazy mode, this creates a new tensor using `try_to_device` internally.
     ///
     /// # Examples
     /// ```
@@ -170,39 +151,29 @@ impl Tensor {
     /// # Errors
     ///
     /// Returns an error if:
-    /// - Forward pass fails (for tensors in computation graphs)
     /// - Buffer creation on the new device fails
     /// - The data copy operation fails
+    /// - Graph operations fail in lazy mode
     pub fn try_with_device(&mut self, device: Device) -> Result<()> {
-        if !self.is_const() && !self.is_storaged() {
-            self.try_forward()?;
-        }
         if self.device() == device {
             return Ok(());
         }
+        check_mps_compatibility(device, self.dtype())?;
 
-        let dtype = self.dtype();
-        check_mps_compatibility(device, dtype)?;
-
-        let buffer_len = self.storage()?.buffer().len();
-        let mut buffer = BufferManager::create(buffer_len, device, dtype)?;
-        {
-            let buffer_mut = Arc::get_mut(&mut buffer).ok_or(Error::BufferShared)?;
-            buffer_mut.copy_from_with_device(self.storage()?.buffer(), 0, 0, buffer_len)?;
+        match get_mode() {
+            TensorMode::Eager => self.execute_with_device(device),
+            TensorMode::Lazy => {
+                *self = self.try_to_device(device)?;
+                Ok(())
+            },
         }
-
-        let mut storage = self.storage_mut()?;
-        storage.buffer = buffer;
-        let mut metadata = self.metadata_mut()?;
-        metadata.set_device(device);
-        Ok(())
     }
 
     /// Attempts to convert this tensor to a different data type, modifying it in place.
     ///
     /// This operation converts the tensor's data to the target data type.
-    /// If the tensor is part of a computation graph and not yet materialized,
-    /// it will be computed first before the dtype conversion.
+    /// In Eager mode, the tensor's storage is modified directly.
+    /// In Lazy mode, this creates a new tensor using `try_to_dtype` internally.
     ///
     /// # Examples
     /// ```
@@ -219,33 +190,23 @@ impl Tensor {
     /// # Errors
     ///
     /// Returns an error if:
-    /// - Forward pass fails (for tensors in computation graphs)
     /// - Buffer creation with the new data type fails
     /// - The data type conversion operation fails
     /// - When using MPS device (if MPS feature is enabled), if trying to use 64-bit data types
+    /// - Graph operations fail in lazy mode
     pub fn try_with_dtype(&mut self, dtype: DType) -> Result<()> {
-        if !self.is_const() && !self.is_storaged() {
-            self.try_forward()?;
-        }
         if self.dtype() == dtype {
             return Ok(());
         }
-
         check_mps_compatibility(self.device(), dtype)?;
 
-        let buffer_len = self.storage()?.buffer().len();
-        let device = self.device();
-        let mut buffer = BufferManager::create(buffer_len, device, dtype)?;
-        {
-            let buffer_mut = Arc::get_mut(&mut buffer).ok_or(Error::BufferShared)?;
-            buffer_mut.copy_from_with_dtype_cast(self.storage()?.buffer(), 0, 0, buffer_len)?;
+        match get_mode() {
+            TensorMode::Eager => self.execute_with_dtype(dtype),
+            TensorMode::Lazy => {
+                *self = self.try_to_dtype(dtype)?;
+                Ok(())
+            },
         }
-
-        let mut storage = self.storage_mut()?;
-        storage.buffer = buffer;
-        let mut metadata = self.metadata_mut()?;
-        metadata.set_dtype(dtype);
-        Ok(())
     }
 
     /// Attempts to convert tensor to a different device, returning a new tensor.
@@ -275,9 +236,17 @@ impl Tensor {
     pub fn try_to_device(&self, device: Device) -> Result<Self> {
         check_mps_compatibility(device, self.dtype())?;
         match get_mode() {
-            TensorMode::Eager => self.execute_device_transfer(device),
-            TensorMode::Lazy => add_to_graph(self, "device_transfer", device, self.dtype(), 
-                move |tensor| tensor.execute_device_transfer(device)),
+            TensorMode::Eager => self.execute_to_device(device, next_tensor_id()),
+            TensorMode::Lazy => {
+                let result = add_to_graph(
+                    &[self],
+                    "device_transfer",
+                    &[device],
+                    &[self.dtype()],
+                    move |tensors, target_tids| Ok(vec![tensors[0].execute_to_device(device, target_tids[0])?]),
+                )?;
+                Ok(result.into_iter().next().unwrap())
+            },
         }
     }
 
@@ -309,13 +278,53 @@ impl Tensor {
     pub fn try_to_dtype(&self, dtype: DType) -> Result<Self> {
         check_mps_compatibility(self.device(), dtype)?;
         match get_mode() {
-            TensorMode::Eager => self.execute_dtype_conversion(dtype),
-            TensorMode::Lazy => add_to_graph(self, "dtype_conversion", self.device(), dtype,
-                move |tensor| tensor.execute_dtype_conversion(dtype)),
+            TensorMode::Eager => self.execute_to_dtype(dtype, next_tensor_id()),
+            TensorMode::Lazy => {
+                let result = add_to_graph(
+                    &[self],
+                    "dtype_conversion",
+                    &[self.device()],
+                    &[dtype],
+                    move |tensors, target_tids| Ok(vec![tensors[0].execute_to_dtype(dtype, target_tids[0])?]),
+                )?;
+                Ok(result.into_iter().next().unwrap())
+            },
         }
     }
 
-    fn execute_device_transfer(&self, device: Device) -> Result<Self> {
+    fn execute_with_device(&mut self, device: Device) -> Result<()> {
+        let dtype = self.dtype();
+        let buffer_len = self.storage()?.buffer().len();
+        let mut buffer = BufferManager::create(buffer_len, device, dtype)?;
+        {
+            let buffer_mut = Arc::get_mut(&mut buffer).ok_or(Error::BufferShared)?;
+            buffer_mut.copy_from_with_device(self.storage()?.buffer(), 0, 0, buffer_len)?;
+        }
+
+        let mut storage = self.storage_mut()?;
+        storage.buffer = buffer;
+        let mut metadata = self.metadata_mut()?;
+        metadata.set_device(device);
+        Ok(())
+    }
+
+    fn execute_with_dtype(&mut self, dtype: DType) -> Result<()> {
+        let buffer_len = self.storage()?.buffer().len();
+        let device = self.device();
+        let mut buffer = BufferManager::create(buffer_len, device, dtype)?;
+        {
+            let buffer_mut = Arc::get_mut(&mut buffer).ok_or(Error::BufferShared)?;
+            buffer_mut.copy_from_with_dtype_cast(self.storage()?.buffer(), 0, 0, buffer_len)?;
+        }
+
+        let mut storage = self.storage_mut()?;
+        storage.buffer = buffer;
+        let mut metadata = self.metadata_mut()?;
+        metadata.set_dtype(dtype);
+        Ok(())
+    }
+
+    fn execute_to_device(&self, device: Device, target_tid: TensorId) -> Result<Self> {
         let dtype = self.dtype();
         let buffer_len = self.storage()?.buffer().len();
         let layout = self.layout();
@@ -326,10 +335,10 @@ impl Tensor {
             buffer_mut.copy_from_with_device(self.storage()?.buffer(), 0, 0, buffer_len)?;
         }
 
-        create_tensor_with_buffer(device, dtype, layout, buffer)
+        create_storage_with_buffer(target_tid, device, dtype, layout, buffer)
     }
 
-    fn execute_dtype_conversion(&self, dtype: DType) -> Result<Self> {
+    fn execute_to_dtype(&self, dtype: DType, target_tid: TensorId) -> Result<Self> {
         let buffer_len = self.storage()?.buffer().len();
         let device = self.device();
         let layout = self.layout();
@@ -340,7 +349,6 @@ impl Tensor {
             buffer_mut.copy_from_with_dtype_cast(self.storage()?.buffer(), 0, 0, buffer_len)?;
         }
 
-        create_tensor_with_buffer(device, dtype, layout, buffer)
+        create_storage_with_buffer(target_tid, device, dtype, layout, buffer)
     }
-
 }
