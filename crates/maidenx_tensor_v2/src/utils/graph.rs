@@ -23,14 +23,15 @@ use maidenx_core::{
     device::Device,
     dtype::DType,
     error::{Error, Result},
+    layout::Layout,
 };
 use std::sync::Arc;
 
-/// Adds a tensor operation to the computation graph with support for multiple inputs and outputs.
+/// Adds a tensor operation to the computation graph with custom layout specification.
 ///
-/// This is a generic helper function for adding operations to the computation graph in lazy mode.
-/// It supports arbitrary numbers of input and output tensors, making it suitable for complex
-/// operations like matrix multiplication, concatenation, or custom multi-tensor operations.
+/// This function adds operations to the computation graph in lazy mode with automatic
+/// dependency edge management. It supports custom layout specification for operations
+/// that change tensor layout (view, transpose, etc.).
 ///
 /// # Parameters
 ///
@@ -38,6 +39,7 @@ use std::sync::Arc;
 /// * `op_name` - Name of the operation for debugging and graph visualization
 /// * `output_devices` - Target devices for each output tensor
 /// * `output_dtypes` - Target data types for each output tensor
+/// * `output_layouts` - Target layouts for each output tensor
 /// * `execute_fn` - Function that executes the operation, receiving input tensors and target tensor IDs
 ///
 /// # Returns
@@ -48,28 +50,17 @@ use std::sync::Arc;
 /// # Examples
 ///
 /// ```
-/// // Single input, single output operation
+/// // View operation with custom layout
+/// let mut new_layout = tensor.layout();
+/// new_layout.view(&new_shape)?;
 /// let result = add_to_graph(
-///     &[&input_tensor],
-///     "relu",
-///     &[Device::CPU],
-///     &[DType::F32],
+///     &[&tensor],
+///     "view",
+///     &[tensor.device()],
+///     &[tensor.dtype()],
+///     &[new_layout],
 ///     |inputs, target_ids| {
-///         // Execute ReLU operation and store result in target_ids[0]
-///         Ok(vec![inputs[0].relu_with_target_id(target_ids[0])?])
-///     }
-/// )?;
-///
-/// // Multiple input, multiple output operation
-/// let results = add_to_graph(
-///     &[&tensor_a, &tensor_b],
-///     "split_and_combine",
-///     &[Device::CPU, Device::GPU],
-///     &[DType::F32, DType::F16],
-///     |inputs, target_ids| {
-///         let split_a = inputs[0].split_with_target_id(target_ids[0])?;
-///         let split_b = inputs[1].cast_with_target_id(target_ids[1])?;
-///         Ok(vec![split_a, split_b])
+///         Ok(vec![inputs[0].execute_view(&new_shape, target_ids[0])?])
 ///     }
 /// )?;
 /// ```
@@ -78,7 +69,7 @@ use std::sync::Arc;
 ///
 /// Returns an error if:
 /// * No input tensors are provided
-/// * Number of output devices doesn't match number of output dtypes
+/// * Number of output devices, dtypes, and layouts don't match
 /// * Graph storage allocation fails
 /// * Tensor metadata creation fails
 /// * The execution function returns wrong number of results during computation
@@ -86,14 +77,15 @@ use std::sync::Arc;
 /// # Performance Notes
 ///
 /// * Output tensor IDs are pre-allocated for memory efficiency
-/// * Metadata is created immediately but storage is deferred until execution
+/// * Metadata is created immediately with correct layout information
+/// * Dependency edges are automatically added based on tensor relationships
 /// * The execution function is stored as a closure and called during `forward()`
-/// * Graph nodes are linked efficiently using tensor ID references
 pub fn add_to_graph<F>(
     inputs: &[&Tensor],
     op_name: &'static str,
     output_devices: &[Device],
     output_dtypes: &[DType],
+    output_layouts: &[Layout],
     execute_fn: F,
 ) -> Result<Vec<Tensor>>
 where
@@ -102,8 +94,8 @@ where
     if inputs.is_empty() {
         return Err(Error::InvalidState("No input tensors provided".into()));
     }
-    if output_devices.len() != output_dtypes.len() {
-        return Err(Error::InvalidState("Mismatch between output devices and dtypes".into()));
+    if output_devices.len() != output_dtypes.len() || output_devices.len() != output_layouts.len() {
+        return Err(Error::InvalidState("Mismatch between output devices, dtypes, and layouts".into()));
     }
 
     let gid = inputs[0].gid().unwrap_or_else(new_graph);
@@ -112,14 +104,13 @@ where
     let mut output_tids = Vec::new();
     let mut output_tensors = Vec::new();
 
-    for (&device, &dtype) in output_devices.iter().zip(output_dtypes.iter()) {
+    for ((&device, &dtype), layout) in output_devices.iter().zip(output_dtypes.iter()).zip(output_layouts.iter()) {
         let output_tid = next_tensor_id();
-        let layout = inputs[0].layout(); // Use first input's layout for now
 
         let metadata = TensorMetadata {
             device,
             dtype,
-            layout,
+            layout: layout.clone(),
             mode: TensorMode::Lazy,
             update_status: TensorUpdateStatus::Pending,
         };
@@ -165,10 +156,10 @@ where
     );
 
     let node = TensorNode::new(op_name, input_tids, output_tids, Some(compute_fn));
-    if let Some(graph_entry) = get_graph_mut(gid) {
-        let mut graph = graph_entry.write().map_err(|_| Error::Lock)?;
-        graph.add_node(node);
-    }
+    let graph_entry = get_graph_mut(gid)
+        .ok_or_else(|| Error::InvalidState(format!("graph {} not found", gid.0)))?;
+    let mut graph = graph_entry.write().map_err(|_| Error::Lock)?;
+    graph.add_node(node); // This will automatically add dependency edges
 
     Ok(output_tensors)
 }

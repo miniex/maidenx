@@ -119,6 +119,63 @@ impl Tensor {
         Self::try_share(target).expect("failed to create shared tensor")
     }
 
+    /// Runs [`try_empty`](Self::try_empty) and panics on failure.
+    ///
+    /// Creates a tensor with uninitialized memory. The contents are undefined
+    /// and may contain arbitrary values. Use this for performance when you
+    /// plan to immediately overwrite all values.
+    ///
+    /// # Examples
+    /// ```
+    /// let e = Tensor::empty(&[2, 3]);
+    /// // Contents are undefined - must be initialized before use
+    /// ```
+    ///
+    /// # Panics
+    ///
+    /// * When buffer allocation fails
+    pub fn empty(shape: &[usize]) -> Self {
+        Self::try_empty(shape).expect("failed to create empty tensor")
+    }
+
+    /// Runs [`try_empty_like`](Self::try_empty_like) and panics on failure.
+    ///
+    /// Creates a tensor with the same shape, device, and dtype as the source tensor,
+    /// but with uninitialized memory. The contents are undefined.
+    ///
+    /// # Examples
+    /// ```
+    /// let src = Tensor::new(&[1, 2, 3, 4]);
+    /// let e = Tensor::empty_like(&src);
+    /// assert_eq!(e.shape(), src.shape());
+    /// ```
+    ///
+    /// # Panics
+    ///
+    /// * When buffer allocation fails
+    pub fn empty_like(src: &Tensor) -> Self {
+        Self::try_empty_like(src).expect("failed to create empty_like tensor")
+    }
+
+    /// Runs [`try_empty_with_spec`](Self::try_empty_with_spec) and panics on failure.
+    ///
+    /// Creates a tensor with uninitialized memory using the specified device and dtype.
+    ///
+    /// # Examples
+    /// ```
+    /// use maidenx_core::{device::Device, dtype::DType};
+    ///
+    /// let e = Tensor::empty_with_spec(&[2, 3], Device::CPU, DType::F32);
+    /// ```
+    ///
+    /// # Panics
+    ///
+    /// * When buffer allocation fails
+    pub fn empty_with_spec(shape: &[usize], device: Device, dtype: DType) -> Self {
+        Self::try_empty_with_spec(shape, device, dtype)
+            .expect("failed to create empty tensor with specified device and dtype")
+    }
+
     /// Runs [`try_zeros`](Self::try_zeros) and panics on failure.
     ///
     /// # Examples
@@ -646,6 +703,115 @@ impl Tensor {
             tid,
             gtid: TensorId(0),
             gid: target.gid(),
+        })
+    }
+
+    /// Attempts to create a new tensor with uninitialized memory.
+    ///
+    /// Uses the default device and data type. The tensor contents are undefined
+    /// and may contain arbitrary values from previous memory usage. This is the
+    /// fastest way to allocate a tensor when you plan to immediately overwrite
+    /// all values.
+    ///
+    /// # Examples
+    /// ```
+    /// use maidenx_core::error::Result;
+    ///
+    /// fn create_empty() -> Result<Tensor> {
+    ///     let empty = Tensor::try_empty(&[2, 3])?;
+    ///     // empty.contents are undefined - initialize before use
+    ///     Ok(empty)
+    /// }
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if buffer allocation fails.
+    ///
+    /// # Performance Notes
+    ///
+    /// This is the fastest tensor creation method as it skips initialization.
+    /// Use when performance is critical and you will immediately fill the tensor.
+    pub fn try_empty(shape: &[usize]) -> Result<Self> {
+        let device = get_default_device();
+        let dtype = get_default_dtype();
+
+        Self::try_empty_with_spec(shape, device, dtype)
+    }
+
+    /// Attempts to create a new tensor with the same shape as the source tensor, but with uninitialized memory.
+    ///
+    /// The new tensor inherits the device and dtype from the source tensor.
+    /// Contents are undefined and may contain arbitrary values.
+    ///
+    /// # Examples
+    /// ```
+    /// use maidenx_core::error::Result;
+    ///
+    /// fn create_empty_like() -> Result<Tensor> {
+    ///     let tensor = Tensor::new(&[1.0, 2.0, 3.0, 4.0]);
+    ///     let empty = Tensor::try_empty_like(&tensor)?;
+    ///     assert_eq!(empty.shape(), tensor.shape());
+    ///     Ok(empty)
+    /// }
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if buffer allocation fails.
+    pub fn try_empty_like(src: &Tensor) -> Result<Self> {
+        Self::try_empty_with_spec(src.layout().shape(), src.device(), src.dtype())
+    }
+
+    /// Attempts to create a new tensor with uninitialized memory using the specified device and dtype.
+    ///
+    /// The tensor contents are undefined and may contain arbitrary values.
+    /// This provides maximum control over tensor allocation while maintaining
+    /// peak performance by avoiding initialization overhead.
+    ///
+    /// # Examples
+    /// ```
+    /// use maidenx_core::{device::Device, dtype::DType, error::Result};
+    ///
+    /// fn create_empty_with_spec() -> Result<Tensor> {
+    ///     let empty = Tensor::try_empty_with_spec(&[2, 3], Device::CPU, DType::F32)?;
+    ///     // empty.contents are undefined - initialize before use
+    ///     Ok(empty)
+    /// }
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if buffer allocation fails.
+    ///
+    /// # Safety Notes
+    ///
+    /// The returned tensor contains uninitialized memory. Reading from it
+    /// before writing will yield undefined values. Always initialize the
+    /// tensor before performing computations.
+    pub fn try_empty_with_spec(shape: &[usize], device: Device, dtype: DType) -> Result<Self> {
+        let layout = Layout::from_shape(shape);
+        let size = layout.size();
+
+        let buffer = BufferManager::create(size, device, dtype)?;
+
+        let tid = next_tensor_id();
+        let sid = next_storage_id();
+        link_tensor_to_storage(tid, sid);
+        insert_storage(sid, TensorStorage::new(buffer));
+        let metadata = TensorMetadata {
+            device,
+            dtype,
+            layout,
+            mode: get_mode(),
+            update_status: TensorUpdateStatus::Materialized,
+        };
+        insert_metadata(tid, metadata);
+
+        Ok(Tensor {
+            tid,
+            gtid: TensorId(0),
+            gid: None,
         })
     }
 

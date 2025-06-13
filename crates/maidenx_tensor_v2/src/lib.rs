@@ -3,6 +3,7 @@ mod cast;
 mod creation;
 mod display;
 mod iterator;
+mod memory;
 mod ops;
 pub mod prelude;
 pub mod utils;
@@ -34,7 +35,7 @@ pub struct TensorId(usize);
 static TENSOR_COUNTER: AtomicUsize = AtomicUsize::new(1);
 #[inline]
 pub(crate) fn next_tensor_id() -> TensorId {
-    TensorId(TENSOR_COUNTER.fetch_add(1, Ordering::Relaxed))
+    TensorId(TENSOR_COUNTER.fetch_add(1, Ordering::SeqCst))
 }
 
 #[derive(Clone)]
@@ -152,7 +153,7 @@ pub struct TensorStorageId(usize);
 static STORAGE_COUNTER: AtomicUsize = AtomicUsize::new(1);
 #[inline]
 pub(crate) fn next_storage_id() -> TensorStorageId {
-    TensorStorageId(STORAGE_COUNTER.fetch_add(1, Ordering::Relaxed))
+    TensorStorageId(STORAGE_COUNTER.fetch_add(1, Ordering::SeqCst))
 }
 
 pub struct TensorStorage {
@@ -660,6 +661,70 @@ impl Tensor {
     pub fn mode(&self) -> TensorMode {
         self.metadata().unwrap().mode()
     }
+
+    /// Iterates through all possible multi-dimensional indices of the tensor.
+    ///
+    /// This method calls the provided callback function for each valid index combination
+    /// in the tensor's shape. The indices are generated in lexicographic order, starting
+    /// from `[0, 0, ..., 0]` and incrementing like an odometer until all combinations
+    /// are exhausted.
+    ///
+    /// # Parameters
+    ///
+    /// * `callback` - A function that receives each index combination as a slice
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let tensor = Tensor::zeros(&[2, 3]);
+    /// let mut collected_indices = Vec::new();
+    ///
+    /// tensor.iter_indices(|indices| {
+    ///     collected_indices.push(indices.to_vec());
+    /// });
+    ///
+    /// // For a 2x3 tensor, this will generate:
+    /// // [0, 0], [0, 1], [0, 2], [1, 0], [1, 1], [1, 2]
+    /// assert_eq!(collected_indices.len(), 6);
+    /// ```
+    ///
+    /// # Performance Notes
+    ///
+    /// * For large tensors, this method will call the callback many times
+    /// * The callback is called once for each element in the tensor
+    /// * Consider the tensor size before using this method in performance-critical code
+    pub fn iter_indices<F>(&self, mut callback: F)
+    where
+        F: FnMut(&[usize]),
+    {
+        let shape = self.shape();
+
+        if shape.is_empty() {
+            callback(&[]);
+            return;
+        }
+
+        let mut indices = vec![0; shape.len()];
+
+        loop {
+            callback(&indices);
+
+            // Increment indices (like an odometer)
+            let mut dim = indices.len() - 1;
+            loop {
+                indices[dim] += 1;
+                if indices[dim] < shape[dim] {
+                    break;
+                }
+
+                indices[dim] = 0;
+                if dim == 0 {
+                    return; // We've iterated through all combinations
+                }
+                dim -= 1;
+            }
+        }
+    }
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -728,13 +793,14 @@ impl TensorEdge {
 pub struct TensorGraphId(usize);
 static GRAPH_COUNTER: AtomicUsize = AtomicUsize::new(1);
 fn next_graph_id() -> TensorGraphId {
-    TensorGraphId(GRAPH_COUNTER.fetch_add(1, Ordering::Relaxed))
+    TensorGraphId(GRAPH_COUNTER.fetch_add(1, Ordering::SeqCst))
 }
 
 pub struct TensorGraph {
     nodes: HashMap<TensorNodeId, TensorNode>,
     edges: HashMap<TensorEdgeId, (TensorNodeId, TensorNodeId)>,
     topo_order: Vec<TensorNodeId>,
+    tensor_to_node: HashMap<TensorId, TensorNodeId>, // Maps output tensor ID to producing node ID
 }
 
 impl Default for TensorGraph {
@@ -749,11 +815,26 @@ impl TensorGraph {
             nodes: HashMap::new(),
             edges: HashMap::new(),
             topo_order: Vec::new(),
+            tensor_to_node: HashMap::new(),
         }
     }
 
     pub fn add_node(&mut self, node: TensorNode) {
-        self.nodes.insert(node.nid, node);
+        let node_id = node.nid;
+        
+        // Add edges from input tensors' producing nodes to this node
+        for &input_tid in &node.inputs {
+            if let Some(&producer_node_id) = self.tensor_to_node.get(&input_tid) {
+                self.connect(producer_node_id, node_id);
+            }
+        }
+        
+        // Register this node as the producer of its output tensors
+        for &output_tid in &node.outputs {
+            self.tensor_to_node.insert(output_tid, node_id);
+        }
+        
+        self.nodes.insert(node_id, node);
     }
 
     pub fn connect(&mut self, from: TensorNodeId, to: TensorNodeId) {
@@ -848,7 +929,9 @@ impl<'a> TensorGraphExecutor<'a> {
                 .get(&nid)
                 .ok_or_else(|| Error::InvalidState(format!("node {} not found", nid.0)))?;
 
+
             if let Some(ref f) = node.compute_fn {
+
                 let outs = f(&node.inputs, &node.outputs)?;
                 if outs.len() != node.outputs.len() {
                     return Err(Error::InvalidState(format!(

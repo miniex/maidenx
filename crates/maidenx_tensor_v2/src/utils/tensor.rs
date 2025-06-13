@@ -1,8 +1,8 @@
 use crate::{
-    get_mode, insert_metadata, insert_storage, link_tensor_to_storage, next_storage_id, Tensor, TensorId,
+    get_metadata_mut, get_mode, insert_metadata, insert_storage, link_tensor_to_storage, next_storage_id, Tensor, TensorId,
     TensorMetadata, TensorStorage, TensorUpdateStatus,
 };
-use maidenx_core::{device::Device, dtype::DType, error::Result, layout::Layout};
+use maidenx_core::{device::Device, dtype::DType, error::{Error, Result}, layout::Layout};
 use std::sync::Arc;
 
 /// Helper function to create storage and allocate tensor with given buffer
@@ -33,3 +33,12 @@ pub fn create_storage_with_buffer(
     })
 }
 
+/// Helper function to update tensor status
+pub fn update_tensor_status(tid: TensorId, status: TensorUpdateStatus) -> Result<()> {
+    let metadata_ref = get_metadata_mut(tid)
+        .ok_or_else(|| Error::InvalidState("tensor metadata not found".into()))?;
+    let mut metadata = metadata_ref.write()
+        .map_err(|_| Error::InvalidState("failed to acquire metadata lock".into()))?;
+    metadata.set_update_status(status);
+    Ok(())
+}

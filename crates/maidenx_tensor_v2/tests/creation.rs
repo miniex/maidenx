@@ -38,13 +38,13 @@ fn from_flatten_vec() -> Result<()> {
     auto_set_device();
 
     // Basic test with default inferred dtype
-    let x = Tensor::from_flatten_vec(vec![1.0, 2.0, 3.0, 4.0], &[2, 2]);
+    let x = Tensor::from_flatten_vec(&[1.0, 2.0, 3.0, 4.0], &[2, 2]);
 
     assert_eq!(x.shape(), &[2, 2]);
     assert_eq!(x.to_flatten_vec::<f32>(), [1.0, 2.0, 3.0, 4.0]);
 
     // Test error case: mismatched shape and data length
-    let result = Tensor::try_from_flatten_vec(vec![1.0, 2.0, 3.0, 4.0], &[3, 2]);
+    let result = Tensor::try_from_flatten_vec(&[1.0, 2.0, 3.0, 4.0], &[3, 2]);
     assert!(result.is_err());
 
     Ok(())
@@ -53,7 +53,7 @@ fn from_flatten_vec() -> Result<()> {
 #[test]
 fn from_flatten_vec_with_spec() -> Result<()> {
     // Basic test with specified dtype
-    let x = Tensor::from_flatten_vec_with_spec(vec![1, 2, 3, 4, 5, 6], &[2, 3], Device::CPU, DType::I32);
+    let x = Tensor::from_flatten_vec_with_spec(&[1, 2, 3, 4, 5, 6], &[2, 3], Device::CPU, DType::I32);
 
     assert_eq!(x.shape(), &[2, 3]);
     assert_eq!(x.device(), Device::CPU);
@@ -61,12 +61,12 @@ fn from_flatten_vec_with_spec() -> Result<()> {
     assert_eq!(x.to_flatten_vec::<i32>(), [1, 2, 3, 4, 5, 6]);
 
     // Test with type conversion
-    let y = Tensor::from_flatten_vec_with_spec(vec![1, 2, 3, 4, 5, 6], &[2, 3], Device::CPU, DType::F32);
+    let y = Tensor::from_flatten_vec_with_spec(&[1, 2, 3, 4, 5, 6], &[2, 3], Device::CPU, DType::F32);
     assert_eq!(y.dtype(), DType::F32);
     assert_eq!(y.to_flatten_vec::<f32>(), vec![1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
 
     // Test error case: mismatched shape and data length
-    let result = Tensor::try_from_flatten_vec_with_spec(vec![1, 2, 3, 4, 5, 6], &[2, 2], Device::CPU, DType::I32);
+    let result = Tensor::try_from_flatten_vec_with_spec(&[1, 2, 3, 4, 5, 6], &[2, 2], Device::CPU, DType::I32);
     assert!(result.is_err());
 
     Ok(())
@@ -87,6 +87,43 @@ fn share() -> Result<()> {
     assert_eq!(y.shape(), x.shape());
     assert_eq!(y.device(), x.device());
     assert_eq!(y.dtype(), x.dtype());
+
+    Ok(())
+}
+
+#[test]
+fn empty() -> Result<()> {
+    auto_set_device();
+
+    let x = Tensor::empty(&[2, 3]);
+
+    assert_eq!(x.shape(), &[2, 3]);
+
+    Ok(())
+}
+
+#[test]
+fn empty_like() -> Result<()> {
+    auto_set_device();
+
+    let x = Tensor::new(vec![vec![1, 2, 3], vec![4, 5, 6]]);
+    let y = Tensor::empty_like(&x);
+
+    assert_eq!(y.shape(), &[2, 3]);
+    assert_eq!(y.size(), 6);
+    assert_eq!(y.device(), x.device());
+    assert_eq!(y.dtype(), x.dtype());
+
+    Ok(())
+}
+
+#[test]
+fn empty_with_spec() -> Result<()> {
+    let x = Tensor::empty_with_spec(&[2, 3], Device::CPU, DType::F32);
+
+    assert_eq!(x.shape(), &[2, 3]);
+    assert_eq!(x.device(), Device::CPU);
+    assert_eq!(x.dtype(), DType::F32);
 
     Ok(())
 }

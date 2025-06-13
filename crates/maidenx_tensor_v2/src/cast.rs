@@ -1,5 +1,5 @@
 use crate::{
-    get_mode, next_tensor_id, utils::graph::add_to_graph, utils::tensor::create_storage_with_buffer, Tensor, TensorId,
+    get_mode, next_tensor_id, utils::graph::add_to_graph, Tensor, TensorId,
     TensorMode,
 };
 use maidenx_core::{
@@ -235,14 +235,27 @@ impl Tensor {
     /// - Graph operations fail in lazy mode
     pub fn try_to_device(&self, device: Device) -> Result<Self> {
         check_mps_compatibility(device, self.dtype())?;
+        
         match get_mode() {
-            TensorMode::Eager => self.execute_to_device(device, next_tensor_id()),
+            TensorMode::Eager => {
+                let target_tid = next_tensor_id();
+                let metadata = crate::TensorMetadata {
+                    device,
+                    dtype: self.dtype(),
+                    layout: self.layout(),
+                    mode: get_mode(),
+                    update_status: crate::TensorUpdateStatus::Pending,
+                };
+                crate::insert_metadata(target_tid, metadata);
+                self.execute_to_device(device, target_tid)
+            },
             TensorMode::Lazy => {
                 let result = add_to_graph(
                     &[self],
                     "device_transfer",
                     &[device],
                     &[self.dtype()],
+                    &[self.layout()],
                     move |tensors, target_tids| Ok(vec![tensors[0].execute_to_device(device, target_tids[0])?]),
                 )?;
                 Ok(result.into_iter().next().unwrap())
@@ -277,14 +290,27 @@ impl Tensor {
     /// - Graph operations fail in lazy mode
     pub fn try_to_dtype(&self, dtype: DType) -> Result<Self> {
         check_mps_compatibility(self.device(), dtype)?;
+        
         match get_mode() {
-            TensorMode::Eager => self.execute_to_dtype(dtype, next_tensor_id()),
+            TensorMode::Eager => {
+                let target_tid = next_tensor_id();
+                let metadata = crate::TensorMetadata {
+                    device: self.device(),
+                    dtype,
+                    layout: self.layout(),
+                    mode: get_mode(),
+                    update_status: crate::TensorUpdateStatus::Pending,
+                };
+                crate::insert_metadata(target_tid, metadata);
+                self.execute_to_dtype(dtype, target_tid)
+            },
             TensorMode::Lazy => {
                 let result = add_to_graph(
                     &[self],
                     "dtype_conversion",
                     &[self.device()],
                     &[dtype],
+                    &[self.layout()],
                     move |tensors, target_tids| Ok(vec![tensors[0].execute_to_dtype(dtype, target_tids[0])?]),
                 )?;
                 Ok(result.into_iter().next().unwrap())
@@ -327,7 +353,6 @@ impl Tensor {
     fn execute_to_device(&self, device: Device, target_tid: TensorId) -> Result<Self> {
         let dtype = self.dtype();
         let buffer_len = self.storage()?.buffer().len();
-        let layout = self.layout();
 
         let mut buffer = BufferManager::create(buffer_len, device, dtype)?;
         {
@@ -335,13 +360,24 @@ impl Tensor {
             buffer_mut.copy_from_with_device(self.storage()?.buffer(), 0, 0, buffer_len)?;
         }
 
-        create_storage_with_buffer(target_tid, device, dtype, layout, buffer)
+        // Create storage and link to target tensor
+        let sid = crate::next_storage_id();
+        crate::link_tensor_to_storage(target_tid, sid);
+        crate::insert_storage(sid, crate::TensorStorage::new(buffer));
+
+        // Update status to materialized
+        crate::utils::tensor::update_tensor_status(target_tid, crate::TensorUpdateStatus::Materialized)?;
+
+        Ok(Tensor {
+            tid: target_tid,
+            gtid: crate::TensorId(0),
+            gid: None,
+        })
     }
 
     fn execute_to_dtype(&self, dtype: DType, target_tid: TensorId) -> Result<Self> {
         let buffer_len = self.storage()?.buffer().len();
         let device = self.device();
-        let layout = self.layout();
 
         let mut buffer = BufferManager::create(buffer_len, device, dtype)?;
         {
@@ -349,6 +385,18 @@ impl Tensor {
             buffer_mut.copy_from_with_dtype_cast(self.storage()?.buffer(), 0, 0, buffer_len)?;
         }
 
-        create_storage_with_buffer(target_tid, device, dtype, layout, buffer)
+        // Create storage and link to target tensor
+        let sid = crate::next_storage_id();
+        crate::link_tensor_to_storage(target_tid, sid);
+        crate::insert_storage(sid, crate::TensorStorage::new(buffer));
+
+        // Update status to materialized
+        crate::utils::tensor::update_tensor_status(target_tid, crate::TensorUpdateStatus::Materialized)?;
+
+        Ok(Tensor {
+            tid: target_tid,
+            gtid: crate::TensorId(0),
+            gid: None,
+        })
     }
 }
