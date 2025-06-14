@@ -114,6 +114,102 @@ impl Tensor {
         self.try_transpose(dim0, dim1).expect("failed to transpose tensor")
     }
 
+    /// Runs [`try_slice`](Self::try_slice) and panics on failure.
+    ///
+    /// # Examples
+    /// ```
+    /// let tensor = Tensor::zeros(&[5, 4]);
+    /// let sliced = tensor.slice(0, 1, Some(4), 1);
+    /// assert_eq!(sliced.shape(), vec![3, 4]); // rows 1,2,3
+    /// ```
+    ///
+    /// # Panics
+    ///
+    /// * When dimension is out of bounds
+    /// * When slice indices are invalid
+    /// * When forward pass fails (for tensors in computation graphs)
+    pub fn slice(
+        &self,
+        dim: impl Into<Scalar>,
+        start: impl Into<Scalar>,
+        end: Option<impl Into<Scalar>>,
+        step: impl Into<Scalar>,
+    ) -> Self {
+        self.try_slice(dim, start, end, step).expect("failed to slice tensor")
+    }
+
+    /// Runs [`try_unfold`](Self::try_unfold) and panics on failure.
+    ///
+    /// # Examples
+    /// ```
+    /// let tensor = Tensor::zeros(&[5]);
+    /// let unfolded = tensor.unfold(0, 3, 1);
+    /// assert_eq!(unfolded.shape(), vec![3, 3]); // sliding window of size 3
+    /// ```
+    ///
+    /// # Panics
+    ///
+    /// * When dimension is out of bounds
+    /// * When unfold parameters are invalid
+    /// * When forward pass fails (for tensors in computation graphs)
+    pub fn unfold(&self, dim: impl Into<Scalar>, size: impl Into<Scalar>, step: impl Into<Scalar>) -> Self {
+        self.try_unfold(dim, size, step).expect("failed to unfold tensor")
+    }
+
+    /// Runs [`try_broadcast`](Self::try_broadcast) and panics on failure.
+    ///
+    /// # Examples
+    /// ```
+    /// let tensor = Tensor::zeros(&[3, 1]);
+    /// let broadcasted = tensor.broadcast(&[3, 4]);
+    /// assert_eq!(broadcasted.shape(), vec![3, 4]);
+    /// ```
+    ///
+    /// # Panics
+    ///
+    /// * When shapes are incompatible for broadcasting
+    /// * When forward pass fails (for tensors in computation graphs)
+    pub fn broadcast(&self, shape: &[usize]) -> Self {
+        self.try_broadcast(shape).expect("failed to broadcast tensor")
+    }
+
+    /// Runs [`try_broadcast_like`](Self::try_broadcast_like) and panics on failure.
+    ///
+    /// # Examples
+    /// ```
+    /// let tensor = Tensor::zeros(&[3, 1]);
+    /// let other = Tensor::zeros(&[3, 4]);
+    /// let broadcasted = tensor.broadcast_like(&other);
+    /// assert_eq!(broadcasted.shape(), vec![3, 4]);
+    /// ```
+    ///
+    /// # Panics
+    ///
+    /// * When shapes are incompatible for broadcasting
+    /// * When forward pass fails (for tensors in computation graphs)
+    pub fn broadcast_like(&self, other: &Self) -> Self {
+        self.try_broadcast_like(other)
+            .expect("failed to broadcast tensor like other")
+    }
+
+    /// Runs [`try_broadcast_left`](Self::try_broadcast_left) and panics on failure.
+    ///
+    /// # Examples
+    /// ```
+    /// let tensor = Tensor::zeros(&[3, 4]);
+    /// let broadcasted = tensor.broadcast_left(&[2, 5]);
+    /// assert_eq!(broadcasted.shape(), vec![2, 5, 3, 4]);
+    /// ```
+    ///
+    /// # Panics
+    ///
+    /// * When broadcast operation fails
+    /// * When forward pass fails (for tensors in computation graphs)
+    pub fn broadcast_left(&self, batch_dims: &[usize]) -> Self {
+        self.try_broadcast_left(batch_dims)
+            .expect("failed to broadcast tensor left")
+    }
+
     /// Runs [`try_reshape`](Self::try_reshape) and panics on failure.
     ///
     /// # Examples
@@ -521,7 +617,7 @@ impl Tensor {
                     update_status: TensorUpdateStatus::Pending,
                 };
                 insert_metadata(target_tid, metadata);
-                self.execute_transpose(target_tid)
+                self.execute_view(target_tid)
             },
             TensorMode::Lazy => {
                 let result = add_to_graph(
@@ -530,7 +626,369 @@ impl Tensor {
                     &[self.device()],
                     &[self.dtype()],
                     &[new_layout],
-                    move |tensors, target_tids| Ok(vec![tensors[0].execute_transpose(target_tids[0])?]),
+                    move |tensors, target_tids| Ok(vec![tensors[0].execute_view(target_tids[0])?]),
+                )?;
+                Ok(result.into_iter().next().unwrap())
+            },
+        }
+    }
+
+    /// Attempts to slice the tensor along a specified dimension.
+    ///
+    /// This operation creates a view into a subset of the tensor along the specified
+    /// dimension. The slice is defined by start, end, and step parameters.
+    ///
+    /// # Examples
+    /// ```
+    /// use maidenx_core::error::Result;
+    ///
+    /// fn slice_tensor() -> Result<()> {
+    ///     let tensor = Tensor::zeros(&[5, 4]);
+    ///     let sliced = tensor.try_slice(0, 1, Some(4), 1)?;
+    ///     assert_eq!(sliced.shape(), vec![3, 4]); // rows 1,2,3
+    ///     Ok(())
+    /// }
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - The dimension index is out of bounds
+    /// - The slice parameters are invalid
+    /// - Graph operations fail in lazy mode
+    ///
+    /// # Performance Notes
+    ///
+    /// * This is a zero-copy operation that only modifies layout metadata
+    /// * No data copying is involved, making it very efficient
+    /// * The resulting tensor shares storage with the original
+    pub fn try_slice(
+        &self,
+        dim: impl Into<Scalar>,
+        start: impl Into<Scalar>,
+        end: Option<impl Into<Scalar>>,
+        step: impl Into<Scalar>,
+    ) -> Result<Self> {
+        let dim_i32 = dim.into().as_i32();
+        let start_i32 = start.into().as_i32();
+        let end_i32 = end.map(|e| e.into().as_i32());
+        let step_i32 = step.into().as_i32();
+
+        let dim_normalized: usize = if dim_i32 < 0 {
+            (self.ndim() as i32 + dim_i32) as usize
+        } else {
+            dim_i32 as usize
+        };
+
+        if dim_normalized >= self.ndim() {
+            return Err(Error::InvalidShape {
+                message: format!(
+                    "Dimension {} is out of bounds for tensor with {} dimensions",
+                    dim_normalized,
+                    self.ndim()
+                ),
+            });
+        }
+
+        let new_layout = self.layout().slice(
+            dim_normalized,
+            start_i32 as isize,
+            end_i32.map(|e| e as isize),
+            step_i32 as isize,
+        )?;
+
+        match get_mode() {
+            TensorMode::Eager => {
+                let target_tid = next_tensor_id();
+                let metadata = TensorMetadata {
+                    device: self.device(),
+                    dtype: self.dtype(),
+                    layout: new_layout,
+                    mode: get_mode(),
+                    update_status: TensorUpdateStatus::Pending,
+                };
+                insert_metadata(target_tid, metadata);
+                self.execute_view(target_tid)
+            },
+            TensorMode::Lazy => {
+                let result = add_to_graph(
+                    &[self],
+                    "slice",
+                    &[self.device()],
+                    &[self.dtype()],
+                    &[new_layout],
+                    move |tensors, target_tids| Ok(vec![tensors[0].execute_view(target_tids[0])?]),
+                )?;
+                Ok(result.into_iter().next().unwrap())
+            },
+        }
+    }
+
+    /// Attempts to unfold the tensor along a specified dimension.
+    ///
+    /// This operation extracts sliding windows from the tensor along the specified
+    /// dimension. It's commonly used for implementing convolution-like operations
+    /// or extracting patches from data.
+    ///
+    /// # Examples
+    /// ```
+    /// use maidenx_core::error::Result;
+    ///
+    /// fn unfold_tensor() -> Result<()> {
+    ///     let tensor = Tensor::zeros(&[5]);
+    ///     let unfolded = tensor.try_unfold(0, 3, 1)?;
+    ///     assert_eq!(unfolded.shape(), vec![3, 3]); // 3 windows of size 3
+    ///     Ok(())
+    /// }
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - The dimension index is out of bounds
+    /// - The size or step parameters are invalid
+    /// - Graph operations fail in lazy mode
+    ///
+    /// # Performance Notes
+    ///
+    /// * This is a zero-copy operation that only modifies layout metadata
+    /// * Creates a view with overlapping windows into the original data
+    /// * Very efficient for sliding window operations
+    pub fn try_unfold(&self, dim: impl Into<Scalar>, size: impl Into<Scalar>, step: impl Into<Scalar>) -> Result<Self> {
+        let dim_i32 = dim.into().as_i32();
+        let size_i32 = size.into().as_i32();
+        let step_i32 = step.into().as_i32();
+
+        let dim_usize: usize = if dim_i32 < 0 {
+            (self.ndim() as i32 + dim_i32) as usize
+        } else {
+            dim_i32 as usize
+        };
+
+        if dim_usize >= self.ndim() {
+            return Err(Error::InvalidShape {
+                message: format!(
+                    "Dimension {} is out of bounds for tensor with {} dimensions",
+                    dim_usize,
+                    self.ndim()
+                ),
+            });
+        }
+
+        if size_i32 <= 0 {
+            return Err(Error::InvalidShape {
+                message: format!("Unfold size must be positive, got {}", size_i32),
+            });
+        }
+
+        if step_i32 <= 0 {
+            return Err(Error::InvalidShape {
+                message: format!("Unfold step must be positive, got {}", step_i32),
+            });
+        }
+
+        let new_layout = self.layout().unfold(dim_usize, size_i32 as usize, step_i32 as usize)?;
+
+        match get_mode() {
+            TensorMode::Eager => {
+                let target_tid = next_tensor_id();
+                let metadata = TensorMetadata {
+                    device: self.device(),
+                    dtype: self.dtype(),
+                    layout: new_layout,
+                    mode: get_mode(),
+                    update_status: TensorUpdateStatus::Pending,
+                };
+                insert_metadata(target_tid, metadata);
+                self.execute_view(target_tid)
+            },
+            TensorMode::Lazy => {
+                let result = add_to_graph(
+                    &[self],
+                    "unfold",
+                    &[self.device()],
+                    &[self.dtype()],
+                    &[new_layout],
+                    move |tensors, target_tids| Ok(vec![tensors[0].execute_view(target_tids[0])?]),
+                )?;
+                Ok(result.into_iter().next().unwrap())
+            },
+        }
+    }
+
+    /// Attempts to broadcast the tensor to a new shape.
+    ///
+    /// This operation creates a new tensor with the specified shape by broadcasting
+    /// the current tensor. Broadcasting allows tensors with different shapes to be
+    /// used together in operations by virtually expanding dimensions of size 1.
+    ///
+    /// # Examples
+    /// ```
+    /// use maidenx_core::error::Result;
+    ///
+    /// fn broadcast_tensor() -> Result<()> {
+    ///     let tensor = Tensor::zeros(&[3, 1]);
+    ///     let broadcasted = tensor.try_broadcast(&[3, 4])?;
+    ///     assert_eq!(broadcasted.shape(), vec![3, 4]);
+    ///     Ok(())
+    /// }
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - The shapes are incompatible for broadcasting
+    /// - Graph operations fail in lazy mode
+    ///
+    /// # Performance Notes
+    ///
+    /// * This is a zero-copy operation that only modifies layout metadata
+    /// * No actual data copying is involved
+    /// * The resulting tensor shares storage with the original
+    pub fn try_broadcast(&self, shape: &[usize]) -> Result<Self> {
+        if self.shape() == shape {
+            return Ok(self.clone());
+        }
+
+        let old_shape = self.shape();
+
+        if old_shape.is_empty() {
+            return self.try_broadcast_scalar_to(shape);
+        }
+
+        if shape.is_empty() {
+            if !old_shape.is_empty() {
+                return Err(Error::InvalidShape {
+                    message: format!("Cannot broadcast non-scalar shape {:?} to scalar ()", old_shape),
+                });
+            } else {
+                return Ok(self.clone());
+            }
+        }
+
+        let new_layout = self.layout().broadcast_to(shape)?;
+
+        match get_mode() {
+            TensorMode::Eager => {
+                let target_tid = next_tensor_id();
+                let metadata = TensorMetadata {
+                    device: self.device(),
+                    dtype: self.dtype(),
+                    layout: new_layout,
+                    mode: get_mode(),
+                    update_status: TensorUpdateStatus::Pending,
+                };
+                insert_metadata(target_tid, metadata);
+                self.execute_view(target_tid)
+            },
+            TensorMode::Lazy => {
+                let result = add_to_graph(
+                    &[self],
+                    "broadcast",
+                    &[self.device()],
+                    &[self.dtype()],
+                    &[new_layout],
+                    move |tensors, target_tids| Ok(vec![tensors[0].execute_view(target_tids[0])?]),
+                )?;
+                Ok(result.into_iter().next().unwrap())
+            },
+        }
+    }
+
+    /// Attempts to broadcast the tensor to match another tensor's shape.
+    ///
+    /// This is a convenience method that calls `try_broadcast` with the shape
+    /// of the provided tensor.
+    ///
+    /// # Examples
+    /// ```
+    /// use maidenx_core::error::Result;
+    ///
+    /// fn broadcast_like_tensor() -> Result<()> {
+    ///     let tensor = Tensor::zeros(&[3, 1]);
+    ///     let other = Tensor::zeros(&[3, 4]);
+    ///     let broadcasted = tensor.try_broadcast_like(&other)?;
+    ///     assert_eq!(broadcasted.shape(), other.shape());
+    ///     Ok(())
+    /// }
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - The shapes are incompatible for broadcasting
+    /// - Graph operations fail in lazy mode
+    pub fn try_broadcast_like(&self, other: &Self) -> Result<Self> {
+        self.try_broadcast(&other.shape())
+    }
+
+    /// Attempts to broadcast the tensor by adding batch dimensions on the left.
+    ///
+    /// This operation prepends the specified dimensions to the tensor's shape
+    /// and broadcasts the tensor to the resulting shape.
+    ///
+    /// # Examples
+    /// ```
+    /// use maidenx_core::error::Result;
+    ///
+    /// fn broadcast_left_tensor() -> Result<()> {
+    ///     let tensor = Tensor::zeros(&[3, 4]);
+    ///     let broadcasted = tensor.try_broadcast_left(&[2, 5])?;
+    ///     assert_eq!(broadcasted.shape(), vec![2, 5, 3, 4]);
+    ///     Ok(())
+    /// }
+    /// ```
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - The broadcast operation fails
+    /// - Graph operations fail in lazy mode
+    ///
+    /// # Performance Notes
+    ///
+    /// * Common pattern for adding batch dimensions
+    /// * Useful for preparing tensors for batch operations
+    pub fn try_broadcast_left(&self, batch_dims: &[usize]) -> Result<Self> {
+        let mut new_shape = batch_dims.to_vec();
+        new_shape.extend(self.shape());
+        self.try_broadcast(&new_shape)
+    }
+
+    /// Helper function to broadcast a scalar tensor to a given shape.
+    ///
+    /// This creates a view with the target shape that shares the same scalar storage.
+    /// This is a zero-copy operation - all indices point to the same scalar value.
+    fn try_broadcast_scalar_to(&self, shape: &[usize]) -> Result<Self> {
+        if self.size() != 1 {
+            return Err(Error::InvalidShape {
+                message: "Cannot broadcast non-scalar tensor using scalar broadcast".to_string(),
+            });
+        }
+
+        let layout = self.layout().broadcast_to(shape)?;
+
+        match get_mode() {
+            TensorMode::Eager => {
+                let target_tid = next_tensor_id();
+                let metadata = crate::TensorMetadata {
+                    device: self.device(),
+                    dtype: self.dtype(),
+                    layout,
+                    mode: get_mode(),
+                    update_status: crate::TensorUpdateStatus::Pending,
+                };
+                crate::insert_metadata(target_tid, metadata);
+                self.execute_view(target_tid)
+            },
+            TensorMode::Lazy => {
+                let result = add_to_graph(
+                    &[self],
+                    "broadcast_scalar_to",
+                    &[self.device()],
+                    &[self.dtype()],
+                    &[layout],
+                    move |tensors, target_tids| Ok(vec![tensors[0].execute_view(target_tids[0])?]),
                 )?;
                 Ok(result.into_iter().next().unwrap())
             },
@@ -600,22 +1058,9 @@ impl Tensor {
         }
     }
 
+    /// Common execution function for layout-only operations (view, squeeze, squeeze_all, unsqueeze, transpose, slice, unfold)
+    /// that share storage and only modify metadata.
     fn execute_view(&self, target_tid: TensorId) -> Result<Self> {
-        let src_storage_id = crate::get_storage_id(self.tid())
-            .ok_or_else(|| Error::InvalidState("tensor storage id not found".into()))?;
-
-        link_tensor_to_storage(target_tid, src_storage_id);
-
-        crate::utils::tensor::update_tensor_status(target_tid, TensorUpdateStatus::Materialized)?;
-
-        Ok(Tensor {
-            tid: target_tid,
-            gtid: TensorId(0),
-            gid: self.gid(),
-        })
-    }
-
-    fn execute_transpose(&self, target_tid: TensorId) -> Result<Self> {
         let src_storage_id = crate::get_storage_id(self.tid())
             .ok_or_else(|| Error::InvalidState("tensor storage id not found".into()))?;
 
