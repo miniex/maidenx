@@ -258,7 +258,13 @@ impl fmt::Debug for Tensor {
             }
             write!(f, "{}", dim)?;
         }
-        write!(f, "], device={}, dtype={}", self.device().name(), self.dtype().as_str())?;
+        write!(
+            f,
+            "], device={}, dtype={}, mode={}",
+            self.device().name(),
+            self.dtype().as_str(),
+            self.mode().as_str()
+        )?;
         write!(f, ", data=")?;
 
         match self.dtype() {

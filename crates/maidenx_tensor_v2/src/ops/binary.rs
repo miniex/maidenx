@@ -38,18 +38,8 @@ macro_rules! impl_binary_execute {
                     rhs.clone()
                 };
 
-                let lhs_shape = lhs_tensor.shape();
-                let lhs_strides = lhs_tensor.strides();
-                let lhs_offset = lhs_tensor.offset();
-                let rhs_strides = rhs_tensor.strides();
-                let rhs_offset = rhs_tensor.offset();
-
-                let mut metadata = Vec::new();
-                metadata.extend_from_slice(&lhs_shape);
-                metadata.extend_from_slice(&lhs_strides);
-                metadata.extend_from_slice(&rhs_strides);
-                metadata.push(lhs_offset);
-                metadata.push(rhs_offset);
+                // Use the new prepare_binary_metadata function
+                let metadata = Tensor::prepare_binary_metadata(&lhs_tensor, &rhs_tensor);
 
                 unsafe {
                     $backend_fn(
@@ -506,6 +496,7 @@ impl Tensor {
     /// # Examples
     /// ```
     /// use maidenx_core::error::Result;
+    /// use crate::Tensor; // Assuming Tensor is in the current crate root
     ///
     /// fn add_tensors() -> Result<()> {
     ///     let a = Tensor::new(&[1.0, 2.0, 3.0]);
@@ -573,6 +564,7 @@ impl Tensor {
     /// # Examples
     /// ```
     /// use maidenx_core::error::Result;
+    /// use crate::Tensor; // Assuming Tensor is in the current crate root
     ///
     /// fn sub_tensors() -> Result<()> {
     ///     let a = Tensor::new(&[5.0, 7.0, 9.0]);
@@ -640,6 +632,7 @@ impl Tensor {
     /// # Examples
     /// ```
     /// use maidenx_core::error::Result;
+    /// use crate::Tensor; // Assuming Tensor is in the current crate root
     ///
     /// fn mul_tensors() -> Result<()> {
     ///     let a = Tensor::new(&[2.0, 3.0, 4.0]);
@@ -707,6 +700,7 @@ impl Tensor {
     /// # Examples
     /// ```
     /// use maidenx_core::error::Result;
+    /// use crate::Tensor; // Assuming Tensor is in the current crate root
     ///
     /// fn div_tensors() -> Result<()> {
     ///     let a = Tensor::new(&[6.0, 8.0, 10.0]);
@@ -778,6 +772,7 @@ impl Tensor {
     /// # Examples
     /// ```
     /// use maidenx_core::error::Result;
+    /// use crate::Tensor; // Assuming Tensor is in the current crate root
     ///
     /// fn maximum_tensors() -> Result<()> {
     ///     let a = Tensor::new(&[1.0, 5.0, 3.0]);
@@ -845,6 +840,7 @@ impl Tensor {
     /// # Examples
     /// ```
     /// use maidenx_core::error::Result;
+    /// use crate::Tensor; // Assuming Tensor is in the current crate root
     ///
     /// fn minimum_tensors() -> Result<()> {
     ///     let a = Tensor::new(&[1.0, 5.0, 3.0]);
@@ -912,6 +908,7 @@ impl Tensor {
     /// # Examples
     /// ```
     /// use maidenx_core::error::Result;
+    /// use crate::Tensor; // Assuming Tensor is in the current crate root
     ///
     /// fn logical_and_tensors() -> Result<()> {
     ///     let a = Tensor::new(&[true, false, true]);
@@ -980,6 +977,7 @@ impl Tensor {
     /// # Examples
     /// ```
     /// use maidenx_core::error::Result;
+    /// use crate::Tensor; // Assuming Tensor is in the current crate root
     ///
     /// fn logical_or_tensors() -> Result<()> {
     ///     let a = Tensor::new(&[true, false, true]);
@@ -1048,6 +1046,7 @@ impl Tensor {
     /// # Examples
     /// ```
     /// use maidenx_core::error::Result;
+    /// use crate::Tensor; // Assuming Tensor is in the current crate root
     ///
     /// fn logical_xor_tensors() -> Result<()> {
     ///     let a = Tensor::new(&[true, false, true]);
@@ -1116,6 +1115,7 @@ impl Tensor {
     /// # Examples
     /// ```
     /// use maidenx_core::error::Result;
+    /// use crate::Tensor; // Assuming Tensor is in the current crate root
     ///
     /// fn eq_tensors() -> Result<()> {
     ///     let a = Tensor::new(&[1.0, 2.0, 3.0]);
@@ -1184,6 +1184,7 @@ impl Tensor {
     /// # Examples
     /// ```
     /// use maidenx_core::error::Result;
+    /// use crate::Tensor; // Assuming Tensor is in the current crate root
     ///
     /// fn ne_tensors() -> Result<()> {
     ///     let a = Tensor::new(&[1.0, 2.0, 3.0]);
@@ -1252,6 +1253,7 @@ impl Tensor {
     /// # Examples
     /// ```
     /// use maidenx_core::error::Result;
+    /// use crate::Tensor; // Assuming Tensor is in the current crate root
     ///
     /// fn lt_tensors() -> Result<()> {
     ///     let a = Tensor::new(&[1.0, 2.0, 3.0]);
@@ -1320,6 +1322,7 @@ impl Tensor {
     /// # Examples
     /// ```
     /// use maidenx_core::error::Result;
+    /// use crate::Tensor; // Assuming Tensor is in the current crate root
     ///
     /// fn le_tensors() -> Result<()> {
     ///     let a = Tensor::new(&[1.0, 2.0, 3.0]);
@@ -1388,6 +1391,7 @@ impl Tensor {
     /// # Examples
     /// ```
     /// use maidenx_core::error::Result;
+    /// use crate::Tensor; // Assuming Tensor is in the current crate root
     ///
     /// fn gt_tensors() -> Result<()> {
     ///     let a = Tensor::new(&[1.0, 2.0, 3.0]);
@@ -1456,6 +1460,7 @@ impl Tensor {
     /// # Examples
     /// ```
     /// use maidenx_core::error::Result;
+    /// use crate::Tensor; // Assuming Tensor is in the current crate root
     ///
     /// fn ge_tensors() -> Result<()> {
     ///     let a = Tensor::new(&[1.0, 2.0, 3.0]);
@@ -1523,6 +1528,7 @@ impl Tensor {
     /// # Examples
     /// ```
     /// use maidenx_core::error::Result;
+    /// use crate::Tensor; // Assuming Tensor is in the current crate root
     ///
     /// fn add_inplace() -> Result<()> {
     ///     let mut a = Tensor::new(&[1.0, 2.0, 3.0]);
@@ -1538,7 +1544,7 @@ impl Tensor {
     /// Returns an error if:
     /// - Tensors are on different devices
     /// - Broadcasting fails due to incompatible shapes
-    /// - In-place operation fails in eager mode
+    /// - In-place operation fails
     /// - Graph operations fail in lazy mode
     pub fn try_add_(&mut self, rhs: &Self) -> Result<()> {
         match get_mode() {
@@ -1553,18 +1559,8 @@ impl Tensor {
                     rhs = rhs.try_to_dtype(self.dtype())?;
                 }
 
-                let lhs_shape = self.shape();
-                let lhs_strides = self.strides();
-                let lhs_offset = self.offset();
-                let rhs_strides = rhs.strides();
-                let rhs_offset = rhs.offset();
-
-                let mut metadata = Vec::new();
-                metadata.extend_from_slice(&lhs_shape);
-                metadata.extend_from_slice(&lhs_strides);
-                metadata.extend_from_slice(&rhs_strides);
-                metadata.push(lhs_offset);
-                metadata.push(rhs_offset);
+                // Use the new prepare_binary_metadata function
+                let metadata = Tensor::prepare_binary_metadata(self, &rhs);
 
                 let mut storage = self.storage_mut()?;
                 unsafe {
@@ -1597,6 +1593,7 @@ impl Tensor {
     /// # Examples
     /// ```
     /// use maidenx_core::error::Result;
+    /// use crate::Tensor; // Assuming Tensor is in the current crate root
     ///
     /// fn sub_inplace() -> Result<()> {
     ///     let mut a = Tensor::new(&[5.0, 7.0, 9.0]);
@@ -1612,7 +1609,7 @@ impl Tensor {
     /// Returns an error if:
     /// - Tensors are on different devices
     /// - Broadcasting fails due to incompatible shapes
-    /// - In-place operation fails in eager mode
+    /// - In-place operation fails
     /// - Graph operations fail in lazy mode
     pub fn try_sub_(&mut self, rhs: &Self) -> Result<()> {
         match get_mode() {
@@ -1627,18 +1624,8 @@ impl Tensor {
                     rhs = rhs.try_to_dtype(self.dtype())?;
                 }
 
-                let lhs_shape = self.shape();
-                let lhs_strides = self.strides();
-                let lhs_offset = self.offset();
-                let rhs_strides = rhs.strides();
-                let rhs_offset = rhs.offset();
-
-                let mut metadata = Vec::new();
-                metadata.extend_from_slice(&lhs_shape);
-                metadata.extend_from_slice(&lhs_strides);
-                metadata.extend_from_slice(&rhs_strides);
-                metadata.push(lhs_offset);
-                metadata.push(rhs_offset);
+                // Use the new prepare_binary_metadata function
+                let metadata = Tensor::prepare_binary_metadata(self, &rhs);
 
                 let mut storage = self.storage_mut()?;
                 unsafe {
@@ -1671,6 +1658,7 @@ impl Tensor {
     /// # Examples
     /// ```
     /// use maidenx_core::error::Result;
+    /// use crate::Tensor; // Assuming Tensor is in the current crate root
     ///
     /// fn mul_inplace() -> Result<()> {
     ///     let mut a = Tensor::new(&[2.0, 3.0, 4.0]);
@@ -1686,7 +1674,7 @@ impl Tensor {
     /// Returns an error if:
     /// - Tensors are on different devices
     /// - Broadcasting fails due to incompatible shapes
-    /// - In-place operation fails in eager mode
+    /// - In-place operation fails
     /// - Graph operations fail in lazy mode
     pub fn try_mul_(&mut self, rhs: &Self) -> Result<()> {
         match get_mode() {
@@ -1701,18 +1689,8 @@ impl Tensor {
                     rhs = rhs.try_to_dtype(self.dtype())?;
                 }
 
-                let lhs_shape = self.shape();
-                let lhs_strides = self.strides();
-                let lhs_offset = self.offset();
-                let rhs_strides = rhs.strides();
-                let rhs_offset = rhs.offset();
-
-                let mut metadata = Vec::new();
-                metadata.extend_from_slice(&lhs_shape);
-                metadata.extend_from_slice(&lhs_strides);
-                metadata.extend_from_slice(&rhs_strides);
-                metadata.push(lhs_offset);
-                metadata.push(rhs_offset);
+                // Use the new prepare_binary_metadata function
+                let metadata = Tensor::prepare_binary_metadata(self, &rhs);
 
                 let mut storage = self.storage_mut()?;
                 unsafe {
@@ -1745,6 +1723,7 @@ impl Tensor {
     /// # Examples
     /// ```
     /// use maidenx_core::error::Result;
+    /// use crate::Tensor; // Assuming Tensor is in the current crate root
     ///
     /// fn div_inplace() -> Result<()> {
     ///     let mut a = Tensor::new(&[6.0, 8.0, 10.0]);
@@ -1760,7 +1739,7 @@ impl Tensor {
     /// Returns an error if:
     /// - Tensors are on different devices
     /// - Broadcasting fails due to incompatible shapes
-    /// - In-place operation fails in eager mode
+    /// - In-place operation fails
     /// - Graph operations fail in lazy mode
     pub fn try_div_(&mut self, rhs: &Self) -> Result<()> {
         match get_mode() {
@@ -1775,18 +1754,8 @@ impl Tensor {
                     rhs = rhs.try_to_dtype(self.dtype())?;
                 }
 
-                let lhs_shape = self.shape();
-                let lhs_strides = self.strides();
-                let lhs_offset = self.offset();
-                let rhs_strides = rhs.strides();
-                let rhs_offset = rhs.offset();
-
-                let mut metadata = Vec::new();
-                metadata.extend_from_slice(&lhs_shape);
-                metadata.extend_from_slice(&lhs_strides);
-                metadata.extend_from_slice(&rhs_strides);
-                metadata.push(lhs_offset);
-                metadata.push(rhs_offset);
+                // Use the new prepare_binary_metadata function
+                let metadata = Tensor::prepare_binary_metadata(self, &rhs);
 
                 let mut storage = self.storage_mut()?;
                 unsafe {
@@ -1826,4 +1795,14 @@ impl Tensor {
     impl_binary_execute!(execute_le, maidenx_core::be::ops::binary::le);
     impl_binary_execute!(execute_gt, maidenx_core::be::ops::binary::gt);
     impl_binary_execute!(execute_ge, maidenx_core::be::ops::binary::ge);
+
+    fn prepare_binary_metadata(lhs: &Tensor, rhs: &Tensor) -> Vec<usize> {
+        let mut metadata = Vec::new();
+        metadata.extend_from_slice(&lhs.shape());
+        metadata.extend_from_slice(&lhs.strides());
+        metadata.extend_from_slice(&rhs.strides());
+        metadata.push(lhs.offset());
+        metadata.push(rhs.offset());
+        metadata
+    }
 }

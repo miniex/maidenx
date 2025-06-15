@@ -261,6 +261,15 @@ pub enum TensorMode {
     Lazy,
 }
 
+impl TensorMode {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Self::Eager => "eager",
+            Self::Lazy => "lazy",
+        }
+    }
+}
+
 thread_local! {
     static GLOBAL_TENSOR_MODE: RefCell<TensorMode> = const {RefCell::new(TensorMode::Eager)};
 }
