@@ -1,7 +1,4 @@
-use crate::{
-    get_mode, next_tensor_id, utils::graph::add_to_graph, Tensor, TensorId,
-    TensorMode,
-};
+use crate::{get_mode, next_tensor_id, utils::graph::add_to_graph, Tensor, TensorId, TensorMode};
 use maidenx_core::{
     buffer::BufferManager,
     device::Device,
@@ -41,11 +38,11 @@ fn check_mps_compatibility(_device: Device, _dtype: DType) -> Result<()> {
 /// **Behavior by execution mode:**
 /// * **Eager mode**: Operations execute immediately with direct storage modification
 /// * **Lazy mode**: Operations are added to the computation graph for deferred execution
-/// 
+///
 /// **MPS compatibility notes:**
 /// * 64-bit data types (F64, I64, U64) are not supported on MPS devices
 /// * Compatibility checks are performed automatically before operations
-/// 
+///
 /// **Memory efficiency:**
 /// * In-place operations (`with_*`) modify the original tensor's storage in eager mode
 /// * In lazy mode, `with_*` methods internally use `to_*` methods for graph consistency
@@ -235,7 +232,7 @@ impl Tensor {
     /// - Graph operations fail in lazy mode
     pub fn try_to_device(&self, device: Device) -> Result<Self> {
         check_mps_compatibility(device, self.dtype())?;
-        
+
         match get_mode() {
             TensorMode::Eager => {
                 let target_tid = next_tensor_id();
@@ -290,7 +287,7 @@ impl Tensor {
     /// - Graph operations fail in lazy mode
     pub fn try_to_dtype(&self, dtype: DType) -> Result<Self> {
         check_mps_compatibility(self.device(), dtype)?;
-        
+
         match get_mode() {
             TensorMode::Eager => {
                 let target_tid = next_tensor_id();

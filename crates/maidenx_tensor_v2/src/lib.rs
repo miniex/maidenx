@@ -173,16 +173,16 @@ impl TensorStorage {
         Arc::get_mut(&mut self.buffer).ok_or(Error::BufferShared)
     }
 
-    pub fn buffer_arc(&self) -> Arc<dyn Buffer> {
-        self.buffer.clone()
-    }
-
-    pub fn with_buffer_mut<F, R>(&mut self, func: F) -> Result<R>
+    pub fn buffer_mut_with<F, R>(&mut self, func: F) -> Result<R>
     where
         F: FnOnce(&mut (dyn Buffer + 'static)) -> Result<R>,
     {
         let buf = Arc::get_mut(&mut self.buffer).ok_or(Error::BufferShared)?;
         func(buf)
+    }
+
+    pub fn buffer_arc(&self) -> Arc<dyn Buffer> {
+        self.buffer.clone()
     }
 }
 
@@ -312,6 +312,7 @@ pub fn lazy_mode() -> TensorModeGuard {
 #[macro_export]
 macro_rules! eager {
     () => {
+        use crate::eager_mode;
         let _guard = eager_mode();
     };
 }
@@ -327,6 +328,7 @@ macro_rules! eager {
 #[macro_export]
 macro_rules! lazy {
     () => {
+        use crate::lazy_mode;
         let _guard = lazy_mode();
     };
 }
@@ -821,19 +823,19 @@ impl TensorGraph {
 
     pub fn add_node(&mut self, node: TensorNode) {
         let node_id = node.nid;
-        
+
         // Add edges from input tensors' producing nodes to this node
         for &input_tid in &node.inputs {
             if let Some(&producer_node_id) = self.tensor_to_node.get(&input_tid) {
                 self.connect(producer_node_id, node_id);
             }
         }
-        
+
         // Register this node as the producer of its output tensors
         for &output_tid in &node.outputs {
             self.tensor_to_node.insert(output_tid, node_id);
         }
-        
+
         self.nodes.insert(node_id, node);
     }
 
@@ -929,9 +931,7 @@ impl<'a> TensorGraphExecutor<'a> {
                 .get(&nid)
                 .ok_or_else(|| Error::InvalidState(format!("node {} not found", nid.0)))?;
 
-
             if let Some(ref f) = node.compute_fn {
-
                 let outs = f(&node.inputs, &node.outputs)?;
                 if outs.len() != node.outputs.len() {
                     return Err(Error::InvalidState(format!(
@@ -943,6 +943,7 @@ impl<'a> TensorGraphExecutor<'a> {
                 }
             }
         }
+
         Ok(())
     }
 }
