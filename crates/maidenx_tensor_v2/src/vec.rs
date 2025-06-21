@@ -204,9 +204,9 @@ impl Tensor {
     /// - The buffer cannot be copied to host memory
     /// - There are issues with memory operations
     pub fn try_to_flatten_vec<T: Default + Clone + 'static>(&self) -> Result<Vec<T>> {
-        // If tensor is in a computation graph and not materialized, compute it first
+        // If tensor is in a computation graph and not materialized, return error to avoid infinite loop
         if !self.is_const() && !self.is_storaged() {
-            self.try_forward()?;
+            return Err(Error::InvalidState("cannot flatten lazy tensor that is not materialized".into()));
         }
         let target_dtype =
             get_dtype_for_type::<T>().ok_or_else(|| Error::InvalidArgument("Unsupported type".into()))?;

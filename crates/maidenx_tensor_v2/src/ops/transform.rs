@@ -1,6 +1,7 @@
 use crate::{
-    get_mode, insert_metadata, link_tensor_to_storage, next_tensor_id, utils::graph::add_to_graph, Tensor, TensorId,
-    TensorMetadata, TensorMode, TensorUpdateStatus,
+    eager, get_mode, insert_metadata, link_tensor_to_storage, next_tensor_id,
+    utils::graph::{add_to_backward_graph, add_to_forward_graph},
+    Tensor, TensorId, TensorMetadata, TensorMode, TensorUpdateStatus,
 };
 use maidenx_core::{
     error::{Error, Result},
@@ -31,7 +32,9 @@ impl Tensor {
     /// Runs [`try_view`](Self::try_view) and panics on failure.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
+    /// use crate::Tensor;
+    ///
     /// let tensor = Tensor::zeros(&[6]);
     /// let reshaped = tensor.view(&[2, 3]);
     /// assert_eq!(reshaped.shape(), vec![2, 3]);
@@ -49,7 +52,9 @@ impl Tensor {
     /// Runs [`try_squeeze`](Self::try_squeeze) and panics on failure.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
+    /// use crate::Tensor;
+    ///
     /// let tensor = Tensor::zeros(&[1, 3, 1, 4]);
     /// let squeezed = tensor.squeeze(&[0, 2]);
     /// assert_eq!(squeezed.shape(), vec![3, 4]);
@@ -67,7 +72,9 @@ impl Tensor {
     /// Runs [`try_squeeze_all`](Self::try_squeeze_all) and panics on failure.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
+    /// use crate::Tensor;
+    ///
     /// let tensor = Tensor::zeros(&[1, 3, 1, 4, 1]);
     /// let squeezed = tensor.squeeze_all();
     /// assert_eq!(squeezed.shape(), vec![3, 4]);
@@ -83,7 +90,9 @@ impl Tensor {
     /// Runs [`try_unsqueeze`](Self::try_unsqueeze) and panics on failure.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
+    /// use crate::Tensor;
+    ///
     /// let tensor = Tensor::zeros(&[3, 4]);
     /// let unsqueezed = tensor.unsqueeze(&[0, 2]);
     /// assert_eq!(unsqueezed.shape(), vec![1, 3, 1, 4]);
@@ -100,7 +109,9 @@ impl Tensor {
     /// Runs [`try_transpose`](Self::try_transpose) and panics on failure.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
+    /// use crate::Tensor;
+    ///
     /// let tensor = Tensor::zeros(&[2, 3, 4]);
     /// let transposed = tensor.transpose(0, 2);
     /// assert_eq!(transposed.shape(), vec![4, 3, 2]);
@@ -117,7 +128,9 @@ impl Tensor {
     /// Runs [`try_slice`](Self::try_slice) and panics on failure.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
+    /// use crate::Tensor;
+    ///
     /// let tensor = Tensor::zeros(&[5, 4]);
     /// let sliced = tensor.slice(0, 1, Some(4), 1);
     /// assert_eq!(sliced.shape(), vec![3, 4]); // rows 1,2,3
@@ -141,7 +154,9 @@ impl Tensor {
     /// Runs [`try_unfold`](Self::try_unfold) and panics on failure.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
+    /// use crate::Tensor;
+    ///
     /// let tensor = Tensor::zeros(&[5]);
     /// let unfolded = tensor.unfold(0, 3, 1);
     /// assert_eq!(unfolded.shape(), vec![3, 3]); // sliding window of size 3
@@ -159,7 +174,9 @@ impl Tensor {
     /// Runs [`try_broadcast`](Self::try_broadcast) and panics on failure.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
+    /// use crate::Tensor;
+    ///
     /// let tensor = Tensor::zeros(&[3, 1]);
     /// let broadcasted = tensor.broadcast(&[3, 4]);
     /// assert_eq!(broadcasted.shape(), vec![3, 4]);
@@ -176,7 +193,9 @@ impl Tensor {
     /// Runs [`try_broadcast_like`](Self::try_broadcast_like) and panics on failure.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
+    /// use crate::Tensor;
+    ///
     /// let tensor = Tensor::zeros(&[3, 1]);
     /// let other = Tensor::zeros(&[3, 4]);
     /// let broadcasted = tensor.broadcast_like(&other);
@@ -195,7 +214,9 @@ impl Tensor {
     /// Runs [`try_broadcast_left`](Self::try_broadcast_left) and panics on failure.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
+    /// use crate::Tensor;
+    ///
     /// let tensor = Tensor::zeros(&[3, 4]);
     /// let broadcasted = tensor.broadcast_left(&[2, 5]);
     /// assert_eq!(broadcasted.shape(), vec![2, 5, 3, 4]);
@@ -213,7 +234,9 @@ impl Tensor {
     /// Runs [`try_reshape`](Self::try_reshape) and panics on failure.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
+    /// use crate::Tensor;
+    ///
     /// let tensor = Tensor::zeros(&[6]);
     /// let reshaped = tensor.reshape(&[2, 3]);
     /// assert_eq!(reshaped.shape(), vec![2, 3]);
@@ -237,8 +260,9 @@ impl Tensor {
     /// In Lazy mode, the operation is added to the computation graph.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use maidenx_core::error::Result;
+    /// use crate::Tensor;
     ///
     /// fn create_view() -> Result<()> {
     ///     let tensor = Tensor::zeros(&[6]);
@@ -265,13 +289,15 @@ impl Tensor {
         let mut new_layout = self.layout();
         new_layout.view(&computed_shape)?;
 
-        match get_mode() {
+        let result = match get_mode() {
             TensorMode::Eager => {
                 let target_tid = next_tensor_id();
                 let metadata = TensorMetadata {
                     device: self.device(),
                     dtype: self.dtype(),
                     layout: new_layout,
+                    grad_tensor_id: None,
+                    graph_id: None,
                     mode: get_mode(),
                     update_status: TensorUpdateStatus::Pending,
                 };
@@ -279,17 +305,36 @@ impl Tensor {
                 self.execute_view(target_tid)
             },
             TensorMode::Lazy => {
-                let result = add_to_graph(
-                    &[self],
+                let result = add_to_forward_graph(
                     "view",
+                    &[self],
                     &[self.device()],
                     &[self.dtype()],
                     &[new_layout],
-                    move |tensors, target_tids| Ok(vec![tensors[0].execute_view(target_tids[0])?]),
+                    move |input_tids, target_tids| {
+                        let result = Tensor(input_tids[0]).execute_view(target_tids[0])?;
+                        Ok(vec![result.id()])
+                    },
                 )?;
                 Ok(result.into_iter().next().unwrap())
             },
+        }?;
+
+        if self.requires_grad() {
+            result.try_enable_grad()?;
+            let result_grad = result.grad();
+
+            if self.requires_grad() {
+                let shape = self.shape();
+                let shape_clone = shape.clone();
+                add_to_backward_graph("view_backward", &result_grad, self, &shape, move |grad_out_id| {
+                    eager!();
+                    Tensor(*grad_out_id).try_reshape(&shape_clone)
+                })?;
+            }
         }
+
+        Ok(result)
     }
 
     /// Attempts to squeeze dimensions of size 1 at the specified positions.
@@ -298,8 +343,9 @@ impl Tensor {
     /// dimension indices. All specified dimensions must have size 1.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use maidenx_core::error::Result;
+    /// use crate::Tensor;
     ///
     /// fn squeeze_tensor() -> Result<()> {
     ///     let tensor = Tensor::zeros(&[1, 3, 1, 4]);
@@ -362,13 +408,15 @@ impl Tensor {
         let mut new_layout = self.layout();
         new_layout.view(&new_shape)?;
 
-        match get_mode() {
+        let result = match get_mode() {
             TensorMode::Eager => {
                 let target_tid = next_tensor_id();
                 let metadata = TensorMetadata {
                     device: self.device(),
                     dtype: self.dtype(),
                     layout: new_layout,
+                    grad_tensor_id: None,
+                    graph_id: None,
                     mode: get_mode(),
                     update_status: TensorUpdateStatus::Pending,
                 };
@@ -376,17 +424,36 @@ impl Tensor {
                 self.execute_view(target_tid)
             },
             TensorMode::Lazy => {
-                let result = add_to_graph(
-                    &[self],
+                let result = add_to_forward_graph(
                     "squeeze",
+                    &[self],
                     &[self.device()],
                     &[self.dtype()],
                     &[new_layout],
-                    move |tensors, target_tids| Ok(vec![tensors[0].execute_view(target_tids[0])?]),
+                    move |input_tids, target_tids| {
+                        let result = Tensor(input_tids[0]).execute_view(target_tids[0])?;
+                        Ok(vec![result.id()])
+                    },
                 )?;
                 Ok(result.into_iter().next().unwrap())
             },
+        }?;
+
+        if self.requires_grad() {
+            result.try_enable_grad()?;
+            let result_grad = result.grad();
+
+            if self.requires_grad() {
+                let shape = self.shape();
+                let shape_clone = shape.clone();
+                add_to_backward_graph("squeeze_backward", &result_grad, self, &shape, move |grad_out_id| {
+                    eager!();
+                    Tensor(*grad_out_id).try_reshape(&shape_clone)
+                })?;
+            }
         }
+
+        Ok(result)
     }
 
     /// Attempts to squeeze all dimensions of size 1.
@@ -394,8 +461,9 @@ impl Tensor {
     /// This operation removes all dimensions of size 1 from the tensor.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use maidenx_core::error::Result;
+    /// use crate::Tensor;
     ///
     /// fn squeeze_all_tensor() -> Result<()> {
     ///     let tensor = Tensor::zeros(&[1, 3, 1, 4, 1]);
@@ -426,13 +494,15 @@ impl Tensor {
         let mut new_layout = self.layout();
         new_layout.view(&new_shape)?;
 
-        match get_mode() {
+        let result = match get_mode() {
             TensorMode::Eager => {
                 let target_tid = next_tensor_id();
                 let metadata = TensorMetadata {
                     device: self.device(),
                     dtype: self.dtype(),
                     layout: new_layout,
+                    grad_tensor_id: None,
+                    graph_id: None,
                     mode: get_mode(),
                     update_status: TensorUpdateStatus::Pending,
                 };
@@ -440,17 +510,36 @@ impl Tensor {
                 self.execute_view(target_tid)
             },
             TensorMode::Lazy => {
-                let result = add_to_graph(
-                    &[self],
+                let result = add_to_forward_graph(
                     "squeeze_all",
+                    &[self],
                     &[self.device()],
                     &[self.dtype()],
                     &[new_layout],
-                    move |tensors, target_tids| Ok(vec![tensors[0].execute_view(target_tids[0])?]),
+                    move |input_tids, target_tids| {
+                        let result = Tensor(input_tids[0]).execute_view(target_tids[0])?;
+                        Ok(vec![result.id()])
+                    },
                 )?;
                 Ok(result.into_iter().next().unwrap())
             },
+        }?;
+
+        if self.requires_grad() {
+            result.try_enable_grad()?;
+            let result_grad = result.grad();
+
+            if self.requires_grad() {
+                let shape = self.shape();
+                let shape_clone = shape.clone();
+                add_to_backward_graph("squeeze_all_backward", &result_grad, self, &shape, move |grad_out_id| {
+                    eager!();
+                    Tensor(*grad_out_id).try_reshape(&shape_clone)
+                })?;
+            }
         }
+
+        Ok(result)
     }
 
     /// Attempts to add dimensions of size 1 at the specified positions.
@@ -459,8 +548,9 @@ impl Tensor {
     /// The dimension indices are relative to the final shape after all insertions.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use maidenx_core::error::Result;
+    /// use crate::Tensor;
     ///
     /// fn unsqueeze_tensor() -> Result<()> {
     ///     let tensor = Tensor::zeros(&[3, 4]);
@@ -520,13 +610,15 @@ impl Tensor {
         let mut new_layout = self.layout();
         new_layout.view(&new_shape)?;
 
-        match get_mode() {
+        let result = match get_mode() {
             TensorMode::Eager => {
                 let target_tid = next_tensor_id();
                 let metadata = TensorMetadata {
                     device: self.device(),
                     dtype: self.dtype(),
                     layout: new_layout,
+                    grad_tensor_id: None,
+                    graph_id: None,
                     mode: get_mode(),
                     update_status: TensorUpdateStatus::Pending,
                 };
@@ -534,17 +626,36 @@ impl Tensor {
                 self.execute_view(target_tid)
             },
             TensorMode::Lazy => {
-                let result = add_to_graph(
-                    &[self],
+                let result = add_to_forward_graph(
                     "unsqueeze",
+                    &[self],
                     &[self.device()],
                     &[self.dtype()],
                     &[new_layout],
-                    move |tensors, target_tids| Ok(vec![tensors[0].execute_view(target_tids[0])?]),
+                    move |input_tids, target_tids| {
+                        let result = Tensor(input_tids[0]).execute_view(target_tids[0])?;
+                        Ok(vec![result.id()])
+                    },
                 )?;
                 Ok(result.into_iter().next().unwrap())
             },
+        }?;
+
+        if self.requires_grad() {
+            result.try_enable_grad()?;
+            let result_grad = result.grad();
+
+            if self.requires_grad() {
+                let shape = self.shape();
+                let shape_clone = shape.clone();
+                add_to_backward_graph("unsqueeze_backward", &result_grad, self, &shape, move |grad_out_id| {
+                    eager!();
+                    Tensor(*grad_out_id).try_reshape(&shape_clone)
+                })?;
+            }
         }
+
+        Ok(result)
     }
 
     /// Attempts to transpose two dimensions of the tensor.
@@ -552,8 +663,9 @@ impl Tensor {
     /// This operation swaps the specified dimensions of the tensor.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use maidenx_core::error::Result;
+    /// use crate::Tensor;
     ///
     /// fn transpose_tensor() -> Result<()> {
     ///     let tensor = Tensor::zeros(&[2, 3, 4]);
@@ -613,6 +725,8 @@ impl Tensor {
                     device: self.device(),
                     dtype: self.dtype(),
                     layout: new_layout,
+                    grad_tensor_id: None,
+                    graph_id: None,
                     mode: get_mode(),
                     update_status: TensorUpdateStatus::Pending,
                 };
@@ -620,13 +734,16 @@ impl Tensor {
                 self.execute_view(target_tid)
             },
             TensorMode::Lazy => {
-                let result = add_to_graph(
-                    &[self],
+                let result = add_to_forward_graph(
                     "transpose",
+                    &[self],
                     &[self.device()],
                     &[self.dtype()],
                     &[new_layout],
-                    move |tensors, target_tids| Ok(vec![tensors[0].execute_view(target_tids[0])?]),
+                    move |input_tids, target_tids| {
+                        let result = Tensor(input_tids[0]).execute_view(target_tids[0])?;
+                        Ok(vec![result.id()])
+                    },
                 )?;
                 Ok(result.into_iter().next().unwrap())
             },
@@ -639,8 +756,9 @@ impl Tensor {
     /// dimension. The slice is defined by start, end, and step parameters.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use maidenx_core::error::Result;
+    /// use crate::Tensor;
     ///
     /// fn slice_tensor() -> Result<()> {
     ///     let tensor = Tensor::zeros(&[5, 4]);
@@ -704,6 +822,8 @@ impl Tensor {
                     device: self.device(),
                     dtype: self.dtype(),
                     layout: new_layout,
+                    grad_tensor_id: None,
+                    graph_id: None,
                     mode: get_mode(),
                     update_status: TensorUpdateStatus::Pending,
                 };
@@ -711,13 +831,16 @@ impl Tensor {
                 self.execute_view(target_tid)
             },
             TensorMode::Lazy => {
-                let result = add_to_graph(
-                    &[self],
+                let result = add_to_forward_graph(
                     "slice",
+                    &[self],
                     &[self.device()],
                     &[self.dtype()],
                     &[new_layout],
-                    move |tensors, target_tids| Ok(vec![tensors[0].execute_view(target_tids[0])?]),
+                    move |input_tids, target_tids| {
+                        let result = Tensor(input_tids[0]).execute_view(target_tids[0])?;
+                        Ok(vec![result.id()])
+                    },
                 )?;
                 Ok(result.into_iter().next().unwrap())
             },
@@ -731,8 +854,9 @@ impl Tensor {
     /// or extracting patches from data.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use maidenx_core::error::Result;
+    /// use crate::Tensor;
     ///
     /// fn unfold_tensor() -> Result<()> {
     ///     let tensor = Tensor::zeros(&[5]);
@@ -796,6 +920,8 @@ impl Tensor {
                     device: self.device(),
                     dtype: self.dtype(),
                     layout: new_layout,
+                    grad_tensor_id: None,
+                    graph_id: None,
                     mode: get_mode(),
                     update_status: TensorUpdateStatus::Pending,
                 };
@@ -803,13 +929,16 @@ impl Tensor {
                 self.execute_view(target_tid)
             },
             TensorMode::Lazy => {
-                let result = add_to_graph(
-                    &[self],
+                let result = add_to_forward_graph(
                     "unfold",
+                    &[self],
                     &[self.device()],
                     &[self.dtype()],
                     &[new_layout],
-                    move |tensors, target_tids| Ok(vec![tensors[0].execute_view(target_tids[0])?]),
+                    move |input_tids, target_tids| {
+                        let result = Tensor(input_tids[0]).execute_view(target_tids[0])?;
+                        Ok(vec![result.id()])
+                    },
                 )?;
                 Ok(result.into_iter().next().unwrap())
             },
@@ -823,8 +952,9 @@ impl Tensor {
     /// used together in operations by virtually expanding dimensions of size 1.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use maidenx_core::error::Result;
+    /// use crate::Tensor;
     ///
     /// fn broadcast_tensor() -> Result<()> {
     ///     let tensor = Tensor::zeros(&[3, 1]);
@@ -868,13 +998,15 @@ impl Tensor {
 
         let new_layout = self.layout().broadcast_to(shape)?;
 
-        match get_mode() {
+        let result = match get_mode() {
             TensorMode::Eager => {
                 let target_tid = next_tensor_id();
                 let metadata = TensorMetadata {
                     device: self.device(),
                     dtype: self.dtype(),
                     layout: new_layout,
+                    grad_tensor_id: None,
+                    graph_id: None,
                     mode: get_mode(),
                     update_status: TensorUpdateStatus::Pending,
                 };
@@ -882,17 +1014,36 @@ impl Tensor {
                 self.execute_view(target_tid)
             },
             TensorMode::Lazy => {
-                let result = add_to_graph(
-                    &[self],
+                let result = add_to_forward_graph(
                     "broadcast",
+                    &[self],
                     &[self.device()],
                     &[self.dtype()],
                     &[new_layout],
-                    move |tensors, target_tids| Ok(vec![tensors[0].execute_view(target_tids[0])?]),
+                    move |input_tids, target_tids| {
+                        let result = Tensor(input_tids[0]).execute_view(target_tids[0])?;
+                        Ok(vec![result.id()])
+                    },
                 )?;
                 Ok(result.into_iter().next().unwrap())
             },
+        }?;
+
+        if self.requires_grad() {
+            result.try_enable_grad()?;
+            let result_grad = result.grad();
+
+            if self.requires_grad() {
+                let shape = self.shape();
+                let shape_clone = shape.clone();
+                add_to_backward_graph("broadcast_backward", &result_grad, self, &shape, move |grad_out_id| {
+                    eager!();
+                    Tensor(*grad_out_id).try_sum_to_shape(&shape_clone)
+                })?;
+            }
         }
+
+        Ok(result)
     }
 
     /// Attempts to broadcast the tensor to match another tensor's shape.
@@ -901,8 +1052,9 @@ impl Tensor {
     /// of the provided tensor.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use maidenx_core::error::Result;
+    /// use crate::Tensor;
     ///
     /// fn broadcast_like_tensor() -> Result<()> {
     ///     let tensor = Tensor::zeros(&[3, 1]);
@@ -928,8 +1080,9 @@ impl Tensor {
     /// and broadcasts the tensor to the resulting shape.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use maidenx_core::error::Result;
+    /// use crate::Tensor;
     ///
     /// fn broadcast_left_tensor() -> Result<()> {
     ///     let tensor = Tensor::zeros(&[3, 4]);
@@ -975,6 +1128,8 @@ impl Tensor {
                     device: self.device(),
                     dtype: self.dtype(),
                     layout,
+                    grad_tensor_id: None,
+                    graph_id: None,
                     mode: get_mode(),
                     update_status: crate::TensorUpdateStatus::Pending,
                 };
@@ -982,13 +1137,16 @@ impl Tensor {
                 self.execute_view(target_tid)
             },
             TensorMode::Lazy => {
-                let result = add_to_graph(
-                    &[self],
+                let result = add_to_forward_graph(
                     "broadcast_scalar_to",
+                    &[self],
                     &[self.device()],
                     &[self.dtype()],
                     &[layout],
-                    move |tensors, target_tids| Ok(vec![tensors[0].execute_view(target_tids[0])?]),
+                    move |input_tids, target_tids| {
+                        let result = Tensor(input_tids[0]).execute_view(target_tids[0])?;
+                        Ok(vec![result.id()])
+                    },
                 )?;
                 Ok(result.into_iter().next().unwrap())
             },
@@ -1004,8 +1162,9 @@ impl Tensor {
     /// In Lazy mode, the operation is added to the computation graph.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use maidenx_core::error::Result;
+    /// use crate::Tensor;
     ///
     /// fn reshape_tensor() -> Result<()> {
     ///     let tensor = Tensor::zeros(&[6]);
@@ -1038,6 +1197,8 @@ impl Tensor {
                     device: self.device(),
                     dtype: self.dtype(),
                     layout: target_layout,
+                    grad_tensor_id: None,
+                    graph_id: None,
                     mode: get_mode(),
                     update_status: TensorUpdateStatus::Pending,
                 };
@@ -1045,13 +1206,16 @@ impl Tensor {
                 self.execute_reshape(target_tid)
             },
             TensorMode::Lazy => {
-                let result = add_to_graph(
-                    &[self],
+                let result = add_to_forward_graph(
                     "reshape",
+                    &[self],
                     &[self.device()],
                     &[self.dtype()],
                     &[target_layout],
-                    move |tensors, target_tids| Ok(vec![tensors[0].execute_reshape(target_tids[0])?]),
+                    move |input_tids, target_tids| {
+                        let result = Tensor(input_tids[0]).execute_reshape(target_tids[0])?;
+                        Ok(vec![result.id()])
+                    },
                 )?;
                 Ok(result.into_iter().next().unwrap())
             },
@@ -1061,18 +1225,14 @@ impl Tensor {
     /// Common execution function for layout-only operations (view, squeeze, squeeze_all, unsqueeze, transpose, slice, unfold)
     /// that share storage and only modify metadata.
     fn execute_view(&self, target_tid: TensorId) -> Result<Self> {
-        let src_storage_id = crate::get_storage_id(self.tid())
+        let src_storage_id = crate::get_storage_id(self.id())
             .ok_or_else(|| Error::InvalidState("tensor storage id not found".into()))?;
 
         link_tensor_to_storage(target_tid, src_storage_id);
 
         crate::utils::tensor::update_tensor_status(target_tid, TensorUpdateStatus::Materialized)?;
 
-        Ok(Tensor {
-            tid: target_tid,
-            gtid: TensorId(0),
-            gid: self.gid(),
-        })
+        Ok(Tensor(target_tid))
     }
 
     fn execute_reshape(&self, target_tid: TensorId) -> Result<Self> {
@@ -1081,17 +1241,13 @@ impl Tensor {
         } else {
             let contiguous = self.try_contiguous()?;
 
-            let src_storage_id = crate::get_storage_id(contiguous.tid())
+            let src_storage_id = crate::get_storage_id(contiguous.id())
                 .ok_or_else(|| Error::InvalidState("contiguous tensor storage id not found".into()))?;
             crate::link_tensor_to_storage(target_tid, src_storage_id);
 
             crate::utils::tensor::update_tensor_status(target_tid, TensorUpdateStatus::Materialized)?;
 
-            Ok(Tensor {
-                tid: target_tid,
-                gtid: TensorId(0),
-                gid: self.gid(),
-            })
+            Ok(Tensor(target_tid))
         }
     }
 

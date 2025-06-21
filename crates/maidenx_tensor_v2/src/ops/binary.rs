@@ -1,6 +1,11 @@
 use crate::{
-    get_mode, insert_metadata, next_tensor_id, utils::graph::add_to_graph, Tensor, TensorId, TensorMetadata,
-    TensorMode, TensorUpdateStatus,
+    eager, get_mode, insert_metadata, next_tensor_id,
+    utils::{
+        broadcast::broadcast_tensors,
+        graph::{add_to_backward_graph, add_to_forward_graph},
+        promotion::get_promoted_dtype,
+    },
+    Tensor, TensorId, TensorMetadata, TensorMode, TensorUpdateStatus,
 };
 use maidenx_core::{
     dtype::DType,
@@ -17,7 +22,7 @@ macro_rules! impl_binary_execute {
             target_dtype: DType,
             target_layout: Layout,
         ) -> Result<Self> {
-            crate::eager!();
+            eager!();
 
             use maidenx_core::buffer::BufferManager;
             use std::sync::Arc;
@@ -38,14 +43,19 @@ macro_rules! impl_binary_execute {
                     rhs.clone()
                 };
 
-                // Use the new prepare_binary_metadata function
                 let metadata = Tensor::prepare_binary_metadata(&lhs_tensor, &rhs_tensor);
+
+                let lhs_storage = lhs_tensor.storage()?;
+                let lhs_buffer = lhs_storage.buffer();
+
+                let rhs_storage = rhs_tensor.storage()?;
+                let rhs_buffer = rhs_storage.buffer();
 
                 unsafe {
                     $backend_fn(
                         buffer_mut,
-                        lhs_tensor.storage()?.buffer(),
-                        rhs_tensor.storage()?.buffer(),
+                        lhs_buffer,
+                        rhs_buffer,
                         lhs_tensor.size(),
                         lhs_tensor.ndim(),
                         Some(&metadata),
@@ -59,11 +69,7 @@ macro_rules! impl_binary_execute {
 
             crate::utils::tensor::update_tensor_status(target_tid, TensorUpdateStatus::Materialized)?;
 
-            Ok(Tensor {
-                tid: target_tid,
-                gtid: TensorId(0),
-                gid: self.gid(),
-            })
+            Ok(Tensor(target_tid))
         }
     };
 }
@@ -73,14 +79,18 @@ macro_rules! impl_binary_execute {
 /// This `impl` block provides methods for applying binary operations between tensors.
 /// There are several main categories:
 ///
-/// * **Arithmetic operations**: `add`, `sub`, `mul`, `div` - basic mathematical operations
-/// * **Comparison operations**: `maximum`, `minimum` - element-wise comparison
-/// * **Logical operations**: `logical_and`, `logical_or`, `logical_xor` - boolean logic
-/// * **Relational operations**: `eq`, `ne`, `lt`, `le`, `gt`, `ge` - comparison predicates
-/// * **In-place operations**: `add_`, `sub_`, `mul_`, `div_` - modify tensors in place
+/// * **Arithmetic operations with autograd**: `add`, `sub`, `mul`, `div` - basic mathematical operations
+/// * **Comparison operations with autograd**: `maximum`, `minimum` - element-wise comparison
+/// * **Logical operations (no autograd)**: `logical_and`, `logical_or`, `logical_xor` - boolean logic
+/// * **Relational operations (no autograd)**: `eq`, `ne`, `lt`, `le`, `gt`, `ge` - comparison predicates
+/// * **In-place operations (no autograd)**: `add_`, `sub_`, `mul_`, `div_` - modify tensors in place
 ///
 /// Each infallible method is a thin wrapper that **panics on error** around
 /// its fallible counterpart (`try_*`).
+///
+/// **Autograd support:**
+/// * **With autograd**: `add`, `sub`, `mul`, `div`, `maximum`, `minimum` - support gradient computation
+/// * **No autograd**: Logical, relational, and in-place operations do not support gradient computation
 ///
 /// **Key features:**
 /// * **Broadcasting**: Tensors with different shapes are automatically broadcast
@@ -100,8 +110,14 @@ macro_rules! impl_binary_execute {
 impl Tensor {
     /// Runs [`try_add`](Self::try_add) and panics on failure.
     ///
+    /// **Autograd support**: If either tensor requires gradients, the result will
+    /// automatically enable gradient computation and register backward functions.
+    /// Gradients flow unchanged to both operands during backpropagation.
+    ///
     /// # Examples
-    /// ```
+    /// ```rust
+    /// use crate::Tensor;
+    ///
     /// let a = Tensor::new(&[1.0, 2.0, 3.0]);
     /// let b = Tensor::new(&[4.0, 5.0, 6.0]);
     /// let result = a.add(&b);
@@ -113,14 +129,21 @@ impl Tensor {
     /// * When tensors are on different devices
     /// * When broadcasting fails due to incompatible shapes
     /// * When forward pass fails (for tensors in computation graphs)
+    /// * When gradient computation setup fails
     pub fn add(&self, rhs: &Self) -> Self {
         self.try_add(rhs).expect("failed to add tensors")
     }
 
     /// Runs [`try_sub`](Self::try_sub) and panics on failure.
     ///
+    /// **Autograd support**: If either tensor requires gradients, the result will
+    /// automatically enable gradient computation and register backward functions.
+    /// Left operand receives gradient unchanged, right operand receives negated gradient.
+    ///
     /// # Examples
-    /// ```
+    /// ```rust
+    /// use crate::Tensor;
+    ///
     /// let a = Tensor::new(&[5.0, 7.0, 9.0]);
     /// let b = Tensor::new(&[1.0, 2.0, 3.0]);
     /// let result = a.sub(&b);
@@ -132,14 +155,21 @@ impl Tensor {
     /// * When tensors are on different devices
     /// * When broadcasting fails due to incompatible shapes
     /// * When forward pass fails (for tensors in computation graphs)
+    /// * When gradient computation setup fails
     pub fn sub(&self, rhs: &Self) -> Self {
         self.try_sub(rhs).expect("failed to subtract tensors")
     }
 
     /// Runs [`try_mul`](Self::try_mul) and panics on failure.
     ///
+    /// **Autograd support**: If either tensor requires gradients, the result will
+    /// automatically enable gradient computation and register backward functions.
+    /// Each operand receives gradient multiplied by the other operand's value.
+    ///
     /// # Examples
-    /// ```
+    /// ```rust
+    /// use crate::Tensor;
+    ///
     /// let a = Tensor::new(&[2.0, 3.0, 4.0]);
     /// let b = Tensor::new(&[5.0, 6.0, 7.0]);
     /// let result = a.mul(&b);
@@ -151,6 +181,7 @@ impl Tensor {
     /// * When tensors are on different devices
     /// * When broadcasting fails due to incompatible shapes
     /// * When forward pass fails (for tensors in computation graphs)
+    /// * When gradient computation setup fails
     pub fn mul(&self, rhs: &Self) -> Self {
         self.try_mul(rhs).expect("failed to multiply tensors")
     }
@@ -159,8 +190,14 @@ impl Tensor {
     ///
     /// Division of integer tensors promotes the result to F32 for precision.
     ///
+    /// **Autograd support**: If either tensor requires gradients, the result will
+    /// automatically enable gradient computation and register backward functions.
+    /// Left operand receives `grad / rhs`, right operand receives `-grad * lhs / rhs²`.
+    ///
     /// # Examples
-    /// ```
+    /// ```rust
+    /// use crate::Tensor;
+    ///
     /// let a = Tensor::new(&[6.0, 8.0, 10.0]);
     /// let b = Tensor::new(&[2.0, 4.0, 5.0]);
     /// let result = a.div(&b);
@@ -172,14 +209,21 @@ impl Tensor {
     /// * When tensors are on different devices
     /// * When broadcasting fails due to incompatible shapes
     /// * When forward pass fails (for tensors in computation graphs)
+    /// * When gradient computation setup fails
     pub fn div(&self, rhs: &Self) -> Self {
         self.try_div(rhs).expect("failed to divide tensors")
     }
 
     /// Runs [`try_maximum`](Self::try_maximum) and panics on failure.
     ///
+    /// **Autograd support**: If either tensor requires gradients, the result will
+    /// automatically enable gradient computation and register backward functions.
+    /// Gradients flow to the operand with the larger value, with equal distribution for tied values.
+    ///
     /// # Examples
-    /// ```
+    /// ```rust
+    /// use crate::Tensor;
+    ///
     /// let a = Tensor::new(&[1.0, 5.0, 3.0]);
     /// let b = Tensor::new(&[4.0, 2.0, 6.0]);
     /// let result = a.maximum(&b);
@@ -191,14 +235,21 @@ impl Tensor {
     /// * When tensors are on different devices
     /// * When broadcasting fails due to incompatible shapes
     /// * When forward pass fails (for tensors in computation graphs)
+    /// * When gradient computation setup fails
     pub fn maximum(&self, rhs: &Self) -> Self {
         self.try_maximum(rhs).expect("failed to compute maximum")
     }
 
     /// Runs [`try_minimum`](Self::try_minimum) and panics on failure.
     ///
+    /// **Autograd support**: If either tensor requires gradients, the result will
+    /// automatically enable gradient computation and register backward functions.
+    /// Gradients flow to the operand with the smaller value, with equal distribution for tied values.
+    ///
     /// # Examples
-    /// ```
+    /// ```rust
+    /// use crate::Tensor;
+    ///
     /// let a = Tensor::new(&[1.0, 5.0, 3.0]);
     /// let b = Tensor::new(&[4.0, 2.0, 6.0]);
     /// let result = a.minimum(&b);
@@ -210,6 +261,7 @@ impl Tensor {
     /// * When tensors are on different devices
     /// * When broadcasting fails due to incompatible shapes
     /// * When forward pass fails (for tensors in computation graphs)
+    /// * When gradient computation setup fails
     pub fn minimum(&self, rhs: &Self) -> Self {
         self.try_minimum(rhs).expect("failed to compute minimum")
     }
@@ -217,9 +269,12 @@ impl Tensor {
     /// Runs [`try_logical_and`](Self::try_logical_and) and panics on failure.
     ///
     /// Returns a BOOL tensor with element-wise logical AND operation.
+    /// **Note**: Logical operations do not support gradient computation.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
+    /// use crate::Tensor;
+    ///
     /// let a = Tensor::new(&[true, false, true]);
     /// let b = Tensor::new(&[true, true, false]);
     /// let result = a.logical_and(&b);
@@ -238,9 +293,12 @@ impl Tensor {
     /// Runs [`try_logical_or`](Self::try_logical_or) and panics on failure.
     ///
     /// Returns a BOOL tensor with element-wise logical OR operation.
+    /// **Note**: Logical operations do not support gradient computation.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
+    /// use crate::Tensor;
+    ///
     /// let a = Tensor::new(&[true, false, true]);
     /// let b = Tensor::new(&[false, true, false]);
     /// let result = a.logical_or(&b);
@@ -259,9 +317,12 @@ impl Tensor {
     /// Runs [`try_logical_xor`](Self::try_logical_xor) and panics on failure.
     ///
     /// Returns a BOOL tensor with element-wise logical XOR operation.
+    /// **Note**: Logical operations do not support gradient computation.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
+    /// use crate::Tensor;
+    ///
     /// let a = Tensor::new(&[true, false, true]);
     /// let b = Tensor::new(&[true, true, false]);
     /// let result = a.logical_xor(&b);
@@ -280,9 +341,12 @@ impl Tensor {
     /// Runs [`try_eq`](Self::try_eq) and panics on failure.
     ///
     /// Returns a BOOL tensor with element-wise equality comparison.
+    /// **Note**: Comparison operations do not support gradient computation.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
+    /// use crate::Tensor;
+    ///
     /// let a = Tensor::new(&[1.0, 2.0, 3.0]);
     /// let b = Tensor::new(&[1.0, 5.0, 3.0]);
     /// let result = a.eq(&b);
@@ -301,9 +365,12 @@ impl Tensor {
     /// Runs [`try_ne`](Self::try_ne) and panics on failure.
     ///
     /// Returns a BOOL tensor with element-wise inequality comparison.
+    /// **Note**: Comparison operations do not support gradient computation.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
+    /// use crate::Tensor;
+    ///
     /// let a = Tensor::new(&[1.0, 2.0, 3.0]);
     /// let b = Tensor::new(&[1.0, 5.0, 3.0]);
     /// let result = a.ne(&b);
@@ -322,9 +389,12 @@ impl Tensor {
     /// Runs [`try_lt`](Self::try_lt) and panics on failure.
     ///
     /// Returns a BOOL tensor with element-wise less than comparison.
+    /// **Note**: Comparison operations do not support gradient computation.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
+    /// use crate::Tensor;
+    ///
     /// let a = Tensor::new(&[1.0, 2.0, 3.0]);
     /// let b = Tensor::new(&[2.0, 2.0, 1.0]);
     /// let result = a.lt(&b);
@@ -343,9 +413,12 @@ impl Tensor {
     /// Runs [`try_le`](Self::try_le) and panics on failure.
     ///
     /// Returns a BOOL tensor with element-wise less than or equal comparison.
+    /// **Note**: Comparison operations do not support gradient computation.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
+    /// use crate::Tensor;
+    ///
     /// let a = Tensor::new(&[1.0, 2.0, 3.0]);
     /// let b = Tensor::new(&[2.0, 2.0, 1.0]);
     /// let result = a.le(&b);
@@ -364,9 +437,12 @@ impl Tensor {
     /// Runs [`try_gt`](Self::try_gt) and panics on failure.
     ///
     /// Returns a BOOL tensor with element-wise greater than comparison.
+    /// **Note**: Comparison operations do not support gradient computation.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
+    /// use crate::Tensor;
+    ///
     /// let a = Tensor::new(&[1.0, 2.0, 3.0]);
     /// let b = Tensor::new(&[2.0, 2.0, 1.0]);
     /// let result = a.gt(&b);
@@ -385,9 +461,12 @@ impl Tensor {
     /// Runs [`try_ge`](Self::try_ge) and panics on failure.
     ///
     /// Returns a BOOL tensor with element-wise greater than or equal comparison.
+    /// **Note**: Comparison operations do not support gradient computation.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
+    /// use crate::Tensor;
+    ///
     /// let a = Tensor::new(&[1.0, 2.0, 3.0]);
     /// let b = Tensor::new(&[2.0, 2.0, 1.0]);
     /// let result = a.ge(&b);
@@ -406,9 +485,12 @@ impl Tensor {
     /// Runs [`try_add_`](Self::try_add_) and panics on failure.
     ///
     /// Modifies this tensor in-place by adding the right-hand side tensor.
+    /// **Note**: In-place operations do not support gradient computation.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
+    /// use crate::Tensor;
+    ///
     /// let mut a = Tensor::new(&[1.0, 2.0, 3.0]);
     /// let b = Tensor::new(&[4.0, 5.0, 6.0]);
     /// a.add_(&b);
@@ -427,9 +509,12 @@ impl Tensor {
     /// Runs [`try_sub_`](Self::try_sub_) and panics on failure.
     ///
     /// Modifies this tensor in-place by subtracting the right-hand side tensor.
+    /// **Note**: In-place operations do not support gradient computation.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
+    /// use crate::Tensor;
+    ///
     /// let mut a = Tensor::new(&[5.0, 7.0, 9.0]);
     /// let b = Tensor::new(&[1.0, 2.0, 3.0]);
     /// a.sub_(&b);
@@ -448,9 +533,12 @@ impl Tensor {
     /// Runs [`try_mul_`](Self::try_mul_) and panics on failure.
     ///
     /// Modifies this tensor in-place by multiplying with the right-hand side tensor.
+    /// **Note**: In-place operations do not support gradient computation.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
+    /// use crate::Tensor;
+    ///
     /// let mut a = Tensor::new(&[2.0, 3.0, 4.0]);
     /// let b = Tensor::new(&[5.0, 6.0, 7.0]);
     /// a.mul_(&b);
@@ -469,9 +557,12 @@ impl Tensor {
     /// Runs [`try_div_`](Self::try_div_) and panics on failure.
     ///
     /// Modifies this tensor in-place by dividing by the right-hand side tensor.
+    /// **Note**: In-place operations do not support gradient computation.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
+    /// use crate::Tensor;
+    ///
     /// let mut a = Tensor::new(&[6.0, 8.0, 10.0]);
     /// let b = Tensor::new(&[2.0, 4.0, 5.0]);
     /// a.div_(&b);
@@ -493,8 +584,12 @@ impl Tensor {
     /// data types according to standard promotion rules. The result has the broadcasted
     /// shape and the promoted data type.
     ///
+    /// **Autograd support**: If either tensor requires gradients, the result will
+    /// automatically enable gradient computation and register backward functions.
+    /// Gradients flow unchanged to both operands during backpropagation.
+    ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use maidenx_core::error::Result;
     /// use crate::Tensor; // Assuming Tensor is in the current crate root
     ///
@@ -515,44 +610,76 @@ impl Tensor {
     /// - Memory allocation fails
     /// - Backend computation fails
     /// - Graph operations fail in lazy mode
+    /// - Gradient computation setup fails
     pub fn try_add(&self, rhs: &Self) -> Result<Self> {
-        let target_dtype = crate::utils::promotion::get_promoted_dtype(self.dtype(), rhs.dtype());
-        let (lhs, rhs) = crate::utils::broadcast::broadcast_tensors(self, rhs)?;
+        let target_dtype = get_promoted_dtype(self.dtype(), rhs.dtype());
+
+        let (lhs, rhs) = broadcast_tensors(self, rhs)?;
         let target_layout = lhs.layout();
 
-        match get_mode() {
+        let result = match get_mode() {
             TensorMode::Eager => {
                 let target_tid = next_tensor_id();
                 let metadata = TensorMetadata {
                     device: lhs.device(),
                     dtype: target_dtype,
                     layout: target_layout.clone(),
+                    grad_tensor_id: None,
+                    graph_id: None,
                     mode: get_mode(),
                     update_status: TensorUpdateStatus::Pending,
                 };
                 insert_metadata(target_tid, metadata);
-                lhs.execute_add(&rhs, target_tid, target_dtype, target_layout)
+                lhs.execute_add(&rhs, target_tid, target_dtype, target_layout)?
             },
             TensorMode::Lazy => {
                 let target_layout_clone = target_layout.clone();
-                let result = add_to_graph(
-                    &[&lhs, &rhs],
+                let result = add_to_forward_graph(
                     "add",
+                    &[&lhs, &rhs],
                     &[lhs.device()],
                     &[target_dtype],
                     &[target_layout],
-                    move |tensors, target_tids| {
-                        Ok(vec![tensors[0].execute_add(
-                            &tensors[1],
+                    move |input_tids, target_tids| {
+                        let lhs_tensor = Tensor(input_tids[0]);
+                        let rhs_tensor = Tensor(input_tids[1]);
+                        let result = lhs_tensor.execute_add(
+                            &rhs_tensor,
                             target_tids[0],
                             target_dtype,
                             target_layout_clone.clone(),
-                        )?])
+                        )?;
+                        Ok(vec![result.id()])
                     },
                 )?;
-                Ok(result.into_iter().next().unwrap())
+                result.into_iter().next().unwrap()
             },
+        };
+
+        if lhs.requires_grad() || rhs.requires_grad() {
+            result.try_enable_grad()?;
+            let result_grad = result.grad();
+
+            if lhs.requires_grad() {
+                let lhs_shape = lhs.shape();
+                add_to_backward_graph("add_backward_lhs", &result_grad, &lhs, &lhs_shape, move |grad_out_id| {
+                    eager!();
+                    let result = Tensor(*grad_out_id);
+                    Ok(result)
+                })?;
+            }
+
+            if rhs.requires_grad() {
+                let rhs_shape = rhs.shape();
+                add_to_backward_graph("add_backward_rhs", &result_grad, &rhs, &rhs_shape, move |grad_out_id| {
+                    eager!();
+                    let result = Tensor(*grad_out_id);
+                    Ok(result)
+                })?;
+            }
         }
+
+        Ok(result)
     }
 
     /// Attempts to compute element-wise subtraction between tensors.
@@ -561,8 +688,12 @@ impl Tensor {
     /// data types according to standard promotion rules. The result has the broadcasted
     /// shape and the promoted data type.
     ///
+    /// **Autograd support**: If either tensor requires gradients, the result will
+    /// automatically enable gradient computation and register backward functions.
+    /// Left operand receives gradient unchanged, right operand receives negated gradient.
+    ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use maidenx_core::error::Result;
     /// use crate::Tensor; // Assuming Tensor is in the current crate root
     ///
@@ -583,18 +714,21 @@ impl Tensor {
     /// - Memory allocation fails
     /// - Backend computation fails
     /// - Graph operations fail in lazy mode
+    /// - Gradient computation setup fails
     pub fn try_sub(&self, rhs: &Self) -> Result<Self> {
-        let target_dtype = crate::utils::promotion::get_promoted_dtype(self.dtype(), rhs.dtype());
-        let (lhs, rhs) = crate::utils::broadcast::broadcast_tensors(self, rhs)?;
+        let target_dtype = get_promoted_dtype(self.dtype(), rhs.dtype());
+        let (lhs, rhs) = broadcast_tensors(self, rhs)?;
         let target_layout = lhs.layout();
 
-        match get_mode() {
+        let result = match get_mode() {
             TensorMode::Eager => {
                 let target_tid = next_tensor_id();
                 let metadata = TensorMetadata {
                     device: lhs.device(),
                     dtype: target_dtype,
                     layout: target_layout.clone(),
+                    grad_tensor_id: None,
+                    graph_id: None,
                     mode: get_mode(),
                     update_status: TensorUpdateStatus::Pending,
                 };
@@ -603,24 +737,52 @@ impl Tensor {
             },
             TensorMode::Lazy => {
                 let target_layout_clone = target_layout.clone();
-                let result = add_to_graph(
-                    &[&lhs, &rhs],
+                let result = add_to_forward_graph(
                     "sub",
+                    &[&lhs, &rhs],
                     &[lhs.device()],
                     &[target_dtype],
                     &[target_layout],
-                    move |tensors, target_tids| {
-                        Ok(vec![tensors[0].execute_sub(
-                            &tensors[1],
+                    move |input_tids, target_tids| {
+                        let lhs_tensor = Tensor(input_tids[0]);
+                        let rhs_tensor = Tensor(input_tids[1]);
+                        let result = lhs_tensor.execute_sub(
+                            &rhs_tensor,
                             target_tids[0],
                             target_dtype,
                             target_layout_clone.clone(),
-                        )?])
+                        )?;
+                        Ok(vec![result.id()])
                     },
                 )?;
                 Ok(result.into_iter().next().unwrap())
             },
+        }?;
+
+        if lhs.requires_grad() || rhs.requires_grad() {
+            result.try_enable_grad()?;
+            let result_grad = result.grad();
+
+            if lhs.requires_grad() {
+                let lhs_shape = lhs.shape();
+                add_to_backward_graph("sub_backward_lhs", &result_grad, &lhs, &lhs_shape, move |grad_out_id| {
+                    eager!();
+                    let result = Tensor(*grad_out_id);
+                    Ok(result)
+                })?;
+            }
+
+            if rhs.requires_grad() {
+                let rhs_shape = rhs.shape();
+                add_to_backward_graph("sub_backward_rhs", &result_grad, &rhs, &rhs_shape, move |grad_out_id| {
+                    eager!();
+                    let result = Tensor(*grad_out_id).try_neg()?;
+                    Ok(result)
+                })?;
+            }
         }
+
+        Ok(result)
     }
 
     /// Attempts to compute element-wise multiplication between tensors.
@@ -629,8 +791,12 @@ impl Tensor {
     /// data types according to standard promotion rules. The result has the broadcasted
     /// shape and the promoted data type.
     ///
+    /// **Autograd support**: If either tensor requires gradients, the result will
+    /// automatically enable gradient computation and register backward functions.
+    /// Each operand receives gradient multiplied by the other operand's value.
+    ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use maidenx_core::error::Result;
     /// use crate::Tensor; // Assuming Tensor is in the current crate root
     ///
@@ -651,18 +817,21 @@ impl Tensor {
     /// - Memory allocation fails
     /// - Backend computation fails
     /// - Graph operations fail in lazy mode
+    /// - Gradient computation setup fails
     pub fn try_mul(&self, rhs: &Self) -> Result<Self> {
-        let target_dtype = crate::utils::promotion::get_promoted_dtype(self.dtype(), rhs.dtype());
-        let (lhs, rhs) = crate::utils::broadcast::broadcast_tensors(self, rhs)?;
+        let target_dtype = get_promoted_dtype(self.dtype(), rhs.dtype());
+        let (lhs, rhs) = broadcast_tensors(self, rhs)?;
         let target_layout = lhs.layout();
 
-        match get_mode() {
+        let result = match get_mode() {
             TensorMode::Eager => {
                 let target_tid = next_tensor_id();
                 let metadata = TensorMetadata {
                     device: lhs.device(),
                     dtype: target_dtype,
                     layout: target_layout.clone(),
+                    grad_tensor_id: None,
+                    graph_id: None,
                     mode: get_mode(),
                     update_status: TensorUpdateStatus::Pending,
                 };
@@ -671,24 +840,54 @@ impl Tensor {
             },
             TensorMode::Lazy => {
                 let target_layout_clone = target_layout.clone();
-                let result = add_to_graph(
-                    &[&lhs, &rhs],
+                let result = add_to_forward_graph(
                     "mul",
+                    &[&lhs, &rhs],
                     &[lhs.device()],
                     &[target_dtype],
                     &[target_layout],
-                    move |tensors, target_tids| {
-                        Ok(vec![tensors[0].execute_mul(
-                            &tensors[1],
+                    move |input_tids, target_tids| {
+                        let lhs_tensor = Tensor(input_tids[0]);
+                        let rhs_tensor = Tensor(input_tids[1]);
+                        let result = lhs_tensor.execute_mul(
+                            &rhs_tensor,
                             target_tids[0],
                             target_dtype,
                             target_layout_clone.clone(),
-                        )?])
+                        )?;
+                        Ok(vec![result.id()])
                     },
                 )?;
                 Ok(result.into_iter().next().unwrap())
             },
+        }?;
+
+        if lhs.requires_grad() || rhs.requires_grad() {
+            result.try_enable_grad()?;
+            let result_grad = result.grad();
+
+            if lhs.requires_grad() {
+                let lhs_shape = lhs.shape();
+                let rhs_clone = rhs.clone();
+                add_to_backward_graph("mul_backward_lhs", &result_grad, &lhs, &lhs_shape, move |grad_out_id| {
+                    eager!();
+                    let result = Tensor(*grad_out_id).try_mul(&rhs_clone)?;
+                    Ok(result)
+                })?;
+            }
+
+            if rhs.requires_grad() {
+                let rhs_shape = rhs.shape();
+                let lhs_clone = lhs.clone();
+                add_to_backward_graph("mul_backward_rhs", &result_grad, &rhs, &rhs_shape, move |grad_out_id| {
+                    eager!();
+                    let result = Tensor(*grad_out_id).try_mul(&lhs_clone)?;
+                    Ok(result)
+                })?;
+            }
         }
+
+        Ok(result)
     }
 
     /// Attempts to compute element-wise division between tensors.
@@ -697,8 +896,12 @@ impl Tensor {
     /// This operation broadcasts tensors to compatible shapes if needed and promotes
     /// data types according to standard promotion rules.
     ///
+    /// **Autograd support**: If either tensor requires gradients, the result will
+    /// automatically enable gradient computation and register backward functions.
+    /// Left operand receives `grad / rhs`, right operand receives `-grad * lhs / rhs²`.
+    ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use maidenx_core::error::Result;
     /// use crate::Tensor; // Assuming Tensor is in the current crate root
     ///
@@ -719,22 +922,25 @@ impl Tensor {
     /// - Memory allocation fails
     /// - Backend computation fails
     /// - Graph operations fail in lazy mode
+    /// - Gradient computation setup fails
     pub fn try_div(&self, rhs: &Self) -> Result<Self> {
         let target_dtype = if self.dtype().is_int() && rhs.dtype().is_int() {
             DType::F32
         } else {
-            crate::utils::promotion::get_promoted_dtype(self.dtype(), rhs.dtype())
+            get_promoted_dtype(self.dtype(), rhs.dtype())
         };
-        let (lhs, rhs) = crate::utils::broadcast::broadcast_tensors(self, rhs)?;
+        let (lhs, rhs) = broadcast_tensors(self, rhs)?;
         let target_layout = lhs.layout();
 
-        match get_mode() {
+        let result = match get_mode() {
             TensorMode::Eager => {
                 let target_tid = next_tensor_id();
                 let metadata = TensorMetadata {
                     device: lhs.device(),
                     dtype: target_dtype,
                     layout: target_layout.clone(),
+                    grad_tensor_id: None,
+                    graph_id: None,
                     mode: get_mode(),
                     update_status: TensorUpdateStatus::Pending,
                 };
@@ -743,24 +949,58 @@ impl Tensor {
             },
             TensorMode::Lazy => {
                 let target_layout_clone = target_layout.clone();
-                let result = add_to_graph(
-                    &[&lhs, &rhs],
+                let result = add_to_forward_graph(
                     "div",
+                    &[&lhs, &rhs],
                     &[lhs.device()],
                     &[target_dtype],
                     &[target_layout],
-                    move |tensors, target_tids| {
-                        Ok(vec![tensors[0].execute_div(
-                            &tensors[1],
+                    move |input_tids, target_tids| {
+                        let lhs_tensor = Tensor(input_tids[0]);
+                        let rhs_tensor = Tensor(input_tids[1]);
+                        let result = lhs_tensor.execute_div(
+                            &rhs_tensor,
                             target_tids[0],
                             target_dtype,
                             target_layout_clone.clone(),
-                        )?])
+                        )?;
+                        Ok(vec![result.id()])
                     },
                 )?;
                 Ok(result.into_iter().next().unwrap())
             },
+        }?;
+
+        if lhs.requires_grad() || rhs.requires_grad() {
+            result.try_enable_grad()?;
+            let result_grad = result.grad();
+
+            if lhs.requires_grad() {
+                let lhs_shape = lhs.shape();
+                let rhs_clone = rhs.clone();
+                add_to_backward_graph("div_backward_lhs", &result_grad, &lhs, &lhs_shape, move |grad_out_id| {
+                    eager!();
+                    let result = Tensor(*grad_out_id).try_div(&rhs_clone)?;
+                    Ok(result)
+                })?;
+            }
+
+            if rhs.requires_grad() {
+                let rhs_shape = rhs.shape();
+                let lhs_clone = lhs.clone();
+                let rhs_clone = rhs.clone();
+                add_to_backward_graph("div_backward_rhs", &result_grad, &rhs, &rhs_shape, move |grad_out_id| {
+                    eager!();
+                    let result = Tensor(*grad_out_id)
+                        .try_mul(&lhs_clone)?
+                        .try_div(&rhs_clone.try_square()?)?
+                        .try_neg()?;
+                    Ok(result)
+                })?;
+            }
         }
+
+        Ok(result)
     }
 
     /// Attempts to compute element-wise maximum between tensors.
@@ -769,8 +1009,12 @@ impl Tensor {
     /// data types according to standard promotion rules. The result has the broadcasted
     /// shape and the promoted data type.
     ///
+    /// **Autograd support**: If either tensor requires gradients, the result will
+    /// automatically enable gradient computation and register backward functions.
+    /// Gradients flow to the operand with the larger value, with equal distribution for tied values.
+    ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use maidenx_core::error::Result;
     /// use crate::Tensor; // Assuming Tensor is in the current crate root
     ///
@@ -791,18 +1035,21 @@ impl Tensor {
     /// - Memory allocation fails
     /// - Backend computation fails
     /// - Graph operations fail in lazy mode
+    /// - Gradient computation setup fails
     pub fn try_maximum(&self, rhs: &Self) -> Result<Self> {
-        let target_dtype = crate::utils::promotion::get_promoted_dtype(self.dtype(), rhs.dtype());
-        let (lhs, rhs) = crate::utils::broadcast::broadcast_tensors(self, rhs)?;
+        let target_dtype = get_promoted_dtype(self.dtype(), rhs.dtype());
+        let (lhs, rhs) = broadcast_tensors(self, rhs)?;
         let target_layout = lhs.layout();
 
-        match get_mode() {
+        let result = match get_mode() {
             TensorMode::Eager => {
                 let target_tid = next_tensor_id();
                 let metadata = TensorMetadata {
                     device: lhs.device(),
                     dtype: target_dtype,
                     layout: target_layout.clone(),
+                    grad_tensor_id: None,
+                    graph_id: None,
                     mode: get_mode(),
                     update_status: TensorUpdateStatus::Pending,
                 };
@@ -811,24 +1058,80 @@ impl Tensor {
             },
             TensorMode::Lazy => {
                 let target_layout_clone = target_layout.clone();
-                let result = add_to_graph(
-                    &[&lhs, &rhs],
+                let result = add_to_forward_graph(
                     "maximum",
+                    &[&lhs, &rhs],
                     &[lhs.device()],
                     &[target_dtype],
                     &[target_layout],
-                    move |tensors, target_tids| {
-                        Ok(vec![tensors[0].execute_maximum(
-                            &tensors[1],
+                    move |input_tids, target_tids| {
+                        let lhs_tensor = Tensor(input_tids[0]);
+                        let rhs_tensor = Tensor(input_tids[1]);
+                        let result = lhs_tensor.execute_maximum(
+                            &rhs_tensor,
                             target_tids[0],
                             target_dtype,
                             target_layout_clone.clone(),
-                        )?])
+                        )?;
+                        Ok(vec![result.id()])
                     },
                 )?;
                 Ok(result.into_iter().next().unwrap())
             },
+        }?;
+
+        if lhs.requires_grad() || rhs.requires_grad() {
+            result.try_enable_grad()?;
+            let result_grad = result.grad();
+
+            if lhs.requires_grad() {
+                let lhs_shape = lhs.shape();
+                let lhs_clone = lhs.clone();
+                let rhs_clone = rhs.clone();
+                add_to_backward_graph(
+                    "maximum_backward_lhs",
+                    &result_grad,
+                    &lhs,
+                    &lhs_shape,
+                    move |grad_out_id| {
+                        eager!();
+                        let lhs_mask = lhs_clone.try_gt(&rhs_clone)?;
+                        let equal_mask = lhs_clone.try_eq(&rhs_clone)?;
+                        let equal_half = equal_mask.try_mul_scalar(0.5)?;
+
+                        let result = Tensor(*grad_out_id)
+                            .try_mul(&lhs_mask)?
+                            .try_add(&equal_half.try_mul(&Tensor(*grad_out_id))?)?;
+                        Ok(result)
+                    },
+                )?;
+            }
+
+            if rhs.requires_grad() {
+                let rhs_shape = rhs.shape();
+                let lhs_clone = lhs.clone();
+                let rhs_clone = rhs.clone();
+                add_to_backward_graph(
+                    "maximum_backward_rhs",
+                    &result_grad,
+                    &rhs,
+                    &rhs_shape,
+                    move |grad_out_id| {
+                        eager!();
+                        let rhs_mask = rhs_clone.try_gt(&lhs_clone)?;
+                        let equal_mask = lhs_clone.try_eq(&rhs_clone)?;
+                        let equal_half = equal_mask.try_mul_scalar(0.5)?;
+
+                        let result = Tensor(*grad_out_id)
+                            .try_mul(&rhs_mask)?
+                            .try_add(&equal_half.try_mul(&Tensor(*grad_out_id))?)?;
+                        Ok(result)
+                    },
+                )?;
+            }
         }
+
+        Ok(result)
     }
 
     /// Attempts to compute element-wise minimum between tensors.
@@ -837,8 +1140,12 @@ impl Tensor {
     /// data types according to standard promotion rules. The result has the broadcasted
     /// shape and the promoted data type.
     ///
+    /// **Autograd support**: If either tensor requires gradients, the result will
+    /// automatically enable gradient computation and register backward functions.
+    /// Gradients flow to the operand with the smaller value, with equal distribution for tied values.
+    ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use maidenx_core::error::Result;
     /// use crate::Tensor; // Assuming Tensor is in the current crate root
     ///
@@ -859,18 +1166,21 @@ impl Tensor {
     /// - Memory allocation fails
     /// - Backend computation fails
     /// - Graph operations fail in lazy mode
+    /// - Gradient computation setup fails
     pub fn try_minimum(&self, rhs: &Self) -> Result<Self> {
-        let target_dtype = crate::utils::promotion::get_promoted_dtype(self.dtype(), rhs.dtype());
-        let (lhs, rhs) = crate::utils::broadcast::broadcast_tensors(self, rhs)?;
+        let target_dtype = get_promoted_dtype(self.dtype(), rhs.dtype());
+        let (lhs, rhs) = broadcast_tensors(self, rhs)?;
         let target_layout = lhs.layout();
 
-        match get_mode() {
+        let result = match get_mode() {
             TensorMode::Eager => {
                 let target_tid = next_tensor_id();
                 let metadata = TensorMetadata {
                     device: lhs.device(),
                     dtype: target_dtype,
                     layout: target_layout.clone(),
+                    grad_tensor_id: None,
+                    graph_id: None,
                     mode: get_mode(),
                     update_status: TensorUpdateStatus::Pending,
                 };
@@ -879,24 +1189,80 @@ impl Tensor {
             },
             TensorMode::Lazy => {
                 let target_layout_clone = target_layout.clone();
-                let result = add_to_graph(
-                    &[&lhs, &rhs],
+                let result = add_to_forward_graph(
                     "minimum",
+                    &[&lhs, &rhs],
                     &[lhs.device()],
                     &[target_dtype],
                     &[target_layout],
-                    move |tensors, target_tids| {
-                        Ok(vec![tensors[0].execute_minimum(
-                            &tensors[1],
+                    move |input_tids, target_tids| {
+                        let lhs_tensor = Tensor(input_tids[0]);
+                        let rhs_tensor = Tensor(input_tids[1]);
+                        let result = lhs_tensor.execute_minimum(
+                            &rhs_tensor,
                             target_tids[0],
                             target_dtype,
                             target_layout_clone.clone(),
-                        )?])
+                        )?;
+                        Ok(vec![result.id()])
                     },
                 )?;
                 Ok(result.into_iter().next().unwrap())
             },
+        }?;
+
+        if lhs.requires_grad() || rhs.requires_grad() {
+            result.try_enable_grad()?;
+            let result_grad = result.grad();
+
+            if lhs.requires_grad() {
+                let lhs_shape = lhs.shape();
+                let lhs_clone = lhs.clone();
+                let rhs_clone = rhs.clone();
+                add_to_backward_graph(
+                    "minimum_backward_lhs",
+                    &result_grad,
+                    &lhs,
+                    &lhs_shape,
+                    move |grad_out_id| {
+                        eager!();
+                        let lhs_mask = lhs_clone.try_lt(&rhs_clone)?;
+                        let equal_mask = lhs_clone.try_eq(&rhs_clone)?;
+                        let equal_half = equal_mask.try_mul_scalar(0.5)?;
+
+                        let result = Tensor(*grad_out_id)
+                            .try_mul(&lhs_mask)?
+                            .try_add(&equal_half.try_mul(&Tensor(*grad_out_id))?)?;
+                        Ok(result)
+                    },
+                )?;
+            }
+
+            if rhs.requires_grad() {
+                let rhs_shape = rhs.shape();
+                let lhs_clone = lhs.clone();
+                let rhs_clone = rhs.clone();
+                add_to_backward_graph(
+                    "minimum_backward_rhs",
+                    &result_grad,
+                    &rhs,
+                    &rhs_shape,
+                    move |grad_out_id| {
+                        eager!();
+                        let rhs_mask = rhs_clone.try_lt(&lhs_clone)?;
+                        let equal_mask = lhs_clone.try_eq(&rhs_clone)?;
+                        let equal_half = equal_mask.try_mul_scalar(0.5)?;
+
+                        let result = Tensor(*grad_out_id)
+                            .try_mul(&rhs_mask)?
+                            .try_add(&equal_half.try_mul(&Tensor(*grad_out_id))?)?;
+                        Ok(result)
+                    },
+                )?;
+            }
         }
+
+        Ok(result)
     }
 
     /// Attempts to compute element-wise logical AND between tensors.
@@ -905,8 +1271,10 @@ impl Tensor {
     /// This operation broadcasts tensors to compatible shapes if needed and promotes
     /// data types according to standard promotion rules.
     ///
+    /// **Note**: Logical operations do not support gradient computation.
+    ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use maidenx_core::error::Result;
     /// use crate::Tensor; // Assuming Tensor is in the current crate root
     ///
@@ -928,8 +1296,8 @@ impl Tensor {
     /// - Backend computation fails
     /// - Graph operations fail in lazy mode
     pub fn try_logical_and(&self, rhs: &Self) -> Result<Self> {
-        let target_dtype = crate::utils::promotion::get_promoted_dtype(self.dtype(), rhs.dtype());
-        let (lhs, rhs) = crate::utils::broadcast::broadcast_tensors(self, rhs)?;
+        let target_dtype = get_promoted_dtype(self.dtype(), rhs.dtype());
+        let (lhs, rhs) = broadcast_tensors(self, rhs)?;
         let target_layout = lhs.layout();
         let result_dtype = DType::BOOL;
 
@@ -940,6 +1308,8 @@ impl Tensor {
                     device: lhs.device(),
                     dtype: result_dtype,
                     layout: target_layout.clone(),
+                    grad_tensor_id: None,
+                    graph_id: None,
                     mode: get_mode(),
                     update_status: TensorUpdateStatus::Pending,
                 };
@@ -948,19 +1318,22 @@ impl Tensor {
             },
             TensorMode::Lazy => {
                 let target_layout_clone = target_layout.clone();
-                let result = add_to_graph(
-                    &[&lhs, &rhs],
+                let result = add_to_forward_graph(
                     "logical_and",
+                    &[&lhs, &rhs],
                     &[lhs.device()],
                     &[result_dtype],
                     &[target_layout],
-                    move |tensors, target_tids| {
-                        Ok(vec![tensors[0].execute_logical_and(
-                            &tensors[1],
+                    move |input_tids, target_tids| {
+                        let lhs_tensor = Tensor(input_tids[0]);
+                        let rhs_tensor = Tensor(input_tids[1]);
+                        let result = lhs_tensor.execute_logical_and(
+                            &rhs_tensor,
                             target_tids[0],
                             target_dtype,
                             target_layout_clone.clone(),
-                        )?])
+                        )?;
+                        Ok(vec![result.id()])
                     },
                 )?;
                 Ok(result.into_iter().next().unwrap())
@@ -974,8 +1347,10 @@ impl Tensor {
     /// This operation broadcasts tensors to compatible shapes if needed and promotes
     /// data types according to standard promotion rules.
     ///
+    /// **Note**: Logical operations do not support gradient computation.
+    ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use maidenx_core::error::Result;
     /// use crate::Tensor; // Assuming Tensor is in the current crate root
     ///
@@ -997,8 +1372,8 @@ impl Tensor {
     /// - Backend computation fails
     /// - Graph operations fail in lazy mode
     pub fn try_logical_or(&self, rhs: &Self) -> Result<Self> {
-        let target_dtype = crate::utils::promotion::get_promoted_dtype(self.dtype(), rhs.dtype());
-        let (lhs, rhs) = crate::utils::broadcast::broadcast_tensors(self, rhs)?;
+        let target_dtype = get_promoted_dtype(self.dtype(), rhs.dtype());
+        let (lhs, rhs) = broadcast_tensors(self, rhs)?;
         let target_layout = lhs.layout();
         let result_dtype = DType::BOOL;
 
@@ -1009,6 +1384,8 @@ impl Tensor {
                     device: lhs.device(),
                     dtype: result_dtype,
                     layout: target_layout.clone(),
+                    grad_tensor_id: None,
+                    graph_id: None,
                     mode: get_mode(),
                     update_status: TensorUpdateStatus::Pending,
                 };
@@ -1017,19 +1394,22 @@ impl Tensor {
             },
             TensorMode::Lazy => {
                 let target_layout_clone = target_layout.clone();
-                let result = add_to_graph(
-                    &[&lhs, &rhs],
+                let result = add_to_forward_graph(
                     "logical_or",
+                    &[&lhs, &rhs],
                     &[lhs.device()],
                     &[result_dtype],
                     &[target_layout],
-                    move |tensors, target_tids| {
-                        Ok(vec![tensors[0].execute_logical_or(
-                            &tensors[1],
+                    move |input_tids, target_tids| {
+                        let lhs_tensor = Tensor(input_tids[0]);
+                        let rhs_tensor = Tensor(input_tids[1]);
+                        let result = lhs_tensor.execute_logical_or(
+                            &rhs_tensor,
                             target_tids[0],
                             target_dtype,
                             target_layout_clone.clone(),
-                        )?])
+                        )?;
+                        Ok(vec![result.id()])
                     },
                 )?;
                 Ok(result.into_iter().next().unwrap())
@@ -1043,8 +1423,10 @@ impl Tensor {
     /// This operation broadcasts tensors to compatible shapes if needed and promotes
     /// data types according to standard promotion rules.
     ///
+    /// **Note**: Logical operations do not support gradient computation.
+    ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use maidenx_core::error::Result;
     /// use crate::Tensor; // Assuming Tensor is in the current crate root
     ///
@@ -1066,8 +1448,8 @@ impl Tensor {
     /// - Backend computation fails
     /// - Graph operations fail in lazy mode
     pub fn try_logical_xor(&self, rhs: &Self) -> Result<Self> {
-        let target_dtype = crate::utils::promotion::get_promoted_dtype(self.dtype(), rhs.dtype());
-        let (lhs, rhs) = crate::utils::broadcast::broadcast_tensors(self, rhs)?;
+        let target_dtype = get_promoted_dtype(self.dtype(), rhs.dtype());
+        let (lhs, rhs) = broadcast_tensors(self, rhs)?;
         let target_layout = lhs.layout();
         let result_dtype = DType::BOOL;
 
@@ -1078,6 +1460,8 @@ impl Tensor {
                     device: lhs.device(),
                     dtype: result_dtype,
                     layout: target_layout.clone(),
+                    grad_tensor_id: None,
+                    graph_id: None,
                     mode: get_mode(),
                     update_status: TensorUpdateStatus::Pending,
                 };
@@ -1086,19 +1470,22 @@ impl Tensor {
             },
             TensorMode::Lazy => {
                 let target_layout_clone = target_layout.clone();
-                let result = add_to_graph(
-                    &[&lhs, &rhs],
+                let result = add_to_forward_graph(
                     "logical_xor",
+                    &[&lhs, &rhs],
                     &[lhs.device()],
                     &[result_dtype],
                     &[target_layout],
-                    move |tensors, target_tids| {
-                        Ok(vec![tensors[0].execute_logical_xor(
-                            &tensors[1],
+                    move |input_tids, target_tids| {
+                        let lhs_tensor = Tensor(input_tids[0]);
+                        let rhs_tensor = Tensor(input_tids[1]);
+                        let result = lhs_tensor.execute_logical_xor(
+                            &rhs_tensor,
                             target_tids[0],
                             target_dtype,
                             target_layout_clone.clone(),
-                        )?])
+                        )?;
+                        Ok(vec![result.id()])
                     },
                 )?;
                 Ok(result.into_iter().next().unwrap())
@@ -1112,8 +1499,10 @@ impl Tensor {
     /// This operation broadcasts tensors to compatible shapes if needed and promotes
     /// data types according to standard promotion rules.
     ///
+    /// **Note**: Comparison operations do not support gradient computation.
+    ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use maidenx_core::error::Result;
     /// use crate::Tensor; // Assuming Tensor is in the current crate root
     ///
@@ -1135,8 +1524,8 @@ impl Tensor {
     /// - Backend computation fails
     /// - Graph operations fail in lazy mode
     pub fn try_eq(&self, rhs: &Self) -> Result<Self> {
-        let target_dtype = crate::utils::promotion::get_promoted_dtype(self.dtype(), rhs.dtype());
-        let (lhs, rhs) = crate::utils::broadcast::broadcast_tensors(self, rhs)?;
+        let target_dtype = get_promoted_dtype(self.dtype(), rhs.dtype());
+        let (lhs, rhs) = broadcast_tensors(self, rhs)?;
         let target_layout = lhs.layout();
         let result_dtype = DType::BOOL;
 
@@ -1147,6 +1536,8 @@ impl Tensor {
                     device: lhs.device(),
                     dtype: result_dtype,
                     layout: target_layout.clone(),
+                    grad_tensor_id: None,
+                    graph_id: None,
                     mode: get_mode(),
                     update_status: TensorUpdateStatus::Pending,
                 };
@@ -1155,19 +1546,22 @@ impl Tensor {
             },
             TensorMode::Lazy => {
                 let target_layout_clone = target_layout.clone();
-                let result = add_to_graph(
-                    &[&lhs, &rhs],
+                let result = add_to_forward_graph(
                     "eq",
+                    &[&lhs, &rhs],
                     &[lhs.device()],
                     &[result_dtype],
                     &[target_layout],
-                    move |tensors, target_tids| {
-                        Ok(vec![tensors[0].execute_eq(
-                            &tensors[1],
+                    move |input_tids, target_tids| {
+                        let lhs_tensor = Tensor(input_tids[0]);
+                        let rhs_tensor = Tensor(input_tids[1]);
+                        let result = lhs_tensor.execute_eq(
+                            &rhs_tensor,
                             target_tids[0],
                             target_dtype,
                             target_layout_clone.clone(),
-                        )?])
+                        )?;
+                        Ok(vec![result.id()])
                     },
                 )?;
                 Ok(result.into_iter().next().unwrap())
@@ -1181,8 +1575,10 @@ impl Tensor {
     /// This operation broadcasts tensors to compatible shapes if needed and promotes
     /// data types according to standard promotion rules.
     ///
+    /// **Note**: Comparison operations do not support gradient computation.
+    ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use maidenx_core::error::Result;
     /// use crate::Tensor; // Assuming Tensor is in the current crate root
     ///
@@ -1204,8 +1600,8 @@ impl Tensor {
     /// - Backend computation fails
     /// - Graph operations fail in lazy mode
     pub fn try_ne(&self, rhs: &Self) -> Result<Self> {
-        let target_dtype = crate::utils::promotion::get_promoted_dtype(self.dtype(), rhs.dtype());
-        let (lhs, rhs) = crate::utils::broadcast::broadcast_tensors(self, rhs)?;
+        let target_dtype = get_promoted_dtype(self.dtype(), rhs.dtype());
+        let (lhs, rhs) = broadcast_tensors(self, rhs)?;
         let target_layout = lhs.layout();
         let result_dtype = DType::BOOL;
 
@@ -1216,6 +1612,8 @@ impl Tensor {
                     device: lhs.device(),
                     dtype: result_dtype,
                     layout: target_layout.clone(),
+                    grad_tensor_id: None,
+                    graph_id: None,
                     mode: get_mode(),
                     update_status: TensorUpdateStatus::Pending,
                 };
@@ -1224,19 +1622,22 @@ impl Tensor {
             },
             TensorMode::Lazy => {
                 let target_layout_clone = target_layout.clone();
-                let result = add_to_graph(
-                    &[&lhs, &rhs],
+                let result = add_to_forward_graph(
                     "ne",
+                    &[&lhs, &rhs],
                     &[lhs.device()],
                     &[result_dtype],
                     &[target_layout],
-                    move |tensors, target_tids| {
-                        Ok(vec![tensors[0].execute_ne(
-                            &tensors[1],
+                    move |input_tids, target_tids| {
+                        let lhs_tensor = Tensor(input_tids[0]);
+                        let rhs_tensor = Tensor(input_tids[1]);
+                        let result = lhs_tensor.execute_ne(
+                            &rhs_tensor,
                             target_tids[0],
                             target_dtype,
                             target_layout_clone.clone(),
-                        )?])
+                        )?;
+                        Ok(vec![result.id()])
                     },
                 )?;
                 Ok(result.into_iter().next().unwrap())
@@ -1250,8 +1651,10 @@ impl Tensor {
     /// This operation broadcasts tensors to compatible shapes if needed and promotes
     /// data types according to standard promotion rules.
     ///
+    /// **Note**: Comparison operations do not support gradient computation.
+    ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use maidenx_core::error::Result;
     /// use crate::Tensor; // Assuming Tensor is in the current crate root
     ///
@@ -1273,8 +1676,8 @@ impl Tensor {
     /// - Backend computation fails
     /// - Graph operations fail in lazy mode
     pub fn try_lt(&self, rhs: &Self) -> Result<Self> {
-        let target_dtype = crate::utils::promotion::get_promoted_dtype(self.dtype(), rhs.dtype());
-        let (lhs, rhs) = crate::utils::broadcast::broadcast_tensors(self, rhs)?;
+        let target_dtype = get_promoted_dtype(self.dtype(), rhs.dtype());
+        let (lhs, rhs) = broadcast_tensors(self, rhs)?;
         let target_layout = lhs.layout();
         let result_dtype = DType::BOOL;
 
@@ -1285,6 +1688,8 @@ impl Tensor {
                     device: lhs.device(),
                     dtype: result_dtype,
                     layout: target_layout.clone(),
+                    grad_tensor_id: None,
+                    graph_id: None,
                     mode: get_mode(),
                     update_status: TensorUpdateStatus::Pending,
                 };
@@ -1293,19 +1698,22 @@ impl Tensor {
             },
             TensorMode::Lazy => {
                 let target_layout_clone = target_layout.clone();
-                let result = add_to_graph(
-                    &[&lhs, &rhs],
+                let result = add_to_forward_graph(
                     "lt",
+                    &[&lhs, &rhs],
                     &[lhs.device()],
                     &[result_dtype],
                     &[target_layout],
-                    move |tensors, target_tids| {
-                        Ok(vec![tensors[0].execute_lt(
-                            &tensors[1],
+                    move |input_tids, target_tids| {
+                        let lhs_tensor = Tensor(input_tids[0]);
+                        let rhs_tensor = Tensor(input_tids[1]);
+                        let result = lhs_tensor.execute_lt(
+                            &rhs_tensor,
                             target_tids[0],
                             target_dtype,
                             target_layout_clone.clone(),
-                        )?])
+                        )?;
+                        Ok(vec![result.id()])
                     },
                 )?;
                 Ok(result.into_iter().next().unwrap())
@@ -1319,8 +1727,10 @@ impl Tensor {
     /// This operation broadcasts tensors to compatible shapes if needed and promotes
     /// data types according to standard promotion rules.
     ///
+    /// **Note**: Comparison operations do not support gradient computation.
+    ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use maidenx_core::error::Result;
     /// use crate::Tensor; // Assuming Tensor is in the current crate root
     ///
@@ -1342,8 +1752,8 @@ impl Tensor {
     /// - Backend computation fails
     /// - Graph operations fail in lazy mode
     pub fn try_le(&self, rhs: &Self) -> Result<Self> {
-        let target_dtype = crate::utils::promotion::get_promoted_dtype(self.dtype(), rhs.dtype());
-        let (lhs, rhs) = crate::utils::broadcast::broadcast_tensors(self, rhs)?;
+        let target_dtype = get_promoted_dtype(self.dtype(), rhs.dtype());
+        let (lhs, rhs) = broadcast_tensors(self, rhs)?;
         let target_layout = lhs.layout();
         let result_dtype = DType::BOOL;
 
@@ -1354,6 +1764,8 @@ impl Tensor {
                     device: lhs.device(),
                     dtype: result_dtype,
                     layout: target_layout.clone(),
+                    grad_tensor_id: None,
+                    graph_id: None,
                     mode: get_mode(),
                     update_status: TensorUpdateStatus::Pending,
                 };
@@ -1362,19 +1774,22 @@ impl Tensor {
             },
             TensorMode::Lazy => {
                 let target_layout_clone = target_layout.clone();
-                let result = add_to_graph(
-                    &[&lhs, &rhs],
+                let result = add_to_forward_graph(
                     "le",
+                    &[&lhs, &rhs],
                     &[lhs.device()],
                     &[result_dtype],
                     &[target_layout],
-                    move |tensors, target_tids| {
-                        Ok(vec![tensors[0].execute_le(
-                            &tensors[1],
+                    move |input_tids, target_tids| {
+                        let lhs_tensor = Tensor(input_tids[0]);
+                        let rhs_tensor = Tensor(input_tids[1]);
+                        let result = lhs_tensor.execute_le(
+                            &rhs_tensor,
                             target_tids[0],
                             target_dtype,
                             target_layout_clone.clone(),
-                        )?])
+                        )?;
+                        Ok(vec![result.id()])
                     },
                 )?;
                 Ok(result.into_iter().next().unwrap())
@@ -1388,8 +1803,10 @@ impl Tensor {
     /// This operation broadcasts tensors to compatible shapes if needed and promotes
     /// data types according to standard promotion rules.
     ///
+    /// **Note**: Comparison operations do not support gradient computation.
+    ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use maidenx_core::error::Result;
     /// use crate::Tensor; // Assuming Tensor is in the current crate root
     ///
@@ -1411,8 +1828,8 @@ impl Tensor {
     /// - Backend computation fails
     /// - Graph operations fail in lazy mode
     pub fn try_gt(&self, rhs: &Self) -> Result<Self> {
-        let target_dtype = crate::utils::promotion::get_promoted_dtype(self.dtype(), rhs.dtype());
-        let (lhs, rhs) = crate::utils::broadcast::broadcast_tensors(self, rhs)?;
+        let target_dtype = get_promoted_dtype(self.dtype(), rhs.dtype());
+        let (lhs, rhs) = broadcast_tensors(self, rhs)?;
         let target_layout = lhs.layout();
         let result_dtype = DType::BOOL;
 
@@ -1423,6 +1840,8 @@ impl Tensor {
                     device: lhs.device(),
                     dtype: result_dtype,
                     layout: target_layout.clone(),
+                    grad_tensor_id: None,
+                    graph_id: None,
                     mode: get_mode(),
                     update_status: TensorUpdateStatus::Pending,
                 };
@@ -1431,19 +1850,22 @@ impl Tensor {
             },
             TensorMode::Lazy => {
                 let target_layout_clone = target_layout.clone();
-                let result = add_to_graph(
-                    &[&lhs, &rhs],
+                let result = add_to_forward_graph(
                     "gt",
+                    &[&lhs, &rhs],
                     &[lhs.device()],
                     &[result_dtype],
                     &[target_layout],
-                    move |tensors, target_tids| {
-                        Ok(vec![tensors[0].execute_gt(
-                            &tensors[1],
+                    move |input_tids, target_tids| {
+                        let lhs_tensor = Tensor(input_tids[0]);
+                        let rhs_tensor = Tensor(input_tids[1]);
+                        let result = lhs_tensor.execute_gt(
+                            &rhs_tensor,
                             target_tids[0],
                             target_dtype,
                             target_layout_clone.clone(),
-                        )?])
+                        )?;
+                        Ok(vec![result.id()])
                     },
                 )?;
                 Ok(result.into_iter().next().unwrap())
@@ -1457,8 +1879,10 @@ impl Tensor {
     /// This operation broadcasts tensors to compatible shapes if needed and promotes
     /// data types according to standard promotion rules.
     ///
+    /// **Note**: Comparison operations do not support gradient computation.
+    ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use maidenx_core::error::Result;
     /// use crate::Tensor; // Assuming Tensor is in the current crate root
     ///
@@ -1480,8 +1904,8 @@ impl Tensor {
     /// - Backend computation fails
     /// - Graph operations fail in lazy mode
     pub fn try_ge(&self, rhs: &Self) -> Result<Self> {
-        let target_dtype = crate::utils::promotion::get_promoted_dtype(self.dtype(), rhs.dtype());
-        let (lhs, rhs) = crate::utils::broadcast::broadcast_tensors(self, rhs)?;
+        let target_dtype = get_promoted_dtype(self.dtype(), rhs.dtype());
+        let (lhs, rhs) = broadcast_tensors(self, rhs)?;
         let target_layout = lhs.layout();
         let result_dtype = DType::BOOL;
 
@@ -1492,6 +1916,8 @@ impl Tensor {
                     device: lhs.device(),
                     dtype: result_dtype,
                     layout: target_layout.clone(),
+                    grad_tensor_id: None,
+                    graph_id: None,
                     mode: get_mode(),
                     update_status: TensorUpdateStatus::Pending,
                 };
@@ -1500,19 +1926,22 @@ impl Tensor {
             },
             TensorMode::Lazy => {
                 let target_layout_clone = target_layout.clone();
-                let result = add_to_graph(
-                    &[&lhs, &rhs],
+                let result = add_to_forward_graph(
                     "ge",
+                    &[&lhs, &rhs],
                     &[lhs.device()],
                     &[result_dtype],
                     &[target_layout],
-                    move |tensors, target_tids| {
-                        Ok(vec![tensors[0].execute_ge(
-                            &tensors[1],
+                    move |input_tids, target_tids| {
+                        let lhs_tensor = Tensor(input_tids[0]);
+                        let rhs_tensor = Tensor(input_tids[1]);
+                        let result = lhs_tensor.execute_ge(
+                            &rhs_tensor,
                             target_tids[0],
                             target_dtype,
                             target_layout_clone.clone(),
-                        )?])
+                        )?;
+                        Ok(vec![result.id()])
                     },
                 )?;
                 Ok(result.into_iter().next().unwrap())
@@ -1525,8 +1954,10 @@ impl Tensor {
     /// In eager mode, performs the operation directly on the tensor's buffer.
     /// In lazy mode, replaces this tensor with the result of the add operation.
     ///
+    /// **Note**: In-place operations do not support gradient computation.
+    ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use maidenx_core::error::Result;
     /// use crate::Tensor; // Assuming Tensor is in the current crate root
     ///
@@ -1559,7 +1990,6 @@ impl Tensor {
                     rhs = rhs.try_to_dtype(self.dtype())?;
                 }
 
-                // Use the new prepare_binary_metadata function
                 let metadata = Tensor::prepare_binary_metadata(self, &rhs);
 
                 let mut storage = self.storage_mut()?;
@@ -1590,8 +2020,10 @@ impl Tensor {
     /// In eager mode, performs the operation directly on the tensor's buffer.
     /// In lazy mode, replaces this tensor with the result of the sub operation.
     ///
+    /// **Note**: In-place operations do not support gradient computation.
+    ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use maidenx_core::error::Result;
     /// use crate::Tensor; // Assuming Tensor is in the current crate root
     ///
@@ -1624,7 +2056,6 @@ impl Tensor {
                     rhs = rhs.try_to_dtype(self.dtype())?;
                 }
 
-                // Use the new prepare_binary_metadata function
                 let metadata = Tensor::prepare_binary_metadata(self, &rhs);
 
                 let mut storage = self.storage_mut()?;
@@ -1655,8 +2086,10 @@ impl Tensor {
     /// In eager mode, performs the operation directly on the tensor's buffer.
     /// In lazy mode, replaces this tensor with the result of the mul operation.
     ///
+    /// **Note**: In-place operations do not support gradient computation.
+    ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use maidenx_core::error::Result;
     /// use crate::Tensor; // Assuming Tensor is in the current crate root
     ///
@@ -1689,7 +2122,6 @@ impl Tensor {
                     rhs = rhs.try_to_dtype(self.dtype())?;
                 }
 
-                // Use the new prepare_binary_metadata function
                 let metadata = Tensor::prepare_binary_metadata(self, &rhs);
 
                 let mut storage = self.storage_mut()?;
@@ -1720,8 +2152,10 @@ impl Tensor {
     /// In eager mode, performs the operation directly on the tensor's buffer.
     /// In lazy mode, replaces this tensor with the result of the div operation.
     ///
+    /// **Note**: In-place operations do not support gradient computation.
+    ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use maidenx_core::error::Result;
     /// use crate::Tensor; // Assuming Tensor is in the current crate root
     ///
@@ -1754,7 +2188,6 @@ impl Tensor {
                     rhs = rhs.try_to_dtype(self.dtype())?;
                 }
 
-                // Use the new prepare_binary_metadata function
                 let metadata = Tensor::prepare_binary_metadata(self, &rhs);
 
                 let mut storage = self.storage_mut()?;

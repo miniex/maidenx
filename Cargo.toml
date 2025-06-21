@@ -51,3 +51,7 @@ path = "examples/device/mps.rs"
 [[example]]
 name = "serde"
 path = "examples/serde/serde.rs"
+
+[[example]]
+name = "test"
+path = "examples/test.rs"

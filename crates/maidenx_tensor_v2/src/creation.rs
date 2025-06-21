@@ -1,6 +1,6 @@
 use crate::{
     adapter::TensorAdapter, get_mode, get_storage_id, insert_metadata, insert_storage, link_tensor_to_storage,
-    next_storage_id, next_tensor_id, Tensor, TensorId, TensorMetadata, TensorStorage, TensorUpdateStatus,
+    next_storage_id, next_tensor_id, Tensor, TensorMetadata, TensorMode, TensorStorage, TensorUpdateStatus,
 };
 use half::{bf16, f16};
 use maidenx_core::{
@@ -536,16 +536,14 @@ impl Tensor {
             device,
             dtype,
             layout,
-            mode: get_mode(),
+            grad_tensor_id: None,
+            graph_id: None,
+            mode: TensorMode::Eager, // Creation functions always use eager mode
             update_status: TensorUpdateStatus::Materialized,
         };
         insert_metadata(tid, metadata);
 
-        Ok(Tensor {
-            tid,
-            gtid: TensorId(0),
-            gid: None,
-        })
+        Ok(Tensor(tid))
     }
 
     /// Attempts to create a new tensor from flattened data with the specified shape.
@@ -664,15 +662,13 @@ impl Tensor {
             dtype,
             layout,
             mode: get_mode(),
+            grad_tensor_id: None,
+            graph_id: None,
             update_status: TensorUpdateStatus::Materialized,
         };
         insert_metadata(tid, metadata);
 
-        Ok(Tensor {
-            tid,
-            gtid: TensorId(0),
-            gid: None,
-        })
+        Ok(Tensor(tid))
     }
 
     /// Attempts to create a new tensor that shares storage with the target tensor.
@@ -694,16 +690,12 @@ impl Tensor {
     pub fn try_share(target: &Tensor) -> Result<Self> {
         let tid = next_tensor_id();
         let sid =
-            get_storage_id(target.tid()).ok_or_else(|| Error::InvalidState("tensor storage id not found".into()))?;
+            get_storage_id(target.id()).ok_or_else(|| Error::InvalidState("tensor storage id not found".into()))?;
         link_tensor_to_storage(tid, sid);
         let metadata = target.metadata()?.clone();
         insert_metadata(tid, metadata);
 
-        Ok(Tensor {
-            tid,
-            gtid: TensorId(0),
-            gid: target.gid(),
-        })
+        Ok(Tensor(tid))
     }
 
     /// Attempts to create a new tensor with uninitialized memory.
@@ -803,16 +795,14 @@ impl Tensor {
             device,
             dtype,
             layout,
+            grad_tensor_id: None,
+            graph_id: None,
             mode: get_mode(),
             update_status: TensorUpdateStatus::Materialized,
         };
         insert_metadata(tid, metadata);
 
-        Ok(Tensor {
-            tid,
-            gtid: TensorId(0),
-            gid: None,
-        })
+        Ok(Tensor(tid))
     }
 
     /// Attempts to create a new tensor filled with zeros.
@@ -904,16 +894,14 @@ impl Tensor {
             device,
             dtype,
             layout,
+            grad_tensor_id: None,
+            graph_id: None,
             mode: get_mode(),
             update_status: TensorUpdateStatus::Materialized,
         };
         insert_metadata(tid, metadata);
 
-        Ok(Tensor {
-            tid,
-            gtid: TensorId(0),
-            gid: None,
-        })
+        Ok(Tensor(tid))
     }
 
     /// Attempts to create a new tensor filled with ones.
@@ -1024,16 +1012,14 @@ impl Tensor {
             device,
             dtype,
             layout,
+            grad_tensor_id: None,
+            graph_id: None,
             mode: get_mode(),
             update_status: TensorUpdateStatus::Materialized,
         };
         insert_metadata(tid, metadata);
 
-        Ok(Tensor {
-            tid,
-            gtid: TensorId(0),
-            gid: None,
-        })
+        Ok(Tensor(tid))
     }
 
     /// Attempts to create a new tensor filled with a specific value.
@@ -1150,16 +1136,14 @@ impl Tensor {
             device,
             dtype,
             layout,
+            grad_tensor_id: None,
+            graph_id: None,
             mode: get_mode(),
             update_status: TensorUpdateStatus::Materialized,
         };
         insert_metadata(tid, metadata);
 
-        Ok(Tensor {
-            tid,
-            gtid: TensorId(0),
-            gid: None,
-        })
+        Ok(Tensor(tid))
     }
 
     /// Attempts to create a new tensor filled with random values from a standard normal distribution.
@@ -1295,16 +1279,14 @@ impl Tensor {
             device,
             dtype,
             layout,
+            grad_tensor_id: None,
+            graph_id: None,
             mode: get_mode(),
             update_status: TensorUpdateStatus::Materialized,
         };
         insert_metadata(tid, metadata);
 
-        Ok(Tensor {
-            tid,
-            gtid: TensorId(0),
-            gid: None,
-        })
+        Ok(Tensor(tid))
     }
 
     /// Attempts to create a new tensor with values from 0 to n-1.

@@ -1,4 +1,4 @@
-use crate::{get_mode, next_tensor_id, utils::graph::add_to_graph, Tensor, TensorId, TensorMode};
+use crate::{get_mode, next_tensor_id, utils::graph::add_to_forward_graph, Tensor, TensorId, TensorMode};
 use maidenx_core::{
     buffer::BufferManager,
     error::{Error, Result},
@@ -86,6 +86,8 @@ impl Tensor {
                     device: self.device(),
                     dtype: self.dtype(),
                     layout: contiguous_layout,
+                    grad_tensor_id: None,
+                    graph_id: None,
                     mode: get_mode(),
                     update_status: crate::TensorUpdateStatus::Pending,
                 };
@@ -93,13 +95,17 @@ impl Tensor {
                 self.execute_contiguous(target_tid)
             },
             TensorMode::Lazy => {
-                let result = add_to_graph(
-                    &[self],
+                let result = add_to_forward_graph(
                     "contiguous",
+                    &[self],
                     &[self.device()],
                     &[self.dtype()],
                     &[contiguous_layout],
-                    move |tensors, target_tids| Ok(vec![tensors[0].execute_contiguous(target_tids[0])?]),
+                    move |input_tids, target_ids| {
+                        let tensor = Tensor(input_tids[0]);
+                        let result = tensor.execute_contiguous(target_ids[0])?;
+                        Ok(vec![result.id()])
+                    },
                 )?;
                 Ok(result.into_iter().next().unwrap())
             },
@@ -173,10 +179,6 @@ impl Tensor {
 
         crate::utils::tensor::update_tensor_status(target_tid, crate::TensorUpdateStatus::Materialized)?;
 
-        Ok(Tensor {
-            tid: target_tid,
-            gtid: crate::TensorId(0),
-            gid: None,
-        })
+        Ok(Tensor(target_tid))
     }
 }

@@ -1,6 +1,7 @@
 use crate::{
-    get_mode, insert_metadata, next_tensor_id, utils::graph::add_to_graph, Tensor, TensorId, TensorMetadata,
-    TensorMode, TensorUpdateStatus,
+    eager, get_mode, insert_metadata, next_tensor_id,
+    utils::graph::{add_to_backward_graph, add_to_forward_graph},
+    Tensor, TensorId, TensorMetadata, TensorMode, TensorUpdateStatus,
 };
 use maidenx_core::{
     dtype::DType,
@@ -11,7 +12,7 @@ use maidenx_core::{
 macro_rules! impl_unary_execute {
     ($fn_name:ident, $backend_fn:path) => {
         fn $fn_name(&self, target_tid: TensorId, target_dtype: DType) -> Result<Self> {
-            crate::eager!();
+            eager!();
 
             use maidenx_core::buffer::BufferManager;
             use std::sync::Arc;
@@ -45,11 +46,7 @@ macro_rules! impl_unary_execute {
 
             crate::utils::tensor::update_tensor_status(target_tid, TensorUpdateStatus::Materialized)?;
 
-            Ok(Tensor {
-                tid: target_tid,
-                gtid: TensorId(0),
-                gid: self.gid(),
-            })
+            Ok(Tensor(target_tid))
         }
     };
 }
@@ -97,11 +94,7 @@ macro_rules! impl_unary_with_scalar_execute {
 
             crate::utils::tensor::update_tensor_status(target_tid, TensorUpdateStatus::Materialized)?;
 
-            Ok(Tensor {
-                tid: target_tid,
-                gtid: TensorId(0),
-                gid: self.gid(),
-            })
+            Ok(Tensor(target_tid))
         }
     };
 }
@@ -131,7 +124,9 @@ impl Tensor {
     /// Runs [`try_neg`](Self::try_neg) and panics on failure.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
+    /// use crate::Tensor;
+    ///
     /// let tensor = Tensor::new(&[1.0, -2.0, 3.0]);
     /// let negated = tensor.neg();
     /// // Result: [-1.0, 2.0, -3.0]
@@ -148,7 +143,9 @@ impl Tensor {
     /// Runs [`try_abs`](Self::try_abs) and panics on failure.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
+    /// use crate::Tensor;
+    ///
     /// let tensor = Tensor::new(&[1.0, -2.0, 3.0]);
     /// let absolute = tensor.abs();
     /// // Result: [1.0, 2.0, 3.0]
@@ -165,7 +162,9 @@ impl Tensor {
     /// Runs [`try_sign`](Self::try_sign) and panics on failure.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
+    /// use crate::Tensor;
+    ///
     /// let tensor = Tensor::new(&[1.0, -2.0, 0.0, 3.0]);
     /// let signs = tensor.sign();
     /// // Result: [1.0, -1.0, 0.0, 1.0]
@@ -182,7 +181,9 @@ impl Tensor {
     /// Runs [`try_square`](Self::try_square) and panics on failure.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
+    /// use crate::Tensor;
+    ///
     /// let tensor = Tensor::new(&[2.0, 3.0, 4.0]);
     /// let squared = tensor.square();
     /// // Result: [4.0, 9.0, 16.0]
@@ -199,7 +200,9 @@ impl Tensor {
     /// Runs [`try_sqrt`](Self::try_sqrt) and panics on failure.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
+    /// use crate::Tensor;
+    ///
     /// let tensor = Tensor::new(&[4.0, 9.0, 16.0]);
     /// let sqrt_result = tensor.sqrt();
     /// // Result: [2.0, 3.0, 4.0]
@@ -216,7 +219,9 @@ impl Tensor {
     /// Runs [`try_relu`](Self::try_relu) and panics on failure.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
+    /// use crate::Tensor;
+    ///
     /// let tensor = Tensor::new(&[-2.0, -1.0, 0.0, 1.0, 2.0]);
     /// let relu_result = tensor.relu();
     /// // Result: [0.0, 0.0, 0.0, 1.0, 2.0]
@@ -233,7 +238,9 @@ impl Tensor {
     /// Runs [`try_sigmoid`](Self::try_sigmoid) and panics on failure.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
+    /// use crate::Tensor;
+    ///
     /// let tensor = Tensor::new(&[-1.0, 0.0, 1.0]);
     /// let sigmoid_result = tensor.sigmoid();
     /// // Result: [0.269, 0.5, 0.731] (approximately)
@@ -250,7 +257,9 @@ impl Tensor {
     /// Runs [`try_tanh`](Self::try_tanh) and panics on failure.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
+    /// use crate::Tensor;
+    ///
     /// let tensor = Tensor::new(&[-1.0, 0.0, 1.0]);
     /// let tanh_result = tensor.tanh();
     /// // Result: [-0.762, 0.0, 0.762] (approximately)
@@ -267,7 +276,9 @@ impl Tensor {
     /// Runs [`try_gelu`](Self::try_gelu) and panics on failure.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
+    /// use crate::Tensor;
+    ///
     /// let tensor = Tensor::new(&[-1.0, 0.0, 1.0]);
     /// let gelu_result = tensor.gelu();
     /// // Result: [-0.159, 0.0, 0.841] (approximately)
@@ -284,7 +295,9 @@ impl Tensor {
     /// Runs [`try_sin`](Self::try_sin) and panics on failure.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
+    /// use crate::Tensor;
+    ///
     /// let tensor = Tensor::new(&[0.0, std::f32::consts::PI / 2.0]);
     /// let sin_result = tensor.sin();
     /// // Result: [0.0, 1.0] (approximately)
@@ -301,7 +314,9 @@ impl Tensor {
     /// Runs [`try_cos`](Self::try_cos) and panics on failure.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
+    /// use crate::Tensor;
+    ///
     /// let tensor = Tensor::new(&[0.0, std::f32::consts::PI]);
     /// let cos_result = tensor.cos();
     /// // Result: [1.0, -1.0] (approximately)
@@ -318,7 +333,9 @@ impl Tensor {
     /// Runs [`try_tan`](Self::try_tan) and panics on failure.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
+    /// use crate::Tensor;
+    ///
     /// let tensor = Tensor::new(&[0.0, std::f32::consts::PI / 4.0]);
     /// let tan_result = tensor.tan();
     /// // Result: [0.0, 1.0] (approximately)
@@ -335,7 +352,9 @@ impl Tensor {
     /// Runs [`try_ln`](Self::try_ln) and panics on failure.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
+    /// use crate::Tensor;
+    ///
     /// let tensor = Tensor::new(&[1.0, std::f32::consts::E]);
     /// let ln_result = tensor.ln();
     /// // Result: [0.0, 1.0] (approximately)
@@ -354,7 +373,9 @@ impl Tensor {
     /// This is an alias for [`ln`](Self::ln).
     ///
     /// # Examples
-    /// ```
+    /// ```rust
+    /// use crate::Tensor;
+    ///
     /// let tensor = Tensor::new(&[1.0, std::f32::consts::E]);
     /// let log_result = tensor.log();
     /// // Result: [0.0, 1.0] (approximately)
@@ -371,7 +392,9 @@ impl Tensor {
     /// Runs [`try_log10`](Self::try_log10) and panics on failure.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
+    /// use crate::Tensor;
+    ///
     /// let tensor = Tensor::new(&[1.0, 10.0, 100.0]);
     /// let log10_result = tensor.log10();
     /// // Result: [0.0, 1.0, 2.0]
@@ -388,7 +411,9 @@ impl Tensor {
     /// Runs [`try_log2`](Self::try_log2) and panics on failure.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
+    /// use crate::Tensor;
+    ///
     /// let tensor = Tensor::new(&[1.0, 2.0, 4.0, 8.0]);
     /// let log2_result = tensor.log2();
     /// // Result: [0.0, 1.0, 2.0, 3.0]
@@ -405,7 +430,9 @@ impl Tensor {
     /// Runs [`try_exp`](Self::try_exp) and panics on failure.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
+    /// use crate::Tensor;
+    ///
     /// let tensor = Tensor::new(&[0.0, 1.0, 2.0]);
     /// let exp_result = tensor.exp();
     /// // Result: [1.0, 2.718, 7.389] (approximately)
@@ -422,7 +449,9 @@ impl Tensor {
     /// Runs [`try_exp10`](Self::try_exp10) and panics on failure.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
+    /// use crate::Tensor;
+    ///
     /// let tensor = Tensor::new(&[0.0, 1.0, 2.0, 3.0]);
     /// let exp10_result = tensor.exp10();
     /// // Result: [1.0, 10.0, 100.0, 1000.0]
@@ -439,7 +468,9 @@ impl Tensor {
     /// Runs [`try_exp2`](Self::try_exp2) and panics on failure.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
+    /// use crate::Tensor;
+    ///
     /// let tensor = Tensor::new(&[0.0, 1.0, 2.0, 3.0, 4.0]);
     /// let exp2_result = tensor.exp2();
     /// // Result: [1.0, 2.0, 4.0, 8.0, 16.0]
@@ -456,7 +487,9 @@ impl Tensor {
     /// Runs [`try_softplus`](Self::try_softplus) and panics on failure.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
+    /// use crate::Tensor;
+    ///
     /// let tensor = Tensor::new(&[-2.0, -1.0, 0.0, 1.0, 2.0]);
     /// let softplus_result = tensor.softplus();
     /// // Result: [0.127, 0.313, 0.693, 1.313, 2.127] (approximately)
@@ -473,7 +506,9 @@ impl Tensor {
     /// Runs [`try_recip`](Self::try_recip) and panics on failure.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
+    /// use crate::Tensor;
+    ///
     /// let tensor = Tensor::new(&[1.0, 2.0, 4.0, 0.5]);
     /// let recip_result = tensor.recip();
     /// // Result: [1.0, 0.5, 0.25, 2.0]
@@ -490,7 +525,9 @@ impl Tensor {
     /// Runs [`try_logical_not`](Self::try_logical_not) and panics on failure.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
+    /// use crate::Tensor;
+    ///
     /// let tensor = Tensor::new(&[true, false, true, false]);
     /// let not_result = tensor.logical_not();
     /// // Result: [false, true, false, true]
@@ -507,7 +544,9 @@ impl Tensor {
     /// Runs [`try_add_scalar`](Self::try_add_scalar) and panics on failure.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
+    /// use crate::Tensor;
+    ///
     /// let tensor = Tensor::new(&[1.0, 2.0, 3.0, 4.0]);
     /// let result = tensor.add_scalar(5.0);
     /// // Result: [6.0, 7.0, 8.0, 9.0]
@@ -524,7 +563,9 @@ impl Tensor {
     /// Runs [`try_sub_scalar`](Self::try_sub_scalar) and panics on failure.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
+    /// use crate::Tensor;
+    ///
     /// let tensor = Tensor::new(&[6.0, 7.0, 8.0, 9.0]);
     /// let result = tensor.sub_scalar(5.0);
     /// // Result: [1.0, 2.0, 3.0, 4.0]
@@ -541,7 +582,9 @@ impl Tensor {
     /// Runs [`try_mul_scalar`](Self::try_mul_scalar) and panics on failure.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
+    /// use crate::Tensor;
+    ///
     /// let tensor = Tensor::new(&[1.0, 2.0, 3.0, 4.0]);
     /// let result = tensor.mul_scalar(2.0);
     /// // Result: [2.0, 4.0, 6.0, 8.0]
@@ -558,7 +601,9 @@ impl Tensor {
     /// Runs [`try_div_scalar`](Self::try_div_scalar) and panics on failure.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
+    /// use crate::Tensor;
+    ///
     /// let tensor = Tensor::new(&[2.0, 4.0, 6.0, 8.0]);
     /// let result = tensor.div_scalar(2.0);
     /// // Result: [1.0, 2.0, 3.0, 4.0]
@@ -575,7 +620,9 @@ impl Tensor {
     /// Runs [`try_maximum_scalar`](Self::try_maximum_scalar) and panics on failure.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
+    /// use crate::Tensor;
+    ///
     /// let tensor = Tensor::new(&[1.0, 2.0, 3.0, 4.0]);
     /// let result = tensor.maximum_scalar(2.5);
     /// // Result: [2.5, 2.5, 3.0, 4.0]
@@ -593,7 +640,9 @@ impl Tensor {
     /// Runs [`try_minimum_scalar`](Self::try_minimum_scalar) and panics on failure.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
+    /// use crate::Tensor;
+    ///
     /// let tensor = Tensor::new(&[1.0, 2.0, 3.0, 4.0]);
     /// let result = tensor.minimum_scalar(2.5);
     /// // Result: [1.0, 2.0, 2.5, 2.5]
@@ -611,7 +660,9 @@ impl Tensor {
     /// Runs [`try_pow`](Self::try_pow) and panics on failure.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
+    /// use crate::Tensor;
+    ///
     /// let tensor = Tensor::new(&[2.0, 3.0, 4.0]);
     /// let result = tensor.pow(2.0);
     /// // Result: [4.0, 9.0, 16.0]
@@ -628,7 +679,9 @@ impl Tensor {
     /// Runs [`try_leaky_relu`](Self::try_leaky_relu) and panics on failure.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
+    /// use crate::Tensor;
+    ///
     /// let tensor = Tensor::new(&[-2.0, -1.0, 0.0, 1.0, 2.0]);
     /// let result = tensor.leaky_relu(0.01);
     /// // Result: [-0.02, -0.01, 0.0, 1.0, 2.0]
@@ -645,7 +698,9 @@ impl Tensor {
     /// Runs [`try_elu`](Self::try_elu) and panics on failure.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
+    /// use crate::Tensor;
+    ///
     /// let tensor = Tensor::new(&[-2.0, -1.0, 0.0, 1.0, 2.0]);
     /// let result = tensor.elu(1.0);
     /// // Result: [-0.865, -0.632, 0.0, 1.0, 2.0] (approximately)
@@ -662,7 +717,9 @@ impl Tensor {
     /// Runs [`try_eq_scalar`](Self::try_eq_scalar) and panics on failure.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
+    /// use crate::Tensor;
+    ///
     /// let tensor = Tensor::new(&[1.0, 2.0, 3.0, 2.0]);
     /// let result = tensor.eq_scalar(2.0);
     /// // Result: [false, true, false, true]
@@ -679,7 +736,9 @@ impl Tensor {
     /// Runs [`try_ne_scalar`](Self::try_ne_scalar) and panics on failure.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
+    /// use crate::Tensor;
+    ///
     /// let tensor = Tensor::new(&[1.0, 2.0, 3.0, 2.0]);
     /// let result = tensor.ne_scalar(2.0);
     /// // Result: [true, false, true, false]
@@ -696,7 +755,9 @@ impl Tensor {
     /// Runs [`try_lt_scalar`](Self::try_lt_scalar) and panics on failure.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
+    /// use crate::Tensor;
+    ///
     /// let tensor = Tensor::new(&[1.0, 2.0, 3.0, 4.0]);
     /// let result = tensor.lt_scalar(3.0);
     /// // Result: [true, true, false, false]
@@ -713,7 +774,9 @@ impl Tensor {
     /// Runs [`try_le_scalar`](Self::try_le_scalar) and panics on failure.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
+    /// use crate::Tensor;
+    ///
     /// let tensor = Tensor::new(&[1.0, 2.0, 3.0, 4.0]);
     /// let result = tensor.le_scalar(3.0);
     /// // Result: [true, true, true, false]
@@ -730,7 +793,9 @@ impl Tensor {
     /// Runs [`try_gt_scalar`](Self::try_gt_scalar) and panics on failure.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
+    /// use crate::Tensor;
+    ///
     /// let tensor = Tensor::new(&[1.0, 2.0, 3.0, 4.0]);
     /// let result = tensor.gt_scalar(2.0);
     /// // Result: [false, false, true, true]
@@ -747,7 +812,9 @@ impl Tensor {
     /// Runs [`try_ge_scalar`](Self::try_ge_scalar) and panics on failure.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
+    /// use crate::Tensor;
+    ///
     /// let tensor = Tensor::new(&[1.0, 2.0, 3.0, 4.0]);
     /// let result = tensor.ge_scalar(2.0);
     /// // Result: [false, true, true, true]
@@ -769,8 +836,9 @@ impl Tensor {
     /// In Lazy mode, the operation is added to the computation graph.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use maidenx_core::error::Result;
+    /// use crate::Tensor;
     ///
     /// fn negate_tensor() -> Result<()> {
     ///     let tensor = Tensor::new(&[1.0, -2.0, 3.0]);
@@ -798,13 +866,15 @@ impl Tensor {
             self.dtype().to_signed()
         };
 
-        match get_mode() {
+        let result = match get_mode() {
             TensorMode::Eager => {
                 let target_tid = next_tensor_id();
                 let metadata = TensorMetadata {
                     device: self.device(),
                     dtype: target_dtype,
                     layout: self.layout().clone(),
+                    grad_tensor_id: None,
+                    graph_id: None,
                     mode: get_mode(),
                     update_status: TensorUpdateStatus::Pending,
                 };
@@ -813,17 +883,36 @@ impl Tensor {
             },
             TensorMode::Lazy => {
                 let layout = self.layout().clone();
-                let result = add_to_graph(
-                    &[self],
+                let result = add_to_forward_graph(
                     "neg",
+                    &[self],
                     &[self.device()],
                     &[target_dtype],
                     &[layout],
-                    move |tensors, target_tids| Ok(vec![tensors[0].execute_neg(target_tids[0], target_dtype)?]),
+                    move |input_tids, target_tids| {
+                        let input_tensor = Tensor(input_tids[0]);
+                        let result = input_tensor.execute_neg(target_tids[0], target_dtype)?;
+                        Ok(vec![result.id()])
+                    },
                 )?;
                 Ok(result.into_iter().next().unwrap())
             },
+        }?;
+
+        if self.requires_grad() {
+            result.try_enable_grad()?;
+            let result_grad = result.grad();
+
+            if self.requires_grad() {
+                let shape = self.shape();
+                add_to_backward_graph("neg_backward", &result_grad, self, &shape, move |grad_out_id| {
+                    eager!();
+                    Tensor(*grad_out_id).try_neg()
+                })?;
+            }
         }
+
+        Ok(result)
     }
 
     /// Attempts to compute the absolute value of all elements in the tensor.
@@ -835,8 +924,9 @@ impl Tensor {
     /// In Lazy mode, the operation is added to the computation graph.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use maidenx_core::error::Result;
+    /// use crate::Tensor;
     ///
     /// fn absolute_tensor() -> Result<()> {
     ///     let tensor = Tensor::new(&[1.0, -2.0, 3.0]);
@@ -876,6 +966,8 @@ impl Tensor {
                     device: self.device(),
                     dtype: target_dtype,
                     layout: self.layout().clone(),
+                    grad_tensor_id: None,
+                    graph_id: None,
                     mode: get_mode(),
                     update_status: TensorUpdateStatus::Pending,
                 };
@@ -884,13 +976,17 @@ impl Tensor {
             },
             TensorMode::Lazy => {
                 let layout = self.layout().clone();
-                let result = add_to_graph(
-                    &[self],
+                let result = add_to_forward_graph(
                     "abs",
+                    &[self],
                     &[self.device()],
                     &[target_dtype],
                     &[layout],
-                    move |tensors, target_tids| Ok(vec![tensors[0].execute_abs(target_tids[0], target_dtype)?]),
+                    move |input_tids, target_tids| {
+                        let input_tensor = Tensor(input_tids[0]);
+                        let result = input_tensor.execute_abs(target_tids[0], target_dtype)?;
+                        Ok(vec![result.id()])
+                    },
                 )?;
                 Ok(result.into_iter().next().unwrap())
             },
@@ -909,8 +1005,9 @@ impl Tensor {
     /// In Lazy mode, the operation is added to the computation graph.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use maidenx_core::error::Result;
+    /// use crate::Tensor;
     ///
     /// fn sign_tensor() -> Result<()> {
     ///     let tensor = Tensor::new(&[1.0, -2.0, 0.0, 3.0]);
@@ -940,6 +1037,8 @@ impl Tensor {
                     device: self.device(),
                     dtype: target_dtype,
                     layout: self.layout().clone(),
+                    grad_tensor_id: None,
+                    graph_id: None,
                     mode: get_mode(),
                     update_status: TensorUpdateStatus::Pending,
                 };
@@ -948,13 +1047,17 @@ impl Tensor {
             },
             TensorMode::Lazy => {
                 let layout = self.layout().clone();
-                let result = add_to_graph(
-                    &[self],
+                let result = add_to_forward_graph(
                     "sign",
+                    &[self],
                     &[self.device()],
                     &[target_dtype],
                     &[layout],
-                    move |tensors, target_tids| Ok(vec![tensors[0].execute_sign(target_tids[0], target_dtype)?]),
+                    move |input_tids, target_tids| {
+                        let input_tensor = Tensor(input_tids[0]);
+                        let result = input_tensor.execute_sign(target_tids[0], target_dtype)?;
+                        Ok(vec![result.id()])
+                    },
                 )?;
                 Ok(result.into_iter().next().unwrap())
             },
@@ -969,8 +1072,9 @@ impl Tensor {
     /// In Lazy mode, the operation is added to the computation graph.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use maidenx_core::error::Result;
+    /// use crate::Tensor;
     ///
     /// fn square_tensor() -> Result<()> {
     ///     let tensor = Tensor::new(&[2.0, 3.0, 4.0]);
@@ -1005,6 +1109,8 @@ impl Tensor {
                     device: self.device(),
                     dtype: target_dtype,
                     layout: self.layout().clone(),
+                    grad_tensor_id: None,
+                    graph_id: None,
                     mode: get_mode(),
                     update_status: TensorUpdateStatus::Pending,
                 };
@@ -1013,13 +1119,17 @@ impl Tensor {
             },
             TensorMode::Lazy => {
                 let layout = self.layout().clone();
-                let result = add_to_graph(
-                    &[self],
+                let result = add_to_forward_graph(
                     "square",
+                    &[self],
                     &[self.device()],
                     &[target_dtype],
                     &[layout],
-                    move |tensors, target_tids| Ok(vec![tensors[0].execute_square(target_tids[0], target_dtype)?]),
+                    move |input_tids, target_tids| {
+                        let input_tensor = Tensor(input_tids[0]);
+                        let result = input_tensor.execute_square(target_tids[0], target_dtype)?;
+                        Ok(vec![result.id()])
+                    },
                 )?;
                 Ok(result.into_iter().next().unwrap())
             },
@@ -1034,8 +1144,9 @@ impl Tensor {
     /// In Lazy mode, the operation is added to the computation graph.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use maidenx_core::error::Result;
+    /// use crate::Tensor;
     ///
     /// fn sqrt_tensor() -> Result<()> {
     ///     let tensor = Tensor::new(&[4.0, 9.0, 16.0]);
@@ -1070,6 +1181,8 @@ impl Tensor {
                     device: self.device(),
                     dtype: target_dtype,
                     layout: self.layout().clone(),
+                    grad_tensor_id: None,
+                    graph_id: None,
                     mode: get_mode(),
                     update_status: TensorUpdateStatus::Pending,
                 };
@@ -1078,13 +1191,17 @@ impl Tensor {
             },
             TensorMode::Lazy => {
                 let layout = self.layout().clone();
-                let result = add_to_graph(
-                    &[self],
+                let result = add_to_forward_graph(
                     "sqrt",
+                    &[self],
                     &[self.device()],
                     &[target_dtype],
                     &[layout],
-                    move |tensors, target_tids| Ok(vec![tensors[0].execute_sqrt(target_tids[0], target_dtype)?]),
+                    move |input_tids, target_tids| {
+                        let input_tensor = Tensor(input_tids[0]);
+                        let result = input_tensor.execute_sqrt(target_tids[0], target_dtype)?;
+                        Ok(vec![result.id()])
+                    },
                 )?;
                 Ok(result.into_iter().next().unwrap())
             },
@@ -1099,8 +1216,9 @@ impl Tensor {
     /// In Lazy mode, the operation is added to the computation graph.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use maidenx_core::error::Result;
+    /// use crate::Tensor;
     ///
     /// fn relu_tensor() -> Result<()> {
     ///     let tensor = Tensor::new(&[-2.0, -1.0, 0.0, 1.0, 2.0]);
@@ -1135,6 +1253,8 @@ impl Tensor {
                     device: self.device(),
                     dtype: target_dtype,
                     layout: self.layout().clone(),
+                    grad_tensor_id: None,
+                    graph_id: None,
                     mode: get_mode(),
                     update_status: TensorUpdateStatus::Pending,
                 };
@@ -1143,13 +1263,17 @@ impl Tensor {
             },
             TensorMode::Lazy => {
                 let layout = self.layout().clone();
-                let result = add_to_graph(
-                    &[self],
+                let result = add_to_forward_graph(
                     "relu",
+                    &[self],
                     &[self.device()],
                     &[target_dtype],
                     &[layout],
-                    move |tensors, target_tids| Ok(vec![tensors[0].execute_relu(target_tids[0], target_dtype)?]),
+                    move |input_tids, target_tids| {
+                        let input_tensor = Tensor(input_tids[0]);
+                        let result = input_tensor.execute_relu(target_tids[0], target_dtype)?;
+                        Ok(vec![result.id()])
+                    },
                 )?;
                 Ok(result.into_iter().next().unwrap())
             },
@@ -1164,8 +1288,9 @@ impl Tensor {
     /// In Lazy mode, the operation is added to the computation graph.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use maidenx_core::error::Result;
+    /// use crate::Tensor;
     ///
     /// fn sigmoid_tensor() -> Result<()> {
     ///     let tensor = Tensor::new(&[-1.0, 0.0, 1.0]);
@@ -1200,6 +1325,8 @@ impl Tensor {
                     device: self.device(),
                     dtype: target_dtype,
                     layout: self.layout().clone(),
+                    grad_tensor_id: None,
+                    graph_id: None,
                     mode: get_mode(),
                     update_status: TensorUpdateStatus::Pending,
                 };
@@ -1208,13 +1335,17 @@ impl Tensor {
             },
             TensorMode::Lazy => {
                 let layout = self.layout().clone();
-                let result = add_to_graph(
-                    &[self],
+                let result = add_to_forward_graph(
                     "sigmoid",
+                    &[self],
                     &[self.device()],
                     &[target_dtype],
                     &[layout],
-                    move |tensors, target_tids| Ok(vec![tensors[0].execute_sigmoid(target_tids[0], target_dtype)?]),
+                    move |input_tids, target_tids| {
+                        let input_tensor = Tensor(input_tids[0]);
+                        let result = input_tensor.execute_sigmoid(target_tids[0], target_dtype)?;
+                        Ok(vec![result.id()])
+                    },
                 )?;
                 Ok(result.into_iter().next().unwrap())
             },
@@ -1229,8 +1360,9 @@ impl Tensor {
     /// In Lazy mode, the operation is added to the computation graph.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use maidenx_core::error::Result;
+    /// use crate::Tensor;
     ///
     /// fn tanh_tensor() -> Result<()> {
     ///     let tensor = Tensor::new(&[-1.0, 0.0, 1.0]);
@@ -1265,6 +1397,8 @@ impl Tensor {
                     device: self.device(),
                     dtype: target_dtype,
                     layout: self.layout().clone(),
+                    grad_tensor_id: None,
+                    graph_id: None,
                     mode: get_mode(),
                     update_status: TensorUpdateStatus::Pending,
                 };
@@ -1273,13 +1407,17 @@ impl Tensor {
             },
             TensorMode::Lazy => {
                 let layout = self.layout().clone();
-                let result = add_to_graph(
-                    &[self],
+                let result = add_to_forward_graph(
                     "tanh",
+                    &[self],
                     &[self.device()],
                     &[target_dtype],
                     &[layout],
-                    move |tensors, target_tids| Ok(vec![tensors[0].execute_tanh(target_tids[0], target_dtype)?]),
+                    move |input_tids, target_tids| {
+                        let input_tensor = Tensor(input_tids[0]);
+                        let result = input_tensor.execute_tanh(target_tids[0], target_dtype)?;
+                        Ok(vec![result.id()])
+                    },
                 )?;
                 Ok(result.into_iter().next().unwrap())
             },
@@ -1294,8 +1432,9 @@ impl Tensor {
     /// In Lazy mode, the operation is added to the computation graph.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use maidenx_core::error::Result;
+    /// use crate::Tensor;
     ///
     /// fn gelu_tensor() -> Result<()> {
     ///     let tensor = Tensor::new(&[-1.0, 0.0, 1.0]);
@@ -1330,6 +1469,8 @@ impl Tensor {
                     device: self.device(),
                     dtype: target_dtype,
                     layout: self.layout().clone(),
+                    grad_tensor_id: None,
+                    graph_id: None,
                     mode: get_mode(),
                     update_status: TensorUpdateStatus::Pending,
                 };
@@ -1338,13 +1479,17 @@ impl Tensor {
             },
             TensorMode::Lazy => {
                 let layout = self.layout().clone();
-                let result = add_to_graph(
-                    &[self],
+                let result = add_to_forward_graph(
                     "gelu",
+                    &[self],
                     &[self.device()],
                     &[target_dtype],
                     &[layout],
-                    move |tensors, target_tids| Ok(vec![tensors[0].execute_gelu(target_tids[0], target_dtype)?]),
+                    move |input_tids, target_tids| {
+                        let input_tensor = Tensor(input_tids[0]);
+                        let result = input_tensor.execute_gelu(target_tids[0], target_dtype)?;
+                        Ok(vec![result.id()])
+                    },
                 )?;
                 Ok(result.into_iter().next().unwrap())
             },
@@ -1359,8 +1504,9 @@ impl Tensor {
     /// In Lazy mode, the operation is added to the computation graph.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use maidenx_core::error::Result;
+    /// use crate::Tensor;
     ///
     /// fn sin_tensor() -> Result<()> {
     ///     let tensor = Tensor::new(&[0.0, std::f32::consts::PI / 2.0, std::f32::consts::PI]);
@@ -1395,6 +1541,8 @@ impl Tensor {
                     device: self.device(),
                     dtype: target_dtype,
                     layout: self.layout().clone(),
+                    grad_tensor_id: None,
+                    graph_id: None,
                     mode: get_mode(),
                     update_status: TensorUpdateStatus::Pending,
                 };
@@ -1403,13 +1551,17 @@ impl Tensor {
             },
             TensorMode::Lazy => {
                 let layout = self.layout().clone();
-                let result = add_to_graph(
-                    &[self],
+                let result = add_to_forward_graph(
                     "sin",
+                    &[self],
                     &[self.device()],
                     &[target_dtype],
                     &[layout],
-                    move |tensors, target_tids| Ok(vec![tensors[0].execute_sin(target_tids[0], target_dtype)?]),
+                    move |input_tids, target_tids| {
+                        let input_tensor = Tensor(input_tids[0]);
+                        let result = input_tensor.execute_sin(target_tids[0], target_dtype)?;
+                        Ok(vec![result.id()])
+                    },
                 )?;
                 Ok(result.into_iter().next().unwrap())
             },
@@ -1424,8 +1576,9 @@ impl Tensor {
     /// In Lazy mode, the operation is added to the computation graph.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use maidenx_core::error::Result;
+    /// use crate::Tensor;
     ///
     /// fn cos_tensor() -> Result<()> {
     ///     let tensor = Tensor::new(&[0.0, std::f32::consts::PI / 2.0, std::f32::consts::PI]);
@@ -1460,6 +1613,8 @@ impl Tensor {
                     device: self.device(),
                     dtype: target_dtype,
                     layout: self.layout().clone(),
+                    grad_tensor_id: None,
+                    graph_id: None,
                     mode: get_mode(),
                     update_status: TensorUpdateStatus::Pending,
                 };
@@ -1468,13 +1623,17 @@ impl Tensor {
             },
             TensorMode::Lazy => {
                 let layout = self.layout().clone();
-                let result = add_to_graph(
-                    &[self],
+                let result = add_to_forward_graph(
                     "cos",
+                    &[self],
                     &[self.device()],
                     &[target_dtype],
                     &[layout],
-                    move |tensors, target_tids| Ok(vec![tensors[0].execute_cos(target_tids[0], target_dtype)?]),
+                    move |input_tids, target_tids| {
+                        let input_tensor = Tensor(input_tids[0]);
+                        let result = input_tensor.execute_cos(target_tids[0], target_dtype)?;
+                        Ok(vec![result.id()])
+                    },
                 )?;
                 Ok(result.into_iter().next().unwrap())
             },
@@ -1489,8 +1648,9 @@ impl Tensor {
     /// In Lazy mode, the operation is added to the computation graph.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use maidenx_core::error::Result;
+    /// use crate::Tensor;
     ///
     /// fn tan_tensor() -> Result<()> {
     ///     let tensor = Tensor::new(&[0.0, std::f32::consts::PI / 4.0]);
@@ -1529,6 +1689,8 @@ impl Tensor {
                     device: self.device(),
                     dtype: target_dtype,
                     layout: self.layout().clone(),
+                    grad_tensor_id: None,
+                    graph_id: None,
                     mode: get_mode(),
                     update_status: TensorUpdateStatus::Pending,
                 };
@@ -1537,13 +1699,17 @@ impl Tensor {
             },
             TensorMode::Lazy => {
                 let layout = self.layout().clone();
-                let result = add_to_graph(
-                    &[self],
+                let result = add_to_forward_graph(
                     "tan",
+                    &[self],
                     &[self.device()],
                     &[target_dtype],
                     &[layout],
-                    move |tensors, target_tids| Ok(vec![tensors[0].execute_tan(target_tids[0], target_dtype)?]),
+                    move |input_tids, target_tids| {
+                        let input_tensor = Tensor(input_tids[0]);
+                        let result = input_tensor.execute_tan(target_tids[0], target_dtype)?;
+                        Ok(vec![result.id()])
+                    },
                 )?;
                 Ok(result.into_iter().next().unwrap())
             },
@@ -1558,8 +1724,9 @@ impl Tensor {
     /// In Lazy mode, the operation is added to the computation graph.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use maidenx_core::error::Result;
+    /// use crate::Tensor;
     ///
     /// fn ln_tensor() -> Result<()> {
     ///     let tensor = Tensor::new(&[1.0, std::f32::consts::E, std::f32::consts::E * std::f32::consts::E]);
@@ -1598,6 +1765,8 @@ impl Tensor {
                     device: self.device(),
                     dtype: target_dtype,
                     layout: self.layout().clone(),
+                    grad_tensor_id: None,
+                    graph_id: None,
                     mode: get_mode(),
                     update_status: TensorUpdateStatus::Pending,
                 };
@@ -1606,13 +1775,17 @@ impl Tensor {
             },
             TensorMode::Lazy => {
                 let layout = self.layout().clone();
-                let result = add_to_graph(
-                    &[self],
+                let result = add_to_forward_graph(
                     "ln",
+                    &[self],
                     &[self.device()],
                     &[target_dtype],
                     &[layout],
-                    move |tensors, target_tids| Ok(vec![tensors[0].execute_ln(target_tids[0], target_dtype)?]),
+                    move |input_tids, target_tids| {
+                        let input_tensor = Tensor(input_tids[0]);
+                        let result = input_tensor.execute_ln(target_tids[0], target_dtype)?;
+                        Ok(vec![result.id()])
+                    },
                 )?;
                 Ok(result.into_iter().next().unwrap())
             },
@@ -1627,8 +1800,9 @@ impl Tensor {
     /// In Lazy mode, the operation is added to the computation graph.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use maidenx_core::error::Result;
+    /// use crate::Tensor;
     ///
     /// fn log_tensor() -> Result<()> {
     ///     let tensor = Tensor::new(&[1.0, std::f32::consts::E, std::f32::consts::E * std::f32::consts::E]);
@@ -1666,8 +1840,9 @@ impl Tensor {
     /// In Lazy mode, the operation is added to the computation graph.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use maidenx_core::error::Result;
+    /// use crate::Tensor;
     ///
     /// fn log10_tensor() -> Result<()> {
     ///     let tensor = Tensor::new(&[1.0, 10.0, 100.0, 1000.0]);
@@ -1706,6 +1881,8 @@ impl Tensor {
                     device: self.device(),
                     dtype: target_dtype,
                     layout: self.layout().clone(),
+                    grad_tensor_id: None,
+                    graph_id: None,
                     mode: get_mode(),
                     update_status: TensorUpdateStatus::Pending,
                 };
@@ -1714,13 +1891,17 @@ impl Tensor {
             },
             TensorMode::Lazy => {
                 let layout = self.layout().clone();
-                let result = add_to_graph(
-                    &[self],
+                let result = add_to_forward_graph(
                     "log10",
+                    &[self],
                     &[self.device()],
                     &[target_dtype],
                     &[layout],
-                    move |tensors, target_tids| Ok(vec![tensors[0].execute_log10(target_tids[0], target_dtype)?]),
+                    move |input_tids, target_tids| {
+                        let input_tensor = Tensor(input_tids[0]);
+                        let result = input_tensor.execute_log10(target_tids[0], target_dtype)?;
+                        Ok(vec![result.id()])
+                    },
                 )?;
                 Ok(result.into_iter().next().unwrap())
             },
@@ -1735,8 +1916,9 @@ impl Tensor {
     /// In Lazy mode, the operation is added to the computation graph.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use maidenx_core::error::Result;
+    /// use crate::Tensor;
     ///
     /// fn log2_tensor() -> Result<()> {
     ///     let tensor = Tensor::new(&[1.0, 2.0, 4.0, 8.0, 16.0]);
@@ -1775,6 +1957,8 @@ impl Tensor {
                     device: self.device(),
                     dtype: target_dtype,
                     layout: self.layout().clone(),
+                    grad_tensor_id: None,
+                    graph_id: None,
                     mode: get_mode(),
                     update_status: TensorUpdateStatus::Pending,
                 };
@@ -1783,13 +1967,17 @@ impl Tensor {
             },
             TensorMode::Lazy => {
                 let layout = self.layout().clone();
-                let result = add_to_graph(
-                    &[self],
+                let result = add_to_forward_graph(
                     "log2",
+                    &[self],
                     &[self.device()],
                     &[target_dtype],
                     &[layout],
-                    move |tensors, target_tids| Ok(vec![tensors[0].execute_log2(target_tids[0], target_dtype)?]),
+                    move |input_tids, target_tids| {
+                        let input_tensor = Tensor(input_tids[0]);
+                        let result = input_tensor.execute_log2(target_tids[0], target_dtype)?;
+                        Ok(vec![result.id()])
+                    },
                 )?;
                 Ok(result.into_iter().next().unwrap())
             },
@@ -1804,8 +1992,9 @@ impl Tensor {
     /// In Lazy mode, the operation is added to the computation graph.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use maidenx_core::error::Result;
+    /// use crate::Tensor;
     ///
     /// fn exp_tensor() -> Result<()> {
     ///     let tensor = Tensor::new(&[0.0, 1.0, 2.0]);
@@ -1844,6 +2033,8 @@ impl Tensor {
                     device: self.device(),
                     dtype: target_dtype,
                     layout: self.layout().clone(),
+                    grad_tensor_id: None,
+                    graph_id: None,
                     mode: get_mode(),
                     update_status: TensorUpdateStatus::Pending,
                 };
@@ -1852,13 +2043,17 @@ impl Tensor {
             },
             TensorMode::Lazy => {
                 let layout = self.layout().clone();
-                let result = add_to_graph(
-                    &[self],
+                let result = add_to_forward_graph(
                     "exp",
+                    &[self],
                     &[self.device()],
                     &[target_dtype],
                     &[layout],
-                    move |tensors, target_tids| Ok(vec![tensors[0].execute_exp(target_tids[0], target_dtype)?]),
+                    move |input_tids, target_tids| {
+                        let input_tensor = Tensor(input_tids[0]);
+                        let result = input_tensor.execute_exp(target_tids[0], target_dtype)?;
+                        Ok(vec![result.id()])
+                    },
                 )?;
                 Ok(result.into_iter().next().unwrap())
             },
@@ -1873,8 +2068,9 @@ impl Tensor {
     /// In Lazy mode, the operation is added to the computation graph.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use maidenx_core::error::Result;
+    /// use crate::Tensor;
     ///
     /// fn exp10_tensor() -> Result<()> {
     ///     let tensor = Tensor::new(&[0.0, 1.0, 2.0, 3.0]);
@@ -1913,6 +2109,8 @@ impl Tensor {
                     device: self.device(),
                     dtype: target_dtype,
                     layout: self.layout().clone(),
+                    grad_tensor_id: None,
+                    graph_id: None,
                     mode: get_mode(),
                     update_status: TensorUpdateStatus::Pending,
                 };
@@ -1921,13 +2119,17 @@ impl Tensor {
             },
             TensorMode::Lazy => {
                 let layout = self.layout().clone();
-                let result = add_to_graph(
-                    &[self],
+                let result = add_to_forward_graph(
                     "exp10",
+                    &[self],
                     &[self.device()],
                     &[target_dtype],
                     &[layout],
-                    move |tensors, target_tids| Ok(vec![tensors[0].execute_exp10(target_tids[0], target_dtype)?]),
+                    move |input_tids, target_tids| {
+                        let input_tensor = Tensor(input_tids[0]);
+                        let result = input_tensor.execute_exp10(target_tids[0], target_dtype)?;
+                        Ok(vec![result.id()])
+                    },
                 )?;
                 Ok(result.into_iter().next().unwrap())
             },
@@ -1942,8 +2144,9 @@ impl Tensor {
     /// In Lazy mode, the operation is added to the computation graph.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use maidenx_core::error::Result;
+    /// use crate::Tensor;
     ///
     /// fn exp2_tensor() -> Result<()> {
     ///     let tensor = Tensor::new(&[0.0, 1.0, 2.0, 3.0, 4.0]);
@@ -1982,6 +2185,8 @@ impl Tensor {
                     device: self.device(),
                     dtype: target_dtype,
                     layout: self.layout().clone(),
+                    grad_tensor_id: None,
+                    graph_id: None,
                     mode: get_mode(),
                     update_status: TensorUpdateStatus::Pending,
                 };
@@ -1990,13 +2195,17 @@ impl Tensor {
             },
             TensorMode::Lazy => {
                 let layout = self.layout().clone();
-                let result = add_to_graph(
-                    &[self],
+                let result = add_to_forward_graph(
                     "exp2",
+                    &[self],
                     &[self.device()],
                     &[target_dtype],
                     &[layout],
-                    move |tensors, target_tids| Ok(vec![tensors[0].execute_exp2(target_tids[0], target_dtype)?]),
+                    move |input_tids, target_tids| {
+                        let input_tensor = Tensor(input_tids[0]);
+                        let result = input_tensor.execute_exp2(target_tids[0], target_dtype)?;
+                        Ok(vec![result.id()])
+                    },
                 )?;
                 Ok(result.into_iter().next().unwrap())
             },
@@ -2012,8 +2221,9 @@ impl Tensor {
     /// In Lazy mode, the operation is added to the computation graph.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use maidenx_core::error::Result;
+    /// use crate::Tensor;
     ///
     /// fn softplus_tensor() -> Result<()> {
     ///     let tensor = Tensor::new(&[-2.0, -1.0, 0.0, 1.0, 2.0]);
@@ -2054,6 +2264,8 @@ impl Tensor {
                     device: self.device(),
                     dtype: target_dtype,
                     layout: self.layout().clone(),
+                    grad_tensor_id: None,
+                    graph_id: None,
                     mode: get_mode(),
                     update_status: TensorUpdateStatus::Pending,
                 };
@@ -2062,13 +2274,17 @@ impl Tensor {
             },
             TensorMode::Lazy => {
                 let layout = self.layout().clone();
-                let result = add_to_graph(
-                    &[self],
+                let result = add_to_forward_graph(
                     "softplus",
+                    &[self],
                     &[self.device()],
                     &[target_dtype],
                     &[layout],
-                    move |tensors, target_tids| Ok(vec![tensors[0].execute_softplus(target_tids[0], target_dtype)?]),
+                    move |input_tids, target_tids| {
+                        let input_tensor = Tensor(input_tids[0]);
+                        let result = input_tensor.execute_softplus(target_tids[0], target_dtype)?;
+                        Ok(vec![result.id()])
+                    },
                 )?;
                 Ok(result.into_iter().next().unwrap())
             },
@@ -2083,8 +2299,9 @@ impl Tensor {
     /// In Lazy mode, the operation is added to the computation graph.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use maidenx_core::error::Result;
+    /// use crate::Tensor;
     ///
     /// fn recip_tensor() -> Result<()> {
     ///     let tensor = Tensor::new(&[1.0, 2.0, 4.0, 0.5, 0.25]);
@@ -2124,6 +2341,8 @@ impl Tensor {
                     device: self.device(),
                     dtype: target_dtype,
                     layout: self.layout().clone(),
+                    grad_tensor_id: None,
+                    graph_id: None,
                     mode: get_mode(),
                     update_status: TensorUpdateStatus::Pending,
                 };
@@ -2132,13 +2351,17 @@ impl Tensor {
             },
             TensorMode::Lazy => {
                 let layout = self.layout().clone();
-                let result = add_to_graph(
-                    &[self],
+                let result = add_to_forward_graph(
                     "recip",
+                    &[self],
                     &[self.device()],
                     &[target_dtype],
                     &[layout],
-                    move |tensors, target_tids| Ok(vec![tensors[0].execute_recip(target_tids[0], target_dtype)?]),
+                    move |input_tids, target_tids| {
+                        let input_tensor = Tensor(input_tids[0]);
+                        let result = input_tensor.execute_recip(target_tids[0], target_dtype)?;
+                        Ok(vec![result.id()])
+                    },
                 )?;
                 Ok(result.into_iter().next().unwrap())
             },
@@ -2154,8 +2377,9 @@ impl Tensor {
     /// In Lazy mode, the operation is added to the computation graph.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use maidenx_core::error::Result;
+    /// use crate::Tensor;
     ///
     /// fn logical_not_tensor() -> Result<()> {
     ///     let tensor = Tensor::new(&[true, false, true, false]);
@@ -2187,6 +2411,8 @@ impl Tensor {
                     device: self.device(),
                     dtype: target_dtype,
                     layout: self.layout().clone(),
+                    grad_tensor_id: None,
+                    graph_id: None,
                     mode: get_mode(),
                     update_status: TensorUpdateStatus::Pending,
                 };
@@ -2195,13 +2421,17 @@ impl Tensor {
             },
             TensorMode::Lazy => {
                 let layout = self.layout().clone();
-                let result = add_to_graph(
-                    &[self],
+                let result = add_to_forward_graph(
                     "logical_not",
+                    &[self],
                     &[self.device()],
                     &[target_dtype],
                     &[layout],
-                    move |tensors, target_tids| Ok(vec![tensors[0].execute_logical_not(target_tids[0], target_dtype)?]),
+                    move |input_tids, target_tids| {
+                        let input_tensor = Tensor(input_tids[0]);
+                        let result = input_tensor.execute_logical_not(target_tids[0], target_dtype)?;
+                        Ok(vec![result.id()])
+                    },
                 )?;
                 Ok(result.into_iter().next().unwrap())
             },
@@ -2216,8 +2446,9 @@ impl Tensor {
     /// In Lazy mode, the operation is added to the computation graph.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use maidenx_core::error::Result;
+    /// use crate::Tensor;
     ///
     /// fn add_scalar_tensor() -> Result<()> {
     ///     let tensor = Tensor::new(&[1.0, 2.0, 3.0, 4.0]);
@@ -2253,6 +2484,8 @@ impl Tensor {
                     device: self.device(),
                     dtype: target_dtype,
                     layout: self.layout().clone(),
+                    grad_tensor_id: None,
+                    graph_id: None,
                     mode: get_mode(),
                     update_status: TensorUpdateStatus::Pending,
                 };
@@ -2261,18 +2494,16 @@ impl Tensor {
             },
             TensorMode::Lazy => {
                 let layout = self.layout().clone();
-                let result = add_to_graph(
-                    &[self],
+                let result = add_to_forward_graph(
                     "add_scalar",
+                    &[self],
                     &[self.device()],
                     &[target_dtype],
                     &[layout],
-                    move |tensors, target_tids| {
-                        Ok(vec![tensors[0].execute_add_scalar(
-                            target_tids[0],
-                            target_dtype,
-                            scalar,
-                        )?])
+                    move |input_tids, target_tids| {
+                        let input_tensor = Tensor(input_tids[0]);
+                        let result = input_tensor.execute_add_scalar(target_tids[0], target_dtype, scalar)?;
+                        Ok(vec![result.id()])
                     },
                 )?;
                 Ok(result.into_iter().next().unwrap())
@@ -2288,8 +2519,9 @@ impl Tensor {
     /// In Lazy mode, the operation is added to the computation graph.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use maidenx_core::error::Result;
+    /// use crate::Tensor;
     ///
     /// fn sub_scalar_tensor() -> Result<()> {
     ///     let tensor = Tensor::new(&[6.0, 7.0, 8.0, 9.0]);
@@ -2325,6 +2557,8 @@ impl Tensor {
                     device: self.device(),
                     dtype: target_dtype,
                     layout: self.layout().clone(),
+                    grad_tensor_id: None,
+                    graph_id: None,
                     mode: get_mode(),
                     update_status: TensorUpdateStatus::Pending,
                 };
@@ -2333,18 +2567,16 @@ impl Tensor {
             },
             TensorMode::Lazy => {
                 let layout = self.layout().clone();
-                let result = add_to_graph(
-                    &[self],
+                let result = add_to_forward_graph(
                     "sub_scalar",
+                    &[self],
                     &[self.device()],
                     &[target_dtype],
                     &[layout],
-                    move |tensors, target_tids| {
-                        Ok(vec![tensors[0].execute_sub_scalar(
-                            target_tids[0],
-                            target_dtype,
-                            scalar,
-                        )?])
+                    move |input_tids, target_tids| {
+                        let input_tensor = Tensor(input_tids[0]);
+                        let result = input_tensor.execute_sub_scalar(target_tids[0], target_dtype, scalar)?;
+                        Ok(vec![result.id()])
                     },
                 )?;
                 Ok(result.into_iter().next().unwrap())
@@ -2360,8 +2592,9 @@ impl Tensor {
     /// In Lazy mode, the operation is added to the computation graph.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use maidenx_core::error::Result;
+    /// use crate::Tensor;
     ///
     /// fn mul_scalar_tensor() -> Result<()> {
     ///     let tensor = Tensor::new(&[1.0, 2.0, 3.0, 4.0]);
@@ -2397,6 +2630,8 @@ impl Tensor {
                     device: self.device(),
                     dtype: target_dtype,
                     layout: self.layout().clone(),
+                    grad_tensor_id: None,
+                    graph_id: None,
                     mode: get_mode(),
                     update_status: TensorUpdateStatus::Pending,
                 };
@@ -2405,18 +2640,16 @@ impl Tensor {
             },
             TensorMode::Lazy => {
                 let layout = self.layout().clone();
-                let result = add_to_graph(
-                    &[self],
+                let result = add_to_forward_graph(
                     "mul_scalar",
+                    &[self],
                     &[self.device()],
                     &[target_dtype],
                     &[layout],
-                    move |tensors, target_tids| {
-                        Ok(vec![tensors[0].execute_mul_scalar(
-                            target_tids[0],
-                            target_dtype,
-                            scalar,
-                        )?])
+                    move |input_tids, target_tids| {
+                        let input_tensor = Tensor(input_tids[0]);
+                        let result = input_tensor.execute_mul_scalar(target_tids[0], target_dtype, scalar)?;
+                        Ok(vec![result.id()])
                     },
                 )?;
                 Ok(result.into_iter().next().unwrap())
@@ -2432,8 +2665,9 @@ impl Tensor {
     /// In Lazy mode, the operation is added to the computation graph.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use maidenx_core::error::Result;
+    /// use crate::Tensor;
     ///
     /// fn div_scalar_tensor() -> Result<()> {
     ///     let tensor = Tensor::new(&[2.0, 4.0, 6.0, 8.0]);
@@ -2473,6 +2707,8 @@ impl Tensor {
                     device: self.device(),
                     dtype: target_dtype,
                     layout: self.layout().clone(),
+                    grad_tensor_id: None,
+                    graph_id: None,
                     mode: get_mode(),
                     update_status: TensorUpdateStatus::Pending,
                 };
@@ -2481,18 +2717,16 @@ impl Tensor {
             },
             TensorMode::Lazy => {
                 let layout = self.layout().clone();
-                let result = add_to_graph(
-                    &[self],
+                let result = add_to_forward_graph(
                     "div_scalar",
+                    &[self],
                     &[self.device()],
                     &[target_dtype],
                     &[layout],
-                    move |tensors, target_tids| {
-                        Ok(vec![tensors[0].execute_div_scalar(
-                            target_tids[0],
-                            target_dtype,
-                            scalar,
-                        )?])
+                    move |input_tids, target_tids| {
+                        let input_tensor = Tensor(input_tids[0]);
+                        let result = input_tensor.execute_div_scalar(target_tids[0], target_dtype, scalar)?;
+                        Ok(vec![result.id()])
                     },
                 )?;
                 Ok(result.into_iter().next().unwrap())
@@ -2508,8 +2742,9 @@ impl Tensor {
     /// In Lazy mode, the operation is added to the computation graph.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use maidenx_core::error::Result;
+    /// use crate::Tensor;
     ///
     /// fn maximum_scalar_tensor() -> Result<()> {
     ///     let tensor = Tensor::new(&[1.0, 2.0, 3.0, 4.0]);
@@ -2546,6 +2781,8 @@ impl Tensor {
                     device: self.device(),
                     dtype: target_dtype,
                     layout: self.layout().clone(),
+                    grad_tensor_id: None,
+                    graph_id: None,
                     mode: get_mode(),
                     update_status: TensorUpdateStatus::Pending,
                 };
@@ -2554,18 +2791,16 @@ impl Tensor {
             },
             TensorMode::Lazy => {
                 let layout = self.layout().clone();
-                let result = add_to_graph(
-                    &[self],
+                let result = add_to_forward_graph(
                     "maximum_scalar",
+                    &[self],
                     &[self.device()],
                     &[target_dtype],
                     &[layout],
-                    move |tensors, target_tids| {
-                        Ok(vec![tensors[0].execute_maximum_scalar(
-                            target_tids[0],
-                            target_dtype,
-                            scalar,
-                        )?])
+                    move |input_tids, target_tids| {
+                        let input_tensor = Tensor(input_tids[0]);
+                        let result = input_tensor.execute_maximum_scalar(target_tids[0], target_dtype, scalar)?;
+                        Ok(vec![result.id()])
                     },
                 )?;
                 Ok(result.into_iter().next().unwrap())
@@ -2581,8 +2816,9 @@ impl Tensor {
     /// In Lazy mode, the operation is added to the computation graph.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use maidenx_core::error::Result;
+    /// use crate::Tensor;
     ///
     /// fn minimum_scalar_tensor() -> Result<()> {
     ///     let tensor = Tensor::new(&[1.0, 2.0, 3.0, 4.0]);
@@ -2619,6 +2855,8 @@ impl Tensor {
                     device: self.device(),
                     dtype: target_dtype,
                     layout: self.layout().clone(),
+                    grad_tensor_id: None,
+                    graph_id: None,
                     mode: get_mode(),
                     update_status: TensorUpdateStatus::Pending,
                 };
@@ -2627,18 +2865,16 @@ impl Tensor {
             },
             TensorMode::Lazy => {
                 let layout = self.layout().clone();
-                let result = add_to_graph(
-                    &[self],
+                let result = add_to_forward_graph(
                     "minimum_scalar",
+                    &[self],
                     &[self.device()],
                     &[target_dtype],
                     &[layout],
-                    move |tensors, target_tids| {
-                        Ok(vec![tensors[0].execute_minimum_scalar(
-                            target_tids[0],
-                            target_dtype,
-                            scalar,
-                        )?])
+                    move |input_tids, target_tids| {
+                        let input_tensor = Tensor(input_tids[0]);
+                        let result = input_tensor.execute_minimum_scalar(target_tids[0], target_dtype, scalar)?;
+                        Ok(vec![result.id()])
                     },
                 )?;
                 Ok(result.into_iter().next().unwrap())
@@ -2655,8 +2891,9 @@ impl Tensor {
     /// In Lazy mode, the operation is added to the computation graph.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use maidenx_core::error::Result;
+    /// use crate::Tensor;
     ///
     /// fn pow_tensor() -> Result<()> {
     ///     let tensor = Tensor::new(&[2.0, 3.0, 4.0]);
@@ -2711,6 +2948,8 @@ impl Tensor {
                     device: self.device(),
                     dtype: target_dtype,
                     layout: self.layout().clone(),
+                    grad_tensor_id: None,
+                    graph_id: None,
                     mode: get_mode(),
                     update_status: TensorUpdateStatus::Pending,
                 };
@@ -2719,14 +2958,16 @@ impl Tensor {
             },
             TensorMode::Lazy => {
                 let layout = self.layout().clone();
-                let result = add_to_graph(
-                    &[self],
+                let result = add_to_forward_graph(
                     "pow",
+                    &[self],
                     &[self.device()],
                     &[target_dtype],
                     &[layout],
-                    move |tensors, target_tids| {
-                        Ok(vec![tensors[0].execute_pow(target_tids[0], target_dtype, exponent)?])
+                    move |input_tids, target_tids| {
+                        let input_tensor = Tensor(input_tids[0]);
+                        let result = input_tensor.execute_pow(target_tids[0], target_dtype, exponent)?;
+                        Ok(vec![result.id()])
                     },
                 )?;
                 Ok(result.into_iter().next().unwrap())
@@ -2742,8 +2983,9 @@ impl Tensor {
     /// In Lazy mode, the operation is added to the computation graph.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use maidenx_core::error::Result;
+    /// use crate::Tensor;
     ///
     /// fn leaky_relu_tensor() -> Result<()> {
     ///     let tensor = Tensor::new(&[-2.0, -1.0, 0.0, 1.0, 2.0]);
@@ -2779,6 +3021,8 @@ impl Tensor {
                     device: self.device(),
                     dtype: target_dtype,
                     layout: self.layout().clone(),
+                    grad_tensor_id: None,
+                    graph_id: None,
                     mode: get_mode(),
                     update_status: TensorUpdateStatus::Pending,
                 };
@@ -2787,18 +3031,16 @@ impl Tensor {
             },
             TensorMode::Lazy => {
                 let layout = self.layout().clone();
-                let result = add_to_graph(
-                    &[self],
+                let result = add_to_forward_graph(
                     "leaky_relu",
+                    &[self],
                     &[self.device()],
                     &[target_dtype],
                     &[layout],
-                    move |tensors, target_tids| {
-                        Ok(vec![tensors[0].execute_leaky_relu(
-                            target_tids[0],
-                            target_dtype,
-                            alpha,
-                        )?])
+                    move |input_tids, target_tids| {
+                        let input_tensor = Tensor(input_tids[0]);
+                        let result = input_tensor.execute_leaky_relu(target_tids[0], target_dtype, alpha)?;
+                        Ok(vec![result.id()])
                     },
                 )?;
                 Ok(result.into_iter().next().unwrap())
@@ -2814,8 +3056,9 @@ impl Tensor {
     /// In Lazy mode, the operation is added to the computation graph.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use maidenx_core::error::Result;
+    /// use crate::Tensor;
     ///
     /// fn elu_tensor() -> Result<()> {
     ///     let tensor = Tensor::new(&[-2.0, -1.0, 0.0, 1.0, 2.0]);
@@ -2851,6 +3094,8 @@ impl Tensor {
                     device: self.device(),
                     dtype: target_dtype,
                     layout: self.layout().clone(),
+                    grad_tensor_id: None,
+                    graph_id: None,
                     mode: get_mode(),
                     update_status: TensorUpdateStatus::Pending,
                 };
@@ -2859,14 +3104,16 @@ impl Tensor {
             },
             TensorMode::Lazy => {
                 let layout = self.layout().clone();
-                let result = add_to_graph(
-                    &[self],
+                let result = add_to_forward_graph(
                     "elu",
+                    &[self],
                     &[self.device()],
                     &[target_dtype],
                     &[layout],
-                    move |tensors, target_tids| {
-                        Ok(vec![tensors[0].execute_elu(target_tids[0], target_dtype, alpha)?])
+                    move |input_tids, target_tids| {
+                        let input_tensor = Tensor(input_tids[0]);
+                        let result = input_tensor.execute_elu(target_tids[0], target_dtype, alpha)?;
+                        Ok(vec![result.id()])
                     },
                 )?;
                 Ok(result.into_iter().next().unwrap())
@@ -2882,8 +3129,9 @@ impl Tensor {
     /// In Lazy mode, the operation is added to the computation graph.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use maidenx_core::error::Result;
+    /// use crate::Tensor;
     ///
     /// fn eq_scalar_tensor() -> Result<()> {
     ///     let tensor = Tensor::new(&[1.0, 2.0, 3.0, 2.0]);
@@ -2910,6 +3158,8 @@ impl Tensor {
                     device: self.device(),
                     dtype: target_dtype,
                     layout: self.layout().clone(),
+                    grad_tensor_id: None,
+                    graph_id: None,
                     mode: get_mode(),
                     update_status: TensorUpdateStatus::Pending,
                 };
@@ -2918,18 +3168,16 @@ impl Tensor {
             },
             TensorMode::Lazy => {
                 let layout = self.layout().clone();
-                let result = add_to_graph(
-                    &[self],
+                let result = add_to_forward_graph(
                     "eq_scalar",
+                    &[self],
                     &[self.device()],
                     &[target_dtype],
                     &[layout],
-                    move |tensors, target_tids| {
-                        Ok(vec![tensors[0].execute_eq_scalar(
-                            target_tids[0],
-                            target_dtype,
-                            scalar,
-                        )?])
+                    move |input_tids, target_tids| {
+                        let input_tensor = Tensor(input_tids[0]);
+                        let result = input_tensor.execute_eq_scalar(target_tids[0], target_dtype, scalar)?;
+                        Ok(vec![result.id()])
                     },
                 )?;
                 Ok(result.into_iter().next().unwrap())
@@ -2945,8 +3193,9 @@ impl Tensor {
     /// In Lazy mode, the operation is added to the computation graph.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use maidenx_core::error::Result;
+    /// use crate::Tensor;
     ///
     /// fn ne_scalar_tensor() -> Result<()> {
     ///     let tensor = Tensor::new(&[1.0, 2.0, 3.0, 2.0]);
@@ -2973,6 +3222,8 @@ impl Tensor {
                     device: self.device(),
                     dtype: target_dtype,
                     layout: self.layout().clone(),
+                    grad_tensor_id: None,
+                    graph_id: None,
                     mode: get_mode(),
                     update_status: TensorUpdateStatus::Pending,
                 };
@@ -2981,18 +3232,16 @@ impl Tensor {
             },
             TensorMode::Lazy => {
                 let layout = self.layout().clone();
-                let result = add_to_graph(
-                    &[self],
+                let result = add_to_forward_graph(
                     "ne_scalar",
+                    &[self],
                     &[self.device()],
                     &[target_dtype],
                     &[layout],
-                    move |tensors, target_tids| {
-                        Ok(vec![tensors[0].execute_ne_scalar(
-                            target_tids[0],
-                            target_dtype,
-                            scalar,
-                        )?])
+                    move |input_tids, target_tids| {
+                        let input_tensor = Tensor(input_tids[0]);
+                        let result = input_tensor.execute_ne_scalar(target_tids[0], target_dtype, scalar)?;
+                        Ok(vec![result.id()])
                     },
                 )?;
                 Ok(result.into_iter().next().unwrap())
@@ -3008,8 +3257,9 @@ impl Tensor {
     /// In Lazy mode, the operation is added to the computation graph.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use maidenx_core::error::Result;
+    /// use crate::Tensor;
     ///
     /// fn lt_scalar_tensor() -> Result<()> {
     ///     let tensor = Tensor::new(&[1.0, 2.0, 3.0, 4.0]);
@@ -3036,6 +3286,8 @@ impl Tensor {
                     device: self.device(),
                     dtype: target_dtype,
                     layout: self.layout().clone(),
+                    grad_tensor_id: None,
+                    graph_id: None,
                     mode: get_mode(),
                     update_status: TensorUpdateStatus::Pending,
                 };
@@ -3044,18 +3296,16 @@ impl Tensor {
             },
             TensorMode::Lazy => {
                 let layout = self.layout().clone();
-                let result = add_to_graph(
-                    &[self],
+                let result = add_to_forward_graph(
                     "lt_scalar",
+                    &[self],
                     &[self.device()],
                     &[target_dtype],
                     &[layout],
-                    move |tensors, target_tids| {
-                        Ok(vec![tensors[0].execute_lt_scalar(
-                            target_tids[0],
-                            target_dtype,
-                            scalar,
-                        )?])
+                    move |input_tids, target_tids| {
+                        let input_tensor = Tensor(input_tids[0]);
+                        let result = input_tensor.execute_lt_scalar(target_tids[0], target_dtype, scalar)?;
+                        Ok(vec![result.id()])
                     },
                 )?;
                 Ok(result.into_iter().next().unwrap())
@@ -3071,8 +3321,9 @@ impl Tensor {
     /// In Lazy mode, the operation is added to the computation graph.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use maidenx_core::error::Result;
+    /// use crate::Tensor;
     ///
     /// fn le_scalar_tensor() -> Result<()> {
     ///     let tensor = Tensor::new(&[1.0, 2.0, 3.0, 4.0]);
@@ -3099,6 +3350,8 @@ impl Tensor {
                     device: self.device(),
                     dtype: target_dtype,
                     layout: self.layout().clone(),
+                    grad_tensor_id: None,
+                    graph_id: None,
                     mode: get_mode(),
                     update_status: TensorUpdateStatus::Pending,
                 };
@@ -3107,18 +3360,16 @@ impl Tensor {
             },
             TensorMode::Lazy => {
                 let layout = self.layout().clone();
-                let result = add_to_graph(
-                    &[self],
+                let result = add_to_forward_graph(
                     "le_scalar",
+                    &[self],
                     &[self.device()],
                     &[target_dtype],
                     &[layout],
-                    move |tensors, target_tids| {
-                        Ok(vec![tensors[0].execute_le_scalar(
-                            target_tids[0],
-                            target_dtype,
-                            scalar,
-                        )?])
+                    move |input_tids, target_tids| {
+                        let input_tensor = Tensor(input_tids[0]);
+                        let result = input_tensor.execute_le_scalar(target_tids[0], target_dtype, scalar)?;
+                        Ok(vec![result.id()])
                     },
                 )?;
                 Ok(result.into_iter().next().unwrap())
@@ -3134,8 +3385,9 @@ impl Tensor {
     /// In Lazy mode, the operation is added to the computation graph.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use maidenx_core::error::Result;
+    /// use crate::Tensor;
     ///
     /// fn gt_scalar_tensor() -> Result<()> {
     ///     let tensor = Tensor::new(&[1.0, 2.0, 3.0, 4.0]);
@@ -3162,6 +3414,8 @@ impl Tensor {
                     device: self.device(),
                     dtype: target_dtype,
                     layout: self.layout().clone(),
+                    grad_tensor_id: None,
+                    graph_id: None,
                     mode: get_mode(),
                     update_status: TensorUpdateStatus::Pending,
                 };
@@ -3170,18 +3424,16 @@ impl Tensor {
             },
             TensorMode::Lazy => {
                 let layout = self.layout().clone();
-                let result = add_to_graph(
-                    &[self],
+                let result = add_to_forward_graph(
                     "gt_scalar",
+                    &[self],
                     &[self.device()],
                     &[target_dtype],
                     &[layout],
-                    move |tensors, target_tids| {
-                        Ok(vec![tensors[0].execute_gt_scalar(
-                            target_tids[0],
-                            target_dtype,
-                            scalar,
-                        )?])
+                    move |input_tids, target_tids| {
+                        let input_tensor = Tensor(input_tids[0]);
+                        let result = input_tensor.execute_gt_scalar(target_tids[0], target_dtype, scalar)?;
+                        Ok(vec![result.id()])
                     },
                 )?;
                 Ok(result.into_iter().next().unwrap())
@@ -3197,8 +3449,9 @@ impl Tensor {
     /// In Lazy mode, the operation is added to the computation graph.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use maidenx_core::error::Result;
+    /// use crate::Tensor;
     ///
     /// fn ge_scalar_tensor() -> Result<()> {
     ///     let tensor = Tensor::new(&[1.0, 2.0, 3.0, 4.0]);
@@ -3225,6 +3478,8 @@ impl Tensor {
                     device: self.device(),
                     dtype: target_dtype,
                     layout: self.layout().clone(),
+                    grad_tensor_id: None,
+                    graph_id: None,
                     mode: get_mode(),
                     update_status: TensorUpdateStatus::Pending,
                 };
@@ -3233,18 +3488,16 @@ impl Tensor {
             },
             TensorMode::Lazy => {
                 let layout = self.layout().clone();
-                let result = add_to_graph(
-                    &[self],
+                let result = add_to_forward_graph(
                     "ge_scalar",
+                    &[self],
                     &[self.device()],
                     &[target_dtype],
                     &[layout],
-                    move |tensors, target_tids| {
-                        Ok(vec![tensors[0].execute_ge_scalar(
-                            target_tids[0],
-                            target_dtype,
-                            scalar,
-                        )?])
+                    move |input_tids, target_tids| {
+                        let input_tensor = Tensor(input_tids[0]);
+                        let result = input_tensor.execute_ge_scalar(target_tids[0], target_dtype, scalar)?;
+                        Ok(vec![result.id()])
                     },
                 )?;
                 Ok(result.into_iter().next().unwrap())

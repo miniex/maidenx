@@ -1,6 +1,6 @@
 use crate::{
-    get_mode, insert_metadata, next_tensor_id, utils::graph::add_to_graph, Tensor, TensorId, TensorMetadata,
-    TensorMode, TensorUpdateStatus,
+    eager, get_mode, insert_metadata, next_tensor_id, utils::graph::add_to_forward_graph, Tensor, TensorId,
+    TensorMetadata, TensorMode, TensorUpdateStatus,
 };
 use maidenx_core::{
     buffer::BufferManager,
@@ -20,7 +20,7 @@ macro_rules! impl_reduction_execute {
             target_layout: Layout,
             dim: usize,
         ) -> Result<Self> {
-            crate::eager!();
+            eager!();
 
             let target_size = target_layout.size();
             let mut buffer = BufferManager::create(target_size, self.device(), target_dtype)?;
@@ -33,7 +33,6 @@ macro_rules! impl_reduction_execute {
                     self.clone()
                 };
 
-                // Prepare metadata for the backend operation
                 let metadata = input_tensor.prepare_reduction_metadata(dim);
 
                 unsafe {
@@ -42,7 +41,7 @@ macro_rules! impl_reduction_execute {
                         input_tensor.storage()?.buffer(),
                         input_tensor.size(),
                         input_tensor.ndim(),
-                        1, // This parameter often represents the 'number of reductions' or similar in backend ops
+                        1,
                         Some(&metadata),
                     )?;
                 }
@@ -54,11 +53,7 @@ macro_rules! impl_reduction_execute {
 
             crate::utils::tensor::update_tensor_status(target_tid, TensorUpdateStatus::Materialized)?;
 
-            Ok(Tensor {
-                tid: target_tid,
-                gtid: TensorId(0),
-                gid: self.gid(),
-            })
+            Ok(Tensor(target_tid))
         }
     };
 }
@@ -70,7 +65,7 @@ macro_rules! impl_reduction_execute_special {
             target_tid: TensorId,
             target_dtype: DType,
             target_layout: Layout,
-            metadata: Vec<usize>, // Metadata is prepared externally and passed directly
+            metadata: Vec<usize>,
         ) -> Result<Self> {
             crate::eager!();
 
@@ -91,7 +86,7 @@ macro_rules! impl_reduction_execute_special {
                         input_tensor.storage()?.buffer(),
                         input_tensor.size(),
                         input_tensor.ndim(),
-                        Some(&metadata), // Use the passed metadata
+                        Some(&metadata),
                     )?;
                 }
             }
@@ -102,11 +97,7 @@ macro_rules! impl_reduction_execute_special {
 
             crate::utils::tensor::update_tensor_status(target_tid, TensorUpdateStatus::Materialized)?;
 
-            Ok(Tensor {
-                tid: target_tid,
-                gtid: TensorId(0),
-                gid: self.gid(),
-            })
+            Ok(Tensor(target_tid))
         }
     };
 }
@@ -143,12 +134,13 @@ impl Tensor {
     /// Computes the sum of elements along a given dimension.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use crate::Tensor;
+    ///
     /// let tensor = Tensor::new(&[[1.0, 2.0], [3.0, 4.0]]);
     /// let sum_dim0 = tensor.sum(0, false); // Sum along rows: [4.0, 6.0]
     /// let sum_dim1 = tensor.sum(1, false); // Sum along columns: [3.0, 7.0]
-    /// ```
+    /// ```rust
     ///
     /// # Panics
     ///
@@ -164,11 +156,12 @@ impl Tensor {
     /// Computes the sum of all elements in the tensor, resulting in a scalar tensor.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use crate::Tensor;
+    ///
     /// let tensor = Tensor::new(&[[1.0, 2.0], [3.0, 4.0]]);
     /// let total_sum = tensor.sum_all(); // Result: [10.0]
-    /// ```
+    /// ```rust
     ///
     /// # Panics
     ///
@@ -185,8 +178,9 @@ impl Tensor {
     /// dimensions that are 'collapsed' into the new shape are summed.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use crate::Tensor;
+    ///
     /// let tensor = Tensor::new(&[1, 2, 3, 4, 5, 6, 7, 8]).reshape(&[2, 2, 2]);
     /// // Sum [1,2] and [3,4] into first elements of target, etc.
     /// let result = tensor.sum_to_shape(&[2, 2]);
@@ -198,7 +192,7 @@ impl Tensor {
     /// // This example assumes summing along the last dimension implicitly for illustration.
     /// // (Note: The exact behavior of sum_to_shape often needs careful definition,
     /// // the example is illustrative of reduction for reshaping.)
-    /// ```
+    /// ```rust
     ///
     /// # Panics
     ///
@@ -215,12 +209,13 @@ impl Tensor {
     /// Integer tensors are promoted to F32 for accurate mean calculation.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use crate::Tensor;
+    ///
     /// let tensor = Tensor::new(&[[1.0, 2.0], [3.0, 4.0]]);
     /// let mean_dim0 = tensor.mean(0, false); // Mean along rows: [2.0, 3.0]
     /// let mean_dim1 = tensor.mean(1, false); // Mean along columns: [1.5, 3.5]
-    /// ```
+    /// ```rust
     ///
     /// # Panics
     ///
@@ -237,11 +232,12 @@ impl Tensor {
     /// Integer tensors are promoted to F32 for accurate mean calculation.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use crate::Tensor;
+    ///
     /// let tensor = Tensor::new(&[[1.0, 2.0], [3.0, 4.0]]);
     /// let total_mean = tensor.mean_all(); // Result: [2.5]
-    /// ```
+    /// ```rust
     ///
     /// # Panics
     ///
@@ -256,8 +252,9 @@ impl Tensor {
     /// Performs a generalized fold operation, often used for windowed or strided reductions.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use crate::Tensor;
+    ///
     /// let tensor = Tensor::new(&[1.0, 2.0, 3.0, 4.0, 5.0, 6.0]);
     /// // Example: Fold with dim 0, window size 3, step 1 (like a moving sum)
     /// // Actual behavior depends heavily on backend implementation.
@@ -267,7 +264,7 @@ impl Tensor {
     /// let result = tensor.fold(0, 3, 1);
     /// // This specific example output would depend on backend 'fold' definition.
     /// // If it implies sum over windows: [6.0, 9.0, 12.0, 15.0] (for window size 3, step 1)
-    /// ```
+    /// ```rust
     ///
     /// # Panics
     ///
@@ -284,12 +281,13 @@ impl Tensor {
     /// Computes the maximum value of elements along a given dimension.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use crate::Tensor;
+    ///
     /// let tensor = Tensor::new(&[[1.0, 5.0], [3.0, 2.0]]);
     /// let max_dim0 = tensor.max(0, false); // Max along rows: [3.0, 5.0]
     /// let max_dim1 = tensor.max(1, false); // Max along columns: [5.0, 3.0]
-    /// ```
+    /// ```rust
     ///
     /// # Panics
     ///
@@ -305,11 +303,12 @@ impl Tensor {
     /// Computes the maximum value among all elements in the tensor, resulting in a scalar tensor.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use crate::Tensor;
+    ///
     /// let tensor = Tensor::new(&[[1.0, 5.0], [3.0, 2.0]]);
     /// let total_max = tensor.max_all(); // Result: [5.0]
-    /// ```
+    /// ```rust
     ///
     /// # Panics
     ///
@@ -324,12 +323,13 @@ impl Tensor {
     /// Computes the minimum value of elements along a given dimension.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use crate::Tensor;
+    ///
     /// let tensor = Tensor::new(&[[1.0, 5.0], [3.0, 2.0]]);
     /// let min_dim0 = tensor.min(0, false); // Min along rows: [1.0, 2.0]
     /// let min_dim1 = tensor.min(1, false); // Min along columns: [1.0, 2.0]
-    /// ```
+    /// ```rust
     ///
     /// # Panics
     ///
@@ -345,11 +345,12 @@ impl Tensor {
     /// Computes the minimum value among all elements in the tensor, resulting in a scalar tensor.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use crate::Tensor;
+    ///
     /// let tensor = Tensor::new(&[[1.0, 5.0], [3.0, 2.0]]);
     /// let total_min = tensor.min_all(); // Result: [1.0]
-    /// ```
+    /// ```rust
     ///
     /// # Panics
     ///
@@ -365,14 +366,15 @@ impl Tensor {
     /// Integer tensors are promoted to F32 for accurate norm calculation.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use crate::Tensor;
+    ///
     /// let tensor = Tensor::new(&[[3.0, 4.0], [5.0, 12.0]]);
     /// // L2 norm along dimension 0 (columns)
     /// let norm_l2_dim0 = tensor.norm(2, 0, false); // Sqrt(3^2+5^2), Sqrt(4^2+12^2) -> [5.83, 13.0]
     /// // L1 norm along dimension 1 (rows)
     /// let norm_l1_dim1 = tensor.norm(1, 1, false); // (3+4), (5+12) -> [7.0, 17.0]
-    /// ```
+    /// ```rust
     ///
     /// # Panics
     ///
@@ -389,11 +391,12 @@ impl Tensor {
     /// Integer tensors are promoted to F32 for accurate norm calculation.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use crate::Tensor;
+    ///
     /// let tensor = Tensor::new(&[3.0, 4.0]);
     /// let norm_l2_all = tensor.norm_all(2); // Sqrt(3^2 + 4^2) = Sqrt(9 + 16) = Sqrt(25) = 5.0
-    /// ```
+    /// ```rust
     ///
     /// # Panics
     ///
@@ -409,13 +412,14 @@ impl Tensor {
     /// Integer tensors are promoted to F32. Supports biased or unbiased variance.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use crate::Tensor;
+    ///
     /// // Variance of [1.0, 2.0, 3.0] (unbiased): ((1-2)^2 + (2-2)^2 + (3-2)^2) / (3-1) = (1+0+1)/2 = 1.0
     /// let tensor = Tensor::new(&[1.0, 2.0, 3.0]);
     /// let variance = tensor.var(0, false, true); // var over dim 0, no keep_dim, unbiased
     /// // Result: [1.0] (approximately)
-    /// ```
+    /// ```rust
     ///
     /// # Panics
     ///
@@ -432,12 +436,13 @@ impl Tensor {
     /// Integer tensors are promoted to F32. Supports biased or unbiased variance.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use crate::Tensor;
+    ///
     /// let tensor = Tensor::new(&[1.0, 2.0, 3.0]);
     /// let variance_all = tensor.var_all(true); // unbiased variance of all elements
     /// // Result: [1.0] (approximately)
-    /// ```
+    /// ```rust
     ///
     /// # Panics
     ///
@@ -453,13 +458,14 @@ impl Tensor {
     /// Integer tensors are promoted to F32. Supports biased or unbiased standard deviation.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use crate::Tensor;
+    ///
     /// // Standard deviation of [1.0, 2.0, 3.0] (unbiased): Sqrt(1.0) = 1.0
     /// let tensor = Tensor::new(&[1.0, 2.0, 3.0]);
     /// let std_dev = tensor.std(0, false, true);
     /// // Result: [1.0] (approximately)
-    /// ```
+    /// ```rust
     ///
     /// # Panics
     ///
@@ -476,12 +482,13 @@ impl Tensor {
     /// Integer tensors are promoted to F32. Supports biased or unbiased standard deviation.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use crate::Tensor;
+    ///
     /// let tensor = Tensor::new(&[1.0, 2.0, 3.0]);
     /// let std_dev_all = tensor.std_all(true);
     /// // Result: [1.0] (approximately)
-    /// ```
+    /// ```rust
     ///
     /// # Panics
     ///
@@ -502,7 +509,7 @@ impl Tensor {
     /// * `keep_dim`: If true, retains the reduced dimension with size 1.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use maidenx_core::error::Result;
     /// use crate::Tensor;
     ///
@@ -512,7 +519,7 @@ impl Tensor {
     ///     let sum_dim1_keep = tensor.try_sum(1, true)?; // Result shape [2, 1], values [[3], [7]]
     ///     Ok(())
     /// }
-    /// ```
+    /// ```rust
     ///
     /// # Errors
     ///
@@ -550,6 +557,8 @@ impl Tensor {
                     device: self.device(),
                     dtype: target_dtype,
                     layout: target_layout.clone(),
+                    grad_tensor_id: None,
+                    graph_id: None,
                     mode: get_mode(),
                     update_status: TensorUpdateStatus::Pending,
                 };
@@ -558,19 +567,17 @@ impl Tensor {
             },
             TensorMode::Lazy => {
                 let target_layout_clone = target_layout.clone();
-                let result = add_to_graph(
-                    &[self],
+                let result = add_to_forward_graph(
                     "sum",
+                    &[self],
                     &[self.device()],
                     &[target_dtype],
                     &[target_layout],
-                    move |tensors, target_tids| {
-                        Ok(vec![tensors[0].execute_sum(
-                            target_tids[0],
-                            target_dtype,
-                            target_layout_clone.clone(),
-                            dim,
-                        )?])
+                    move |input_tids, target_tids| {
+                        let input_tensor = Tensor(input_tids[0]);
+                        let result =
+                            input_tensor.execute_sum(target_tids[0], target_dtype, target_layout_clone.clone(), dim)?;
+                        Ok(vec![result.id()])
                     },
                 )?;
                 result.into_iter().next().unwrap()
@@ -592,7 +599,7 @@ impl Tensor {
     /// until a scalar tensor remains.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use maidenx_core::error::Result;
     /// use crate::Tensor;
     ///
@@ -601,7 +608,7 @@ impl Tensor {
     ///     let total_sum = tensor.try_sum_all()?; // Result: [10.0]
     ///     Ok(())
     /// }
-    /// ```
+    /// ```rust
     ///
     /// # Errors
     ///
@@ -624,7 +631,7 @@ impl Tensor {
     /// * `shape`: The target shape to sum the tensor into.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use maidenx_core::error::Result;
     /// use crate::Tensor;
     ///
@@ -637,7 +644,7 @@ impl Tensor {
     ///     let result = tensor.try_sum_to_shape(&[2, 2])?;
     ///     Ok(())
     /// }
-    /// ```
+    /// ```rust
     ///
     /// # Errors
     ///
@@ -686,6 +693,8 @@ impl Tensor {
                     device: self.device(),
                     dtype: target_dtype,
                     layout: target_layout.clone(),
+                    grad_tensor_id: None,
+                    graph_id: None,
                     mode: get_mode(),
                     update_status: TensorUpdateStatus::Pending,
                 };
@@ -695,19 +704,22 @@ impl Tensor {
             TensorMode::Lazy => {
                 let target_layout_clone = target_layout.clone();
                 let metadata_clone = metadata.clone();
-                let result = add_to_graph(
-                    &[self],
+
+                let result = add_to_forward_graph(
                     "sum_to_shape",
+                    &[self],
                     &[self.device()],
                     &[target_dtype],
                     &[target_layout],
-                    move |tensors, target_tids| {
-                        Ok(vec![tensors[0].execute_sum_to_shape(
+                    move |input_tids, target_tids| {
+                        let input_tensor = Tensor(input_tids[0]);
+                        let result = input_tensor.execute_sum_to_shape(
                             target_tids[0],
                             target_dtype,
                             target_layout_clone.clone(),
                             metadata_clone.clone(),
-                        )?])
+                        )?;
+                        Ok(vec![result.id()])
                     },
                 )?;
                 Ok(result.into_iter().next().unwrap())
@@ -725,7 +737,7 @@ impl Tensor {
     /// * `keep_dim`: If true, retains the reduced dimension with size 1.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use maidenx_core::error::Result;
     /// use crate::Tensor;
     ///
@@ -735,7 +747,7 @@ impl Tensor {
     ///     let mean_dim1_keep = tensor.try_mean(1, true)?; // Result shape [2, 1], values [[1.5], [3.5]]
     ///     Ok(())
     /// }
-    /// ```
+    /// ```rust
     ///
     /// # Errors
     ///
@@ -781,6 +793,8 @@ impl Tensor {
                     device: self.device(),
                     dtype: target_dtype,
                     layout: target_layout.clone(),
+                    grad_tensor_id: None,
+                    graph_id: None,
                     mode: get_mode(),
                     update_status: TensorUpdateStatus::Pending,
                 };
@@ -789,19 +803,21 @@ impl Tensor {
             },
             TensorMode::Lazy => {
                 let target_layout_clone = target_layout.clone();
-                let result = add_to_graph(
-                    &[self],
+                let result = add_to_forward_graph(
                     "mean",
+                    &[self],
                     &[self.device()],
                     &[target_dtype],
                     &[target_layout],
-                    move |tensors, target_tids| {
-                        Ok(vec![tensors[0].execute_mean(
+                    move |input_tids, target_tids| {
+                        let input_tensor = Tensor(input_tids[0]);
+                        let result = input_tensor.execute_mean(
                             target_tids[0],
                             target_dtype,
                             target_layout_clone.clone(),
                             dim,
-                        )?])
+                        )?;
+                        Ok(vec![result.id()])
                     },
                 )?;
                 result.into_iter().next().unwrap()
@@ -823,7 +839,7 @@ impl Tensor {
     /// until a scalar tensor remains. Integer tensors are promoted to F32.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use maidenx_core::error::Result;
     /// use crate::Tensor;
     ///
@@ -832,7 +848,7 @@ impl Tensor {
     ///     let total_mean = tensor.try_mean_all()?; // Result: [2.5]
     ///     Ok(())
     /// }
-    /// ```
+    /// ```rust
     ///
     /// # Errors
     ///
@@ -857,7 +873,7 @@ impl Tensor {
     /// * `step`: The step (stride) of the sliding window.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use maidenx_core::error::Result;
     /// use crate::Tensor;
     ///
@@ -872,7 +888,7 @@ impl Tensor {
     ///     let result = tensor.try_fold(0, 2, 1)?; // Assuming dim 0, size 2, step 1
     ///     Ok(())
     /// }
-    /// ```
+    /// ```rust
     ///
     /// # Errors
     ///
@@ -934,6 +950,8 @@ impl Tensor {
                     device: self.device(),
                     dtype: target_dtype,
                     layout: target_layout.clone(),
+                    grad_tensor_id: None,
+                    graph_id: None,
                     mode: get_mode(),
                     update_status: TensorUpdateStatus::Pending,
                 };
@@ -943,19 +961,21 @@ impl Tensor {
             TensorMode::Lazy => {
                 let target_layout_clone = target_layout.clone();
                 let metadata_clone = metadata.clone();
-                let result = add_to_graph(
-                    &[self],
+                let result = add_to_forward_graph(
                     "fold",
+                    &[self],
                     &[self.device()],
                     &[target_dtype],
                     &[target_layout],
-                    move |tensors, target_tids| {
-                        Ok(vec![tensors[0].execute_fold(
+                    move |input_tids, target_tids| {
+                        let input_tensor = Tensor(input_tids[0]);
+                        let result = input_tensor.execute_fold(
                             target_tids[0],
                             target_dtype,
                             target_layout_clone.clone(),
                             metadata_clone.clone(),
-                        )?])
+                        )?;
+                        Ok(vec![result.id()])
                     },
                 )?;
                 Ok(result.into_iter().next().unwrap())
@@ -974,7 +994,7 @@ impl Tensor {
     /// * `keep_dim`: If true, retains the reduced dimension with size 1.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use maidenx_core::error::Result;
     /// use crate::Tensor;
     ///
@@ -984,7 +1004,7 @@ impl Tensor {
     ///     let max_dim1_keep = tensor.try_max(1, true)?; // Result shape [2, 1], values [[5.0], [3.0]]
     ///     Ok(())
     /// }
-    /// ```
+    /// ```rust
     ///
     /// # Errors
     ///
@@ -1022,6 +1042,8 @@ impl Tensor {
                     device: self.device(),
                     dtype: target_dtype,
                     layout: target_layout.clone(),
+                    grad_tensor_id: None,
+                    graph_id: None,
                     mode: get_mode(),
                     update_status: TensorUpdateStatus::Pending,
                 };
@@ -1030,19 +1052,17 @@ impl Tensor {
             },
             TensorMode::Lazy => {
                 let target_layout_clone = target_layout.clone();
-                let result = add_to_graph(
-                    &[self],
+                let result = add_to_forward_graph(
                     "max",
+                    &[self],
                     &[self.device()],
                     &[target_dtype],
                     &[target_layout],
-                    move |tensors, target_tids| {
-                        Ok(vec![tensors[0].execute_max(
-                            target_tids[0],
-                            target_dtype,
-                            target_layout_clone.clone(),
-                            dim,
-                        )?])
+                    move |input_tids, target_tids| {
+                        let input_tensor = Tensor(input_tids[0]);
+                        let result =
+                            input_tensor.execute_max(target_tids[0], target_dtype, target_layout_clone.clone(), dim)?;
+                        Ok(vec![result.id()])
                     },
                 )?;
                 result.into_iter().next().unwrap()
@@ -1064,7 +1084,7 @@ impl Tensor {
     /// until a scalar tensor remains.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use maidenx_core::error::Result;
     /// use crate::Tensor;
     ///
@@ -1073,7 +1093,7 @@ impl Tensor {
     ///     let total_max = tensor.try_max_all()?; // Result: [5.0]
     ///     Ok(())
     /// }
-    /// ```
+    /// ```rust
     ///
     /// # Errors
     ///
@@ -1097,7 +1117,7 @@ impl Tensor {
     /// * `keep_dim`: If true, retains the reduced dimension with size 1.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use maidenx_core::error::Result;
     /// use crate::Tensor;
     ///
@@ -1107,7 +1127,7 @@ impl Tensor {
     ///     let min_dim1_keep = tensor.try_min(1, true)?; // Result shape [2, 1], values [[1.0], [2.0]]
     ///     Ok(())
     /// }
-    /// ```
+    /// ```rust
     ///
     /// # Errors
     ///
@@ -1145,6 +1165,8 @@ impl Tensor {
                     device: self.device(),
                     dtype: target_dtype,
                     layout: target_layout.clone(),
+                    grad_tensor_id: None,
+                    graph_id: None,
                     mode: get_mode(),
                     update_status: TensorUpdateStatus::Pending,
                 };
@@ -1153,19 +1175,17 @@ impl Tensor {
             },
             TensorMode::Lazy => {
                 let target_layout_clone = target_layout.clone();
-                let result = add_to_graph(
-                    &[self],
+                let result = add_to_forward_graph(
                     "min",
+                    &[self],
                     &[self.device()],
                     &[target_dtype],
                     &[target_layout],
-                    move |tensors, target_tids| {
-                        Ok(vec![tensors[0].execute_min(
-                            target_tids[0],
-                            target_dtype,
-                            target_layout_clone.clone(),
-                            dim,
-                        )?])
+                    move |input_tids, target_tids| {
+                        let input_tensor = Tensor(input_tids[0]);
+                        let result =
+                            input_tensor.execute_min(target_tids[0], target_dtype, target_layout_clone.clone(), dim)?;
+                        Ok(vec![result.id()])
                     },
                 )?;
                 result.into_iter().next().unwrap()
@@ -1187,7 +1207,7 @@ impl Tensor {
     /// until a scalar tensor remains.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use maidenx_core::error::Result;
     /// use crate::Tensor;
     ///
@@ -1196,7 +1216,7 @@ impl Tensor {
     ///     let total_min = tensor.try_min_all()?; // Result: [1.0]
     ///     Ok(())
     /// }
-    /// ```
+    /// ```rust
     ///
     /// # Errors
     ///
@@ -1225,7 +1245,7 @@ impl Tensor {
     /// * `keep_dim`: If true, retains the reduced dimension with size 1.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use maidenx_core::error::Result;
     /// use crate::Tensor;
     ///
@@ -1238,7 +1258,7 @@ impl Tensor {
     ///     let norm_l1_dim1 = tensor.try_norm(1, 1, false)?; // Result: [7.0, 17.0]
     ///     Ok(())
     /// }
-    /// ```
+    /// ```rust
     ///
     /// # Errors
     ///
@@ -1295,7 +1315,7 @@ impl Tensor {
     /// * `p`: The order of the norm (e.g., 1.0 for L1, 2.0 for L2).
     ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use maidenx_core::error::Result;
     /// use crate::Tensor;
     ///
@@ -1304,7 +1324,7 @@ impl Tensor {
     ///     let norm_l2_all = tensor.try_norm_all(2)?; // Result: [5.0]
     ///     Ok(())
     /// }
-    /// ```
+    /// ```rust
     ///
     /// # Errors
     ///
@@ -1338,7 +1358,7 @@ impl Tensor {
     /// * `unbiased`: If true, uses `n-1` in the denominator for an unbiased estimate; otherwise, uses `n`.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use maidenx_core::error::Result;
     /// use crate::Tensor;
     ///
@@ -1351,7 +1371,7 @@ impl Tensor {
     ///     let var_biased = tensor.try_var(0, false, false)?; // Result: [0.666...]
     ///     Ok(())
     /// }
-    /// ```
+    /// ```rust
     ///
     /// # Errors
     ///
@@ -1413,7 +1433,7 @@ impl Tensor {
     /// * `unbiased`: If true, uses `N-1` in the denominator for an unbiased estimate; otherwise, uses `N`.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use maidenx_core::error::Result;
     /// use crate::Tensor;
     ///
@@ -1422,7 +1442,7 @@ impl Tensor {
     ///     let var_all_unbiased = tensor.try_var_all(true)?; // Result: [1.0]
     ///     Ok(())
     /// }
-    /// ```
+    /// ```rust
     ///
     /// # Errors
     ///
@@ -1467,7 +1487,7 @@ impl Tensor {
     /// * `unbiased`: If true, uses `n-1` for variance calculation; otherwise, uses `n`.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use maidenx_core::error::Result;
     /// use crate::Tensor;
     ///
@@ -1476,7 +1496,7 @@ impl Tensor {
     ///     let std_dev = tensor.try_std(0, false, true)?; // Result: [1.0] (sqrt of 1.0)
     ///     Ok(())
     /// }
-    /// ```
+    /// ```rust
     ///
     /// # Errors
     ///
@@ -1501,7 +1521,7 @@ impl Tensor {
     /// * `unbiased`: If true, computes unbiased standard deviation.
     ///
     /// # Examples
-    /// ```
+    /// ```rust
     /// use maidenx_core::error::Result;
     /// use crate::Tensor;
     ///
@@ -1510,7 +1530,7 @@ impl Tensor {
     ///     let std_dev_all = tensor.try_std_all(true)?; // Result: [1.0]
     ///     Ok(())
     /// }
-    /// ```
+    /// ```rust
     ///
     /// # Errors
     ///
@@ -1577,4 +1597,3 @@ impl Tensor {
         info
     }
 }
-

@@ -12,14 +12,14 @@ use utils::test_both_modes;
 fn with_device() -> Result<()> {
     auto_set_device();
     let mut tensor = Tensor::ones(&[2, 3]);
-    let original_tid = tensor.tid();
+    let original_id = tensor.id();
     let original_data = tensor.to_flatten_vec::<f32>();
 
     tensor.with_device(Device::CPU);
 
     assert_eq!(tensor.device(), Device::CPU);
     assert_eq!(tensor.mode(), TensorMode::Eager);
-    assert_eq!(tensor.tid(), original_tid); // Same tensor (in-place modification)
+    assert_eq!(tensor.id(), original_id); // Same tensor (in-place modification)
     assert!(tensor.is_const());
     assert!(tensor.is_storaged());
 
@@ -33,13 +33,13 @@ fn with_device() -> Result<()> {
 fn with_dtype() -> Result<()> {
     auto_set_device();
     let mut tensor = Tensor::ones(&[2, 3]);
-    let original_tid = tensor.tid();
+    let original_tid = tensor.id();
 
     tensor.with_dtype(DType::F16);
 
     assert_eq!(tensor.dtype(), DType::F16);
     assert_eq!(tensor.mode(), TensorMode::Eager);
-    assert_eq!(tensor.tid(), original_tid); // Same tensor (in-place modification)
+    assert_eq!(tensor.id(), original_tid); // Same tensor (in-place modification)
     assert!(tensor.is_const());
     assert!(tensor.is_storaged());
 
@@ -58,7 +58,7 @@ fn to_device() -> Result<()> {
 
         assert_eq!(new_tensor.device(), Device::CPU);
         assert_eq!(new_tensor.mode(), mode);
-        assert_ne!(tensor.tid(), new_tensor.tid());
+        assert_ne!(tensor.id(), new_tensor.id());
 
         match mode {
             TensorMode::Eager => {
@@ -94,7 +94,7 @@ fn to_dtype() -> Result<()> {
 
         assert_eq!(new_tensor.dtype(), DType::F16);
         assert_eq!(new_tensor.mode(), mode);
-        assert_ne!(tensor.tid(), new_tensor.tid());
+        assert_ne!(tensor.id(), new_tensor.id());
 
         match mode {
             TensorMode::Eager => {
