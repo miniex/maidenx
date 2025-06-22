@@ -1,14 +1,16 @@
-// This module contains various tensor operations.
-
-// ## Operations that create new tensors with new storage
 mod binary;
+mod indexing;
 mod matmul;
 mod padding;
 mod reduction;
 mod unary;
-// Indexing operations - all require tensor materialization before execution
-mod indexing;
 
-// ## Operations that create new tensors with shared storage
-// These operations create new tensor objects but reuse the underlying storage.
+mod _try_binary;
+mod _try_indexing;
+mod _try_matmul;
+mod _try_padding;
+mod _try_reduction;
+mod _try_transform;
+mod _try_unary;
+
 mod transform;

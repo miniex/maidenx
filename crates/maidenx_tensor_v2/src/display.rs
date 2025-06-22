@@ -195,61 +195,113 @@ fn debug_format_data<T: fmt::Display>(data: &[T], use_float_format: bool) -> Str
 
 impl fmt::Display for Tensor {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self.dtype() {
-            DType::BF16 | DType::F16 => {
-                let data = self.to_flatten_vec::<f32>();
-                display_tensor_data(f, &data, self.size(), &self.shape(), 0, true, None)
-            },
-            DType::F32 => {
-                let data = self.to_flatten_vec::<f32>();
-                display_tensor_data(f, &data, self.size(), &self.shape(), 0, true, None)
-            },
-            DType::F64 => {
-                let data = self.to_flatten_vec::<f64>();
-                display_tensor_data(f, &data, self.size(), &self.shape(), 0, true, None)
-            },
-            DType::BOOL => {
-                let data = self.to_flatten_vec::<bool>();
-                display_tensor_data(f, &data, self.size(), &self.shape(), 0, false, None)
-            },
-            DType::U8 => {
-                let data = self.to_flatten_vec::<u8>();
-                display_tensor_data(f, &data, self.size(), &self.shape(), 0, false, None)
-            },
-            DType::U16 => {
-                let data = self.to_flatten_vec::<u16>();
-                display_tensor_data(f, &data, self.size(), &self.shape(), 0, false, None)
-            },
-            DType::U32 => {
-                let data = self.to_flatten_vec::<u32>();
-                display_tensor_data(f, &data, self.size(), &self.shape(), 0, false, None)
-            },
-            DType::U64 => {
-                let data = self.to_flatten_vec::<u64>();
-                display_tensor_data(f, &data, self.size(), &self.shape(), 0, false, None)
-            },
-            DType::I8 => {
-                let data = self.to_flatten_vec::<i8>();
-                display_tensor_data(f, &data, self.size(), &self.shape(), 0, false, None)
-            },
-            DType::I16 => {
-                let data = self.to_flatten_vec::<i16>();
-                display_tensor_data(f, &data, self.size(), &self.shape(), 0, false, None)
-            },
-            DType::I32 => {
-                let data = self.to_flatten_vec::<i32>();
-                display_tensor_data(f, &data, self.size(), &self.shape(), 0, false, None)
-            },
-            DType::I64 => {
-                let data = self.to_flatten_vec::<i64>();
-                display_tensor_data(f, &data, self.size(), &self.shape(), 0, false, None)
-            },
+        // Check for special constant tensors
+        match self.id().0 {
+            0 => return write!(f, "NULL_TENSOR"),
+            _ => {},
+        }
+
+        if !self.is_const() && !self.is_storaged() {
+            write!(f, "<lazy>")
+        } else {
+            match self.dtype() {
+                DType::BF16 | DType::F16 => {
+                    if let Ok(data) = self.try_to_flatten_vec::<f32>() {
+                        display_tensor_data(f, &data, self.size(), &self.shape(), 0, true, None)
+                    } else {
+                        write!(f, "<error>")
+                    }
+                },
+                DType::F32 => {
+                    if let Ok(data) = self.try_to_flatten_vec::<f32>() {
+                        display_tensor_data(f, &data, self.size(), &self.shape(), 0, true, None)
+                    } else {
+                        write!(f, "<error>")
+                    }
+                },
+                DType::F64 => {
+                    if let Ok(data) = self.try_to_flatten_vec::<f64>() {
+                        display_tensor_data(f, &data, self.size(), &self.shape(), 0, true, None)
+                    } else {
+                        write!(f, "<error>")
+                    }
+                },
+                DType::BOOL => {
+                    if let Ok(data) = self.try_to_flatten_vec::<bool>() {
+                        display_tensor_data(f, &data, self.size(), &self.shape(), 0, false, None)
+                    } else {
+                        write!(f, "<error>")
+                    }
+                },
+                DType::U8 => {
+                    if let Ok(data) = self.try_to_flatten_vec::<u8>() {
+                        display_tensor_data(f, &data, self.size(), &self.shape(), 0, false, None)
+                    } else {
+                        write!(f, "<error>")
+                    }
+                },
+                DType::U16 => {
+                    if let Ok(data) = self.try_to_flatten_vec::<u16>() {
+                        display_tensor_data(f, &data, self.size(), &self.shape(), 0, false, None)
+                    } else {
+                        write!(f, "<error>")
+                    }
+                },
+                DType::U32 => {
+                    if let Ok(data) = self.try_to_flatten_vec::<u32>() {
+                        display_tensor_data(f, &data, self.size(), &self.shape(), 0, false, None)
+                    } else {
+                        write!(f, "<error>")
+                    }
+                },
+                DType::U64 => {
+                    if let Ok(data) = self.try_to_flatten_vec::<u64>() {
+                        display_tensor_data(f, &data, self.size(), &self.shape(), 0, false, None)
+                    } else {
+                        write!(f, "<error>")
+                    }
+                },
+                DType::I8 => {
+                    if let Ok(data) = self.try_to_flatten_vec::<i8>() {
+                        display_tensor_data(f, &data, self.size(), &self.shape(), 0, false, None)
+                    } else {
+                        write!(f, "<error>")
+                    }
+                },
+                DType::I16 => {
+                    if let Ok(data) = self.try_to_flatten_vec::<i16>() {
+                        display_tensor_data(f, &data, self.size(), &self.shape(), 0, false, None)
+                    } else {
+                        write!(f, "<error>")
+                    }
+                },
+                DType::I32 => {
+                    if let Ok(data) = self.try_to_flatten_vec::<i32>() {
+                        display_tensor_data(f, &data, self.size(), &self.shape(), 0, false, None)
+                    } else {
+                        write!(f, "<error>")
+                    }
+                },
+                DType::I64 => {
+                    if let Ok(data) = self.try_to_flatten_vec::<i64>() {
+                        display_tensor_data(f, &data, self.size(), &self.shape(), 0, false, None)
+                    } else {
+                        write!(f, "<error>")
+                    }
+                },
+            }
         }
     }
 }
 
 impl fmt::Debug for Tensor {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        // Check for special constant tensors
+        match self.id().0 {
+            0 => return write!(f, "NULL_TENSOR"),
+            _ => {},
+        }
+
         write!(f, "Tensor(shape=[")?;
         let shape = self.shape();
         for (i, dim) in shape.iter().enumerate() {
@@ -260,65 +312,104 @@ impl fmt::Debug for Tensor {
         }
         write!(
             f,
-            "], device={}, dtype={}, mode={}",
+            "], id={}, device={}, dtype={}",
+            self.id().0,
             self.device().name(),
             self.dtype().as_str(),
-            self.mode().as_str()
         )?;
         write!(f, ", data=")?;
 
-        match self.dtype() {
-            DType::BF16 | DType::F16 => {
-                let data = self.to_flatten_vec::<f32>();
-                write!(f, "{}", debug_format_data(&data, true))?;
-            },
-            DType::F32 => {
-                let data = self.to_flatten_vec::<f32>();
-                write!(f, "{}", debug_format_data(&data, true))?;
-            },
-            DType::F64 => {
-                let data = self.to_flatten_vec::<f64>();
-                write!(f, "{}", debug_format_data(&data, true))?;
-            },
-            DType::BOOL => {
-                let data = self.to_flatten_vec::<bool>();
-                write!(f, "{}", debug_format_data(&data, false))?;
-            },
-            DType::U8 => {
-                let data = self.to_flatten_vec::<u8>();
-                write!(f, "{}", debug_format_data(&data, false))?;
-            },
-            DType::U16 => {
-                let data = self.to_flatten_vec::<u16>();
-                write!(f, "{}", debug_format_data(&data, false))?;
-            },
-            DType::U32 => {
-                let data = self.to_flatten_vec::<u32>();
-                write!(f, "{}", debug_format_data(&data, false))?;
-            },
-            DType::U64 => {
-                let data = self.to_flatten_vec::<u64>();
-                write!(f, "{}", debug_format_data(&data, false))?;
-            },
-            DType::I8 => {
-                let data = self.to_flatten_vec::<i8>();
-                write!(f, "{}", debug_format_data(&data, false))?;
-            },
-            DType::I16 => {
-                let data = self.to_flatten_vec::<i16>();
-                write!(f, "{}", debug_format_data(&data, false))?;
-            },
-            DType::I32 => {
-                let data = self.to_flatten_vec::<i32>();
-                write!(f, "{}", debug_format_data(&data, false))?;
-            },
-            DType::I64 => {
-                let data = self.to_flatten_vec::<i64>();
-                write!(f, "{}", debug_format_data(&data, false))?;
-            },
+        if !self.is_const() && !self.is_storaged() {
+            write!(f, "<lazy>")?;
+        } else {
+            match self.dtype() {
+                DType::BF16 | DType::F16 => {
+                    if let Ok(data) = self.try_to_flatten_vec::<f32>() {
+                        write!(f, "{}", debug_format_data(&data, true))?;
+                    } else {
+                        write!(f, "<error>")?;
+                    }
+                },
+                DType::F32 => {
+                    if let Ok(data) = self.try_to_flatten_vec::<f32>() {
+                        write!(f, "{}", debug_format_data(&data, true))?;
+                    } else {
+                        write!(f, "<error>")?;
+                    }
+                },
+                DType::F64 => {
+                    if let Ok(data) = self.try_to_flatten_vec::<f64>() {
+                        write!(f, "{}", debug_format_data(&data, true))?;
+                    } else {
+                        write!(f, "<error>")?;
+                    }
+                },
+                DType::BOOL => {
+                    if let Ok(data) = self.try_to_flatten_vec::<bool>() {
+                        write!(f, "{}", debug_format_data(&data, false))?;
+                    } else {
+                        write!(f, "<error>")?;
+                    }
+                },
+                DType::U8 => {
+                    if let Ok(data) = self.try_to_flatten_vec::<u8>() {
+                        write!(f, "{}", debug_format_data(&data, false))?;
+                    } else {
+                        write!(f, "<error>")?;
+                    }
+                },
+                DType::U16 => {
+                    if let Ok(data) = self.try_to_flatten_vec::<u16>() {
+                        write!(f, "{}", debug_format_data(&data, false))?;
+                    } else {
+                        write!(f, "<error>")?;
+                    }
+                },
+                DType::U32 => {
+                    if let Ok(data) = self.try_to_flatten_vec::<u32>() {
+                        write!(f, "{}", debug_format_data(&data, false))?;
+                    } else {
+                        write!(f, "<error>")?;
+                    }
+                },
+                DType::U64 => {
+                    if let Ok(data) = self.try_to_flatten_vec::<u64>() {
+                        write!(f, "{}", debug_format_data(&data, false))?;
+                    } else {
+                        write!(f, "<error>")?;
+                    }
+                },
+                DType::I8 => {
+                    if let Ok(data) = self.try_to_flatten_vec::<i8>() {
+                        write!(f, "{}", debug_format_data(&data, false))?;
+                    } else {
+                        write!(f, "<error>")?;
+                    }
+                },
+                DType::I16 => {
+                    if let Ok(data) = self.try_to_flatten_vec::<i16>() {
+                        write!(f, "{}", debug_format_data(&data, false))?;
+                    } else {
+                        write!(f, "<error>")?;
+                    }
+                },
+                DType::I32 => {
+                    if let Ok(data) = self.try_to_flatten_vec::<i32>() {
+                        write!(f, "{}", debug_format_data(&data, false))?;
+                    } else {
+                        write!(f, "<error>")?;
+                    }
+                },
+                DType::I64 => {
+                    if let Ok(data) = self.try_to_flatten_vec::<i64>() {
+                        write!(f, "{}", debug_format_data(&data, false))?;
+                    } else {
+                        write!(f, "<error>")?;
+                    }
+                },
+            }
         }
 
-        write!(f, ", requires_grad={}", self.requires_grad())?;
         write!(f, ")")
     }
 }

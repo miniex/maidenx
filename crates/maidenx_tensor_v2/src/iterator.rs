@@ -34,4 +34,3 @@ impl Iterator for TensorIndexIterator {
         Some(result)
     }
 }
-

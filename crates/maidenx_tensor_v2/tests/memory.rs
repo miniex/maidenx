@@ -20,7 +20,7 @@ fn contiguous() -> Result<()> {
 
         assert!(contiguous_tensor.is_contiguous());
         assert_eq!(contiguous_tensor.mode(), mode);
-        assert_ne!(transposed.tid(), contiguous_tensor.tid());
+        assert_ne!(transposed.id(), contiguous_tensor.id());
 
         match mode {
             TensorMode::Eager => {
