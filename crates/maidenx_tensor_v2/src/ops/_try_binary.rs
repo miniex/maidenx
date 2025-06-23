@@ -295,6 +295,9 @@ impl Tensor {
     }
 
     pub fn try_maximum(&self, rhs: &Self) -> Result<Self> {
+        let original_lhs = self.clone();
+        let original_rhs = rhs.clone();
+
         let target_dtype = get_promoted_dtype(self.dtype(), rhs.dtype());
 
         let (lhs, rhs) = broadcast_tensors(self, rhs)?;
@@ -326,10 +329,42 @@ impl Tensor {
             },
         };
 
+        if is_grad_enabled() && (original_lhs.requires_grad() || original_rhs.requires_grad()) {
+            no_grad!();
+            lazy!();
+            output.try_enable_grad()?;
+
+            let equal_mask = original_lhs.try_eq(&original_rhs)?;
+            let equal_half = equal_mask.try_mul_scalar(0.5)?;
+
+            if original_lhs.requires_grad() {
+                let lhs_mask = original_lhs.try_gt(&original_rhs)?;
+
+                let g1 = output.grad().try_mul(&lhs_mask)?;
+                let g2 = equal_half.try_mul(&output.grad())?;
+                let g3 = g1.try_add(&g2)?;
+                let g4 = g3.try_sum_to_shape(&original_lhs.shape())?;
+                accumulate(&g4, &original_lhs.grad())?;
+            }
+
+            if original_rhs.requires_grad() {
+                let rhs_mask = original_lhs.try_gt(&original_lhs)?;
+
+                let g1 = output.grad().try_mul(&rhs_mask)?;
+                let g2 = equal_half.try_mul(&output.grad())?;
+                let g3 = g1.try_add(&g2)?;
+                let g4 = g3.try_sum_to_shape(&original_rhs.shape())?;
+                accumulate(&g4, &original_rhs.grad())?;
+            }
+        }
+
         Ok(output)
     }
 
     pub fn try_minimum(&self, rhs: &Self) -> Result<Self> {
+        let original_lhs = self.clone();
+        let original_rhs = rhs.clone();
+
         let target_dtype = get_promoted_dtype(self.dtype(), rhs.dtype());
 
         let (lhs, rhs) = broadcast_tensors(self, rhs)?;
@@ -360,6 +395,35 @@ impl Tensor {
                 })?;
             },
         };
+
+        if is_grad_enabled() && (original_lhs.requires_grad() || original_rhs.requires_grad()) {
+            no_grad!();
+            lazy!();
+            output.try_enable_grad()?;
+
+            let equal_mask = original_lhs.try_eq(&original_rhs)?;
+            let equal_half = equal_mask.try_mul_scalar(0.5)?;
+
+            if original_lhs.requires_grad() {
+                let lhs_mask = original_lhs.try_lt(&original_rhs)?;
+
+                let g1 = output.grad().try_mul(&lhs_mask)?;
+                let g2 = equal_half.try_mul(&output.grad())?;
+                let g3 = g1.try_add(&g2)?;
+                let g4 = g3.try_sum_to_shape(&original_lhs.shape())?;
+                accumulate(&g4, &original_lhs.grad())?;
+            }
+
+            if original_rhs.requires_grad() {
+                let rhs_mask = original_lhs.try_lt(&original_lhs)?;
+
+                let g1 = output.grad().try_mul(&rhs_mask)?;
+                let g2 = equal_half.try_mul(&output.grad())?;
+                let g3 = g1.try_add(&g2)?;
+                let g4 = g3.try_sum_to_shape(&original_rhs.shape())?;
+                accumulate(&g4, &original_rhs.grad())?;
+            }
+        }
 
         Ok(output)
     }

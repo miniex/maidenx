@@ -1,6 +1,7 @@
 use crate::{
-    get_mode, insert_metadata, next_tensor_id, utils::graph::add_to_graph, Tensor, TensorMetadata, TensorMode,
-    TensorUpdateStatus,
+    get_mode, insert_metadata, is_grad_enabled, lazy, next_tensor_id, no_grad,
+    utils::graph::{accumulate, add_to_graph},
+    Tensor, TensorMetadata, TensorMode, TensorUpdateStatus,
 };
 use maidenx_core::{
     dtype::DType,
@@ -128,6 +129,15 @@ impl Tensor {
             },
         };
 
+        if is_grad_enabled() && self.requires_grad() {
+            no_grad!();
+            lazy!();
+            output.try_enable_grad()?;
+
+            let g1 = output.grad().try_neg()?;
+            accumulate(&g1, &self.grad())?;
+        }
+
         Ok(output)
     }
 
@@ -168,6 +178,15 @@ impl Tensor {
                 })?;
             },
         };
+
+        if is_grad_enabled() && self.requires_grad() {
+            no_grad!();
+            lazy!();
+            output.try_enable_grad()?;
+
+            let g1 = output.grad().try_mul(&self.try_sign()?)?;
+            accumulate(&g1, &self.grad())?;
+        }
 
         Ok(output)
     }
@@ -241,6 +260,15 @@ impl Tensor {
             },
         };
 
+        if is_grad_enabled() && self.requires_grad() {
+            no_grad!();
+            lazy!();
+            output.try_enable_grad()?;
+
+            let g1 = output.grad().try_mul_scalar(2.0)?.try_mul(self)?;
+            accumulate(&g1, &self.grad())?;
+        }
+
         Ok(output)
     }
 
@@ -276,6 +304,15 @@ impl Tensor {
                 })?;
             },
         };
+
+        if is_grad_enabled() && self.requires_grad() {
+            no_grad!();
+            lazy!();
+            output.try_enable_grad()?;
+
+            let g1 = output.grad().try_div(&output.try_mul_scalar(2.0)?)?;
+            accumulate(&g1, &self.grad())?;
+        }
 
         Ok(output)
     }
@@ -313,6 +350,17 @@ impl Tensor {
             },
         };
 
+        if is_grad_enabled() && self.requires_grad() {
+            no_grad!();
+            lazy!();
+            output.try_enable_grad()?;
+
+            let g1 = output
+                .grad()
+                .try_mul(&self.try_gt_scalar(0.0)?.try_to_dtype(output.dtype())?)?;
+            accumulate(&g1, &self.grad())?;
+        }
+
         Ok(output)
     }
 
@@ -348,6 +396,18 @@ impl Tensor {
                 })?;
             },
         };
+
+        if is_grad_enabled() && self.requires_grad() {
+            no_grad!();
+            lazy!();
+            output.try_enable_grad()?;
+
+            let g1 = output
+                .grad()
+                .try_mul(&output)?
+                .try_mul(&output.try_sub_scalar(1.0)?.try_neg()?)?;
+            accumulate(&g1, &self.grad())?;
+        }
 
         Ok(output)
     }
@@ -385,6 +445,17 @@ impl Tensor {
             },
         };
 
+        if is_grad_enabled() && self.requires_grad() {
+            no_grad!();
+            lazy!();
+            output.try_enable_grad()?;
+
+            let g1 = output
+                .grad()
+                .try_mul(&output.try_pow(2.0)?.try_neg()?.try_add_scalar(1.0)?)?;
+            accumulate(&g1, &self.grad())?;
+        }
+
         Ok(output)
     }
 
@@ -420,6 +491,37 @@ impl Tensor {
                 })?;
             },
         };
+
+        if is_grad_enabled() && self.requires_grad() {
+            no_grad!();
+            lazy!();
+            output.try_enable_grad()?;
+
+            let sqrt_2_over_pi = 0.7978845608028654;
+            let coeff = 0.044715;
+
+            let x_squared = self.try_mul(self)?;
+            let x_cubed = x_squared.try_mul(self)?;
+            let tanh_arg = self
+                .try_add(&x_cubed.try_mul_scalar(coeff)?)?
+                .try_mul_scalar(sqrt_2_over_pi)?;
+
+            let tanh_val = tanh_arg.try_tanh()?;
+            let sech_squared = tanh_val.try_mul(&tanh_val)?.try_mul_scalar(-1.0)?.try_add_scalar(1.0)?;
+            let inner_derivative = x_squared
+                .try_mul_scalar(3.0 * coeff)?
+                .try_add_scalar(1.0)?
+                .try_mul_scalar(sqrt_2_over_pi)?;
+
+            let term1 = tanh_val.try_add_scalar(1.0)?.try_mul_scalar(0.5)?;
+            let term2 = self
+                .try_mul(&sech_squared)?
+                .try_mul(&inner_derivative)?
+                .try_mul_scalar(0.5)?;
+            let g1 = output.grad().try_mul(&term1.try_add(&term2)?)?;
+
+            accumulate(&g1, &self.grad())?;
+        }
 
         Ok(output)
     }
@@ -457,6 +559,15 @@ impl Tensor {
             },
         };
 
+        if is_grad_enabled() && self.requires_grad() {
+            no_grad!();
+            lazy!();
+            output.try_enable_grad()?;
+
+            let g1 = output.grad().try_mul(&self.try_cos()?)?;
+            accumulate(&g1, &self.grad())?;
+        }
+
         Ok(output)
     }
 
@@ -492,6 +603,15 @@ impl Tensor {
                 })?;
             },
         };
+
+        if is_grad_enabled() && self.requires_grad() {
+            no_grad!();
+            lazy!();
+            output.try_enable_grad()?;
+
+            let g1 = output.grad().try_mul(&self.try_sin()?.try_neg()?)?;
+            accumulate(&g1, &self.grad())?;
+        }
 
         Ok(output)
     }
@@ -529,6 +649,17 @@ impl Tensor {
             },
         };
 
+        if is_grad_enabled() && self.requires_grad() {
+            no_grad!();
+            lazy!();
+            output.try_enable_grad()?;
+
+            let cos_x = self.try_cos()?;
+            let sec_squared = cos_x.try_mul(&cos_x)?.try_pow(-1.0)?;
+            let g1 = output.grad().try_mul(&sec_squared)?;
+            accumulate(&g1, &self.grad())?;
+        }
+
         Ok(output)
     }
 
@@ -564,6 +695,15 @@ impl Tensor {
                 })?;
             },
         };
+
+        if is_grad_enabled() && self.requires_grad() {
+            no_grad!();
+            lazy!();
+            output.try_enable_grad()?;
+
+            let g1 = output.grad().try_div(self)?;
+            accumulate(&g1, &self.grad())?;
+        }
 
         Ok(output)
     }
@@ -605,6 +745,16 @@ impl Tensor {
             },
         };
 
+        if is_grad_enabled() && self.requires_grad() {
+            no_grad!();
+            lazy!();
+            output.try_enable_grad()?;
+
+            let ln10 = std::f32::consts::LN_10;
+            let g1 = output.grad().try_div(self)?.try_div_scalar(ln10)?;
+            accumulate(&g1, &self.grad())?;
+        }
+
         Ok(output)
     }
 
@@ -640,6 +790,16 @@ impl Tensor {
                 })?;
             },
         };
+
+        if is_grad_enabled() && self.requires_grad() {
+            no_grad!();
+            lazy!();
+            output.try_enable_grad()?;
+
+            let ln2 = std::f32::consts::LN_2;
+            let g1 = output.grad().try_div(self)?.try_div_scalar(ln2)?;
+            accumulate(&g1, &self.grad())?;
+        }
 
         Ok(output)
     }
@@ -677,6 +837,15 @@ impl Tensor {
             },
         };
 
+        if is_grad_enabled() && self.requires_grad() {
+            no_grad!();
+            lazy!();
+            output.try_enable_grad()?;
+
+            let g1 = output.grad().try_mul(&output)?;
+            accumulate(&g1, &self.grad())?;
+        }
+
         Ok(output)
     }
 
@@ -712,6 +881,16 @@ impl Tensor {
                 })?;
             },
         };
+
+        if is_grad_enabled() && self.requires_grad() {
+            no_grad!();
+            lazy!();
+            output.try_enable_grad()?;
+
+            let ln10 = std::f32::consts::LN_10;
+            let g1 = output.grad().try_mul(&output)?.try_mul_scalar(ln10)?;
+            accumulate(&g1, &self.grad())?;
+        }
 
         Ok(output)
     }
@@ -749,6 +928,16 @@ impl Tensor {
             },
         };
 
+        if is_grad_enabled() && self.requires_grad() {
+            no_grad!();
+            lazy!();
+            output.try_enable_grad()?;
+
+            let ln2 = std::f32::consts::LN_2;
+            let g1 = output.grad().try_mul(&output)?.try_mul_scalar(ln2)?;
+            accumulate(&g1, &self.grad())?;
+        }
+
         Ok(output)
     }
 
@@ -785,6 +974,15 @@ impl Tensor {
             },
         };
 
+        if is_grad_enabled() && self.requires_grad() {
+            no_grad!();
+            lazy!();
+            output.try_enable_grad()?;
+
+            let g1 = output.grad().try_mul(&self.try_sigmoid()?)?;
+            accumulate(&g1, &self.grad())?;
+        }
+
         Ok(output)
     }
 
@@ -820,6 +1018,17 @@ impl Tensor {
                 })?;
             },
         };
+
+        if is_grad_enabled() && self.requires_grad() {
+            no_grad!();
+            lazy!();
+            output.try_enable_grad()?;
+
+            let input_squared = self.try_square()?;
+            let neg_grad = output.grad().try_neg()?;
+            let g1 = neg_grad.try_div(&input_squared)?;
+            accumulate(&g1, &self.grad())?;
+        }
 
         Ok(output)
     }
@@ -964,6 +1173,15 @@ impl Tensor {
             },
         };
 
+        if is_grad_enabled() && self.requires_grad() {
+            no_grad!();
+            lazy!();
+            output.try_enable_grad()?;
+
+            let g1 = output.grad().try_mul_scalar(scalar)?;
+            accumulate(&g1, &self.grad())?;
+        }
+
         Ok(output)
     }
 
@@ -1000,6 +1218,15 @@ impl Tensor {
                 })?;
             },
         };
+
+        if is_grad_enabled() && self.requires_grad() {
+            no_grad!();
+            lazy!();
+            output.try_enable_grad()?;
+
+            let g1 = output.grad().try_div_scalar(scalar)?;
+            accumulate(&g1, &self.grad())?;
+        }
 
         Ok(output)
     }
@@ -1114,6 +1341,18 @@ impl Tensor {
             },
         };
 
+        if is_grad_enabled() && self.requires_grad() {
+            no_grad!();
+            lazy!();
+            output.try_enable_grad()?;
+
+            let g1 = output
+                .grad()
+                .try_mul_scalar(exponent)?
+                .try_mul(&self.try_pow(exponent.as_f32() - 1.0)?)?;
+            accumulate(&g1, &self.grad())?;
+        }
+
         Ok(output)
     }
 
@@ -1151,6 +1390,20 @@ impl Tensor {
             },
         };
 
+        if is_grad_enabled() && self.requires_grad() {
+            no_grad!();
+            lazy!();
+            output.try_enable_grad()?;
+
+            let ones = self.try_gt_scalar(0.0)?.try_to_dtype(output.dtype())?;
+            let alpha_mask = ones.try_mul_scalar(-1.0)?.try_add_scalar(1.0)?;
+
+            let g1 = output
+                .grad()
+                .try_mul(&ones.try_add(&alpha_mask.try_mul_scalar(alpha)?)?)?;
+            accumulate(&g1, &self.grad())?;
+        }
+
         Ok(output)
     }
 
@@ -1187,6 +1440,19 @@ impl Tensor {
                 })?;
             },
         };
+
+        if is_grad_enabled() && self.requires_grad() {
+            no_grad!();
+            lazy!();
+            output.try_enable_grad()?;
+
+            let pos_mask = self.try_gt_scalar(0.0)?.try_to_dtype(output.dtype())?;
+            let neg_mask = pos_mask.try_mul_scalar(-1.0)?.try_add_scalar(1.0)?;
+            let neg_grad = output.try_mul(&neg_mask)?.try_add_scalar(alpha)?.try_mul(&neg_mask)?;
+            let g1 = output.grad().try_mul(&pos_mask.try_add(&neg_grad)?)?;
+
+            accumulate(&g1, &self.grad())?;
+        }
 
         Ok(output)
     }
