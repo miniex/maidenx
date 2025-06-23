@@ -1,6 +1,8 @@
 use maidenx::tensor_v2::prelude::*;
 
 fn main() {
+    lazy!();
+
     let a = Tensor::new(vec![1.0, 2.0, 3.0]);
     let b = Tensor::new(vec![1.0, 2.0, 3.0]);
     let c = Tensor::new(vec![1.0, 2.0, 3.0]);
@@ -12,19 +14,19 @@ fn main() {
     d.forward();
     d.backward();
 
-    println!("d: {:?}", d);
+    println!("d: {}", d);
 
-    println!("a.grad: {:?}", a.grad());
-    println!("b.grad: {:?}", b.grad());
-    println!("c.grad: {:?}", c.grad());
+    println!("a.grad: {}", a.grad());
+    println!("b.grad: {}", b.grad());
+    println!("c.grad: {}", c.grad());
 
     let e = a.add(&a.mul(&b).mul(&b)).add(&a.mul(&a)).add(&a.mul(&b).mul(&c));
     e.forward();
     e.backward();
 
-    println!("e: {:?}", e);
+    println!("e: {}", e);
 
-    println!("a.grad: {:?}", a.grad());
-    println!("b.grad: {:?}", b.grad());
-    println!("c.grad: {:?}", c.grad());
+    println!("a.grad: {}", a.grad());
+    println!("b.grad: {}", b.grad());
+    println!("c.grad: {}", c.grad());
 }

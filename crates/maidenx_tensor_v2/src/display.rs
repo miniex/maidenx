@@ -4,7 +4,69 @@ use std::fmt;
 
 const MAX_ELEMENTS_PER_DIM: usize = 4;
 
-fn display_tensor_data<T: fmt::Display>(
+fn format_float<T: fmt::Display + Copy>(value: T) -> String
+where
+    T: Into<f64>,
+{
+    let val = value.into();
+    if val.fract() == 0.0 {
+        format!("{:.0}.", val)
+    } else {
+        let formatted = format!("{:.6}", val);
+        let trimmed = formatted.trim_end_matches('0').trim_end_matches('.');
+        if trimmed.contains('.') {
+            trimmed.to_string()
+        } else {
+            format!("{}.", trimmed)
+        }
+    }
+}
+
+trait FormatValue {
+    fn format_value(&self, use_float_format: bool) -> String;
+}
+
+impl FormatValue for f32 {
+    fn format_value(&self, use_float_format: bool) -> String {
+        if use_float_format {
+            format_float(*self)
+        } else {
+            format!("{}", self)
+        }
+    }
+}
+
+impl FormatValue for f64 {
+    fn format_value(&self, use_float_format: bool) -> String {
+        if use_float_format {
+            format_float(*self)
+        } else {
+            format!("{}", self)
+        }
+    }
+}
+
+impl FormatValue for bool {
+    fn format_value(&self, _use_float_format: bool) -> String {
+        format!("{}", self)
+    }
+}
+
+macro_rules! impl_format_value_for_int {
+    ($($t:ty),*) => {
+        $(
+            impl FormatValue for $t {
+                fn format_value(&self, _use_float_format: bool) -> String {
+                    format!("{}", self)
+                }
+            }
+        )*
+    };
+}
+
+impl_format_value_for_int!(u8, u16, u32, u64, i8, i16, i32, i64);
+
+fn display_tensor_data<T>(
     f: &mut fmt::Formatter<'_>,
     data: &[T],
     stride: usize,
@@ -12,14 +74,13 @@ fn display_tensor_data<T: fmt::Display>(
     depth: usize,
     use_float_format: bool,
     column_width: Option<usize>,
-) -> fmt::Result {
+) -> fmt::Result
+where
+    T: FormatValue,
+{
     match shape.len() {
         0 => {
-            if use_float_format {
-                write!(f, "{:.6}", data[0])
-            } else {
-                write!(f, "{}", data[0])
-            }
+            write!(f, "{}", data[0].format_value(use_float_format))
         },
         1 => {
             write!(f, "[")?;
@@ -32,13 +93,7 @@ fn display_tensor_data<T: fmt::Display>(
 
             let width = column_width.unwrap_or_else(|| {
                 data.iter()
-                    .map(|val| {
-                        if use_float_format {
-                            format!("{:.6}", val).len()
-                        } else {
-                            format!("{}", val).len()
-                        }
-                    })
+                    .map(|val| val.format_value(use_float_format).len())
                     .max()
                     .unwrap_or(0)
             });
@@ -47,11 +102,7 @@ fn display_tensor_data<T: fmt::Display>(
                 if i > 0 {
                     write!(f, ", ")?;
                 }
-                let formatted = if use_float_format {
-                    format!("{:.6}", &data[i])
-                } else {
-                    format!("{}", &data[i])
-                };
+                let formatted = data[i].format_value(use_float_format);
                 write!(f, "{:width$}", formatted, width = width)?;
             }
 
@@ -62,11 +113,7 @@ fn display_tensor_data<T: fmt::Display>(
             if show_end > 0 && len > show_start + show_end {
                 for i in (len - show_end)..len {
                     write!(f, ", ")?;
-                    let formatted = if use_float_format {
-                        format!("{:.6}", &data[i])
-                    } else {
-                        format!("{}", &data[i])
-                    };
+                    let formatted = data[i].format_value(use_float_format);
                     write!(f, "{:width$}", formatted, width = width)?;
                 }
             }
@@ -88,11 +135,7 @@ fn display_tensor_data<T: fmt::Display>(
                     for j in 0..shape[1].min(3) {
                         let idx = i * sub_stride + j;
                         if idx < data.len() {
-                            let formatted = if use_float_format {
-                                format!("{:.6}", &data[idx])
-                            } else {
-                                format!("{}", &data[idx])
-                            };
+                            let formatted = data[idx].format_value(use_float_format);
                             max_width = max_width.max(formatted.len());
                         }
                     }
@@ -153,7 +196,10 @@ fn display_tensor_data<T: fmt::Display>(
     }
 }
 
-fn debug_format_data<T: fmt::Display>(data: &[T], use_float_format: bool) -> String {
+fn debug_format_data<T>(data: &[T], use_float_format: bool) -> String
+where
+    T: FormatValue,
+{
     let mut result = String::from("[");
     let len = data.len();
 
@@ -167,11 +213,7 @@ fn debug_format_data<T: fmt::Display>(data: &[T], use_float_format: bool) -> Str
         if i > 0 {
             result.push_str(", ");
         }
-        if use_float_format {
-            result.push_str(&format!("{:.6}", &data[i]));
-        } else {
-            result.push_str(&format!("{}", &data[i]));
-        }
+        result.push_str(&data[i].format_value(use_float_format));
     }
 
     if len > show_start + show_end {
@@ -181,11 +223,7 @@ fn debug_format_data<T: fmt::Display>(data: &[T], use_float_format: bool) -> Str
     if show_end > 0 && len > show_start + show_end {
         for i in (len - show_end)..len {
             result.push_str(", ");
-            if use_float_format {
-                result.push_str(&format!("{:.6}", &data[i]));
-            } else {
-                result.push_str(&format!("{}", &data[i]));
-            }
+            result.push_str(&data[i].format_value(use_float_format));
         }
     }
 
@@ -302,7 +340,13 @@ impl fmt::Debug for Tensor {
             _ => {},
         }
 
-        write!(f, "Tensor(shape=[")?;
+        write!(
+            f,
+            "Tensor(id={}, device={}, dtype={}, shape=[",
+            self.id().0,
+            self.device().name(),
+            self.dtype().as_str(),
+        )?;
         let shape = self.shape();
         for (i, dim) in shape.iter().enumerate() {
             if i > 0 {
@@ -310,14 +354,7 @@ impl fmt::Debug for Tensor {
             }
             write!(f, "{}", dim)?;
         }
-        write!(
-            f,
-            "], id={}, device={}, dtype={}",
-            self.id().0,
-            self.device().name(),
-            self.dtype().as_str(),
-        )?;
-        write!(f, ", data=")?;
+        write!(f, "], data=")?;
 
         if !self.is_const() && !self.is_storaged() {
             write!(f, "<lazy>")?;
