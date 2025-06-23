@@ -1,6 +1,9 @@
 use crate::{
-    get_mode, insert_metadata, next_tensor_id,
-    utils::{graph::add_to_graph, promotion::get_promoted_dtype},
+    get_mode, insert_metadata, is_grad_enabled, lazy, next_tensor_id, no_grad,
+    utils::{
+        graph::{accumulate, add_to_graph},
+        promotion::get_promoted_dtype,
+    },
     Tensor, TensorMetadata, TensorMode, TensorUpdateStatus,
 };
 use maidenx_core::{
@@ -11,6 +14,9 @@ use maidenx_core::{
 
 impl Tensor {
     pub fn try_matmul(&self, rhs: &Self) -> Result<Tensor> {
+        let original_lhs = self.clone();
+        let original_rhs = rhs.clone();
+
         let l_ndim = self.ndim();
         let r_ndim = rhs.ndim();
 
@@ -85,6 +91,87 @@ impl Tensor {
             let last_dim = result.ndim() - 1;
             if result.shape()[last_dim] == 1 {
                 result = result.try_squeeze(&[last_dim])?;
+            }
+        }
+
+        if is_grad_enabled() && (original_lhs.requires_grad() || original_rhs.requires_grad()) {
+            no_grad!();
+            lazy!();
+            result.try_enable_grad()?;
+
+            if original_lhs.requires_grad() {
+                let g1 = match (l_ndim, r_ndim) {
+                    (1, 1) => {
+                        // vector @ vector -> scalar
+                        // grad_lhs = grad_out * rhs
+                        result.grad().try_mul(&original_rhs)?
+                    },
+                    (1, _) => {
+                        // vector @ matrix/batch -> vector/batch
+                        // grad_lhs = grad_out @ rhs.T
+                        let rhs_transposed = if r_ndim >= 2 {
+                            original_rhs.try_transpose(-2, -1)?
+                        } else {
+                            original_rhs.clone()
+                        };
+                        result.grad().try_matmul(&rhs_transposed)?
+                    },
+                    (_, 1) => {
+                        // matrix/batch @ vector -> vector/batch
+                        // For batch case, we need to handle broadcasting properly
+                        let grad_out = &result.grad();
+                        let grad_expanded = grad_out.try_unsqueeze(&[grad_out.ndim()])?;
+                        let rhs_expanded = original_rhs.try_unsqueeze(&[0])?;
+                        grad_expanded
+                            .try_matmul(&rhs_expanded)?
+                            .try_squeeze(&[grad_expanded.ndim()])?
+                    },
+                    _ => {
+                        // matrix/batch @ matrix/batch -> matrix/batch
+                        // grad_lhs = grad_out @ rhs.T
+                        let rhs_transposed = original_rhs.try_transpose(-2, -1)?;
+                        result.grad().try_matmul(&rhs_transposed)?
+                    },
+                };
+                let g2 = g1.try_sum_to_shape(&original_lhs.shape())?;
+                accumulate(&g2, &original_lhs.grad())?;
+            }
+
+            if original_rhs.requires_grad() {
+                let g1 = match (l_ndim, r_ndim) {
+                    (1, 1) => {
+                        // vector @ vector -> scalar
+                        // grad_rhs = grad_out * lhs
+                        result.grad().try_mul(&original_lhs)?
+                    },
+                    (1, _) => {
+                        // vector @ matrix/batch -> vector/batch
+                        // grad_rhs = lhs.unsqueeze(0).T @ grad_out.unsqueeze(-1)
+                        let lhs_expanded = original_lhs.try_unsqueeze(&[0])?;
+                        let lhs_transposed = if l_ndim >= 2 {
+                            lhs_expanded.try_transpose(-2, -1)?
+                        } else {
+                            lhs_expanded.clone()
+                        };
+                        let grad_out = &result.grad();
+                        let grad_expanded = grad_out.try_unsqueeze(&[grad_out.ndim()])?;
+                        lhs_transposed.try_matmul(&grad_expanded)?.try_squeeze(&[0])?
+                    },
+                    (_, 1) => {
+                        // matrix/batch @ vector -> vector/batch
+                        // grad_rhs = lhs.T @ grad_out
+                        let lhs_transposed = original_lhs.try_transpose(-2, -1)?;
+                        lhs_transposed.try_matmul(&result.grad())?
+                    },
+                    _ => {
+                        // matrix/batch @ matrix/batch -> matrix/batch
+                        // grad_rhs = lhs.T @ grad_out
+                        let lhs_transposed = original_lhs.try_transpose(-2, -1)?;
+                        lhs_transposed.try_matmul(&result.grad())?
+                    },
+                };
+                let g2 = g1.try_sum_to_shape(&original_rhs.shape())?;
+                accumulate(&g2, &original_rhs.grad())?;
             }
         }
 
