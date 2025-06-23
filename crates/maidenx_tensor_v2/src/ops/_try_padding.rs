@@ -1,6 +1,7 @@
 use crate::{
-    get_mode, insert_metadata, next_tensor_id, utils::graph::add_to_graph, Tensor, TensorMetadata, TensorMode,
-    TensorUpdateStatus,
+    get_mode, insert_metadata, is_grad_enabled, lazy, next_tensor_id, no_grad,
+    utils::graph::{accumulate, add_to_graph},
+    Tensor, TensorMetadata, TensorMode, TensorUpdateStatus,
 };
 use maidenx_core::{
     dtype::DType,
@@ -121,6 +122,8 @@ impl Tensor {
             });
         }
 
+        let original_input = self.clone();
+
         let target_dtype = if self.dtype().is_bool() {
             DType::U8
         } else {
@@ -168,6 +171,48 @@ impl Tensor {
             },
         };
 
+        if is_grad_enabled() && original_input.requires_grad() {
+            no_grad!();
+            lazy!();
+            output.try_enable_grad()?;
+
+            let input_shape = original_input.shape().to_vec();
+            let input_strides = original_input.strides().to_vec();
+            let paddings_vec = paddings.to_vec();
+
+            let grad_input_tid = next_tensor_id();
+            let grad_input_layout = Layout::from_shape(&input_shape);
+            let grad_metadata = TensorMetadata {
+                device: output.device(),
+                dtype: output.dtype(),
+                layout: grad_input_layout,
+                requires_grad: false,
+                grad_tensor_id: None,
+                mode: get_mode(),
+                update_status: TensorUpdateStatus::Pending,
+            };
+            insert_metadata(grad_input_tid, grad_metadata);
+            let grad_input = Tensor(grad_input_tid);
+
+            add_to_graph(
+                "pad_constant_backward",
+                &[&output.grad()],
+                &[&grad_input],
+                move |inputs, outputs| {
+                    Self::execute_unpadded_grad_static(
+                        &inputs[0],
+                        &outputs[0],
+                        &input_shape,
+                        &input_strides,
+                        &paddings_vec,
+                    )?;
+                    Ok(())
+                },
+            )?;
+
+            accumulate(&grad_input, &original_input.grad())?;
+        }
+
         Ok(output)
     }
 
@@ -197,6 +242,8 @@ impl Tensor {
                 )));
             }
         }
+
+        let original_input = self.clone();
 
         let target_dtype = if self.dtype().is_bool() {
             DType::U8
@@ -243,6 +290,48 @@ impl Tensor {
             },
         };
 
+        if is_grad_enabled() && original_input.requires_grad() {
+            no_grad!();
+            lazy!();
+            output.try_enable_grad()?;
+
+            let input_shape = original_input.shape().to_vec();
+            let input_strides = original_input.strides().to_vec();
+            let paddings_vec = paddings.to_vec();
+
+            let grad_input_tid = next_tensor_id();
+            let grad_input_layout = Layout::from_shape(&input_shape);
+            let grad_metadata = TensorMetadata {
+                device: output.device(),
+                dtype: output.dtype(),
+                layout: grad_input_layout,
+                requires_grad: false,
+                grad_tensor_id: None,
+                mode: get_mode(),
+                update_status: TensorUpdateStatus::Pending,
+            };
+            insert_metadata(grad_input_tid, grad_metadata);
+            let grad_input = Tensor(grad_input_tid);
+
+            add_to_graph(
+                "pad_reflection_backward",
+                &[&output.grad()],
+                &[&grad_input],
+                move |inputs, outputs| {
+                    Self::execute_reflection_grad_static(
+                        &inputs[0],
+                        &outputs[0],
+                        &input_shape,
+                        &input_strides,
+                        &paddings_vec,
+                    )?;
+                    Ok(())
+                },
+            )?;
+
+            accumulate(&grad_input, &original_input.grad())?;
+        }
+
         Ok(output)
     }
 
@@ -254,6 +343,8 @@ impl Tensor {
                 msg: "Number of padding pairs should match tensor dimensions".to_string(),
             });
         }
+
+        let original_input = self.clone();
 
         let target_dtype = if self.dtype().is_bool() {
             DType::U8
@@ -299,6 +390,48 @@ impl Tensor {
                 })?;
             },
         };
+
+        if is_grad_enabled() && original_input.requires_grad() {
+            no_grad!();
+            lazy!();
+            output.try_enable_grad()?;
+
+            let input_shape = original_input.shape().to_vec();
+            let input_strides = original_input.strides().to_vec();
+            let paddings_vec = paddings.to_vec();
+
+            let grad_input_tid = next_tensor_id();
+            let grad_input_layout = Layout::from_shape(&input_shape);
+            let grad_metadata = TensorMetadata {
+                device: output.device(),
+                dtype: output.dtype(),
+                layout: grad_input_layout,
+                requires_grad: false,
+                grad_tensor_id: None,
+                mode: get_mode(),
+                update_status: TensorUpdateStatus::Pending,
+            };
+            insert_metadata(grad_input_tid, grad_metadata);
+            let grad_input = Tensor(grad_input_tid);
+
+            add_to_graph(
+                "pad_replication_backward",
+                &[&output.grad()],
+                &[&grad_input],
+                move |inputs, outputs| {
+                    Self::execute_replication_grad_static(
+                        &inputs[0],
+                        &outputs[0],
+                        &input_shape,
+                        &input_strides,
+                        &paddings_vec,
+                    )?;
+                    Ok(())
+                },
+            )?;
+
+            accumulate(&grad_input, &original_input.grad())?;
+        }
 
         Ok(output)
     }
@@ -360,5 +493,119 @@ impl Tensor {
         }
 
         info
+    }
+
+    fn execute_unpadded_grad_static(
+        grad_out: &Tensor,
+        target: &Tensor,
+        input_shape: &[usize],
+        input_strides: &[usize],
+        paddings: &[(usize, usize)],
+    ) -> Result<()> {
+        use maidenx_core::buffer::BufferManager;
+        use std::sync::Arc;
+
+        let input_size: usize = input_shape.iter().product();
+        let mut buffer = BufferManager::create(input_size, grad_out.device(), grad_out.dtype())?;
+
+        {
+            let buffer_mut = Arc::get_mut(&mut buffer).ok_or(Error::BufferShared)?;
+            let metadata = Self::prepare_metadata_for_padding_backward(input_shape, input_strides, 0, paddings);
+
+            unsafe {
+                maidenx_core::be::ops::padding::pad_with_constant_backward(
+                    buffer_mut,
+                    grad_out.storage()?.buffer(),
+                    input_size,
+                    grad_out.size(),
+                    grad_out.ndim(),
+                    Some(&metadata),
+                )?;
+            }
+        }
+
+        let sid = crate::next_storage_id();
+        crate::link_tensor_to_storage(target.id(), sid);
+        crate::insert_storage(sid, crate::TensorStorage::new(buffer));
+
+        crate::utils::tensor::update_tensor_status(target.id(), TensorUpdateStatus::Materialized)?;
+
+        Ok(())
+    }
+
+    fn execute_reflection_grad_static(
+        grad_out: &Tensor,
+        target: &Tensor,
+        input_shape: &[usize],
+        input_strides: &[usize],
+        paddings: &[(usize, usize)],
+    ) -> Result<()> {
+        use maidenx_core::buffer::BufferManager;
+        use std::sync::Arc;
+
+        let input_size: usize = input_shape.iter().product();
+        let mut buffer = BufferManager::create(input_size, grad_out.device(), grad_out.dtype())?;
+
+        {
+            let buffer_mut = Arc::get_mut(&mut buffer).ok_or(Error::BufferShared)?;
+            let metadata = Self::prepare_metadata_for_padding_backward(input_shape, input_strides, 0, paddings);
+
+            unsafe {
+                maidenx_core::be::ops::padding::pad_with_reflection_backward(
+                    buffer_mut,
+                    grad_out.storage()?.buffer(),
+                    input_size,
+                    grad_out.size(),
+                    grad_out.ndim(),
+                    Some(&metadata),
+                )?;
+            }
+        }
+
+        let sid = crate::next_storage_id();
+        crate::link_tensor_to_storage(target.id(), sid);
+        crate::insert_storage(sid, crate::TensorStorage::new(buffer));
+
+        crate::utils::tensor::update_tensor_status(target.id(), TensorUpdateStatus::Materialized)?;
+
+        Ok(())
+    }
+
+    fn execute_replication_grad_static(
+        grad_out: &Tensor,
+        target: &Tensor,
+        input_shape: &[usize],
+        input_strides: &[usize],
+        paddings: &[(usize, usize)],
+    ) -> Result<()> {
+        use maidenx_core::buffer::BufferManager;
+        use std::sync::Arc;
+
+        let input_size: usize = input_shape.iter().product();
+        let mut buffer = BufferManager::create(input_size, grad_out.device(), grad_out.dtype())?;
+
+        {
+            let buffer_mut = Arc::get_mut(&mut buffer).ok_or(Error::BufferShared)?;
+            let metadata = Self::prepare_metadata_for_padding_backward(input_shape, input_strides, 0, paddings);
+
+            unsafe {
+                maidenx_core::be::ops::padding::pad_with_replication_backward(
+                    buffer_mut,
+                    grad_out.storage()?.buffer(),
+                    input_size,
+                    grad_out.size(),
+                    grad_out.ndim(),
+                    Some(&metadata),
+                )?;
+            }
+        }
+
+        let sid = crate::next_storage_id();
+        crate::link_tensor_to_storage(target.id(), sid);
+        crate::insert_storage(sid, crate::TensorStorage::new(buffer));
+
+        crate::utils::tensor::update_tensor_status(target.id(), TensorUpdateStatus::Materialized)?;
+
+        Ok(())
     }
 }
